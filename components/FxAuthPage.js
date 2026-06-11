@@ -25,7 +25,7 @@ export function FxAuthPage({ intent = "signup" }) {
     const authFlag = window.localStorage.getItem(STORAGE_KEYS.AUTH_COMPLETE);
 
     if (authFlag) {
-      router.replace(ROUTES.APP);
+      router.replace(intent === "signup" ? ROUTES.CREATE_JOB : ROUTES.ACTION_CENTER);
       router.refresh();
       return;
     }

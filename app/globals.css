@@ -50,15 +50,15 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
 
 .dark {
   /* Tailwind slate neutral palette - VS Code / GitHub Dark Dimmed feel */
-  --fx-bg: #030712; /* slate-950 */
+  --fx-bg: #020617; /* slate-950 */
   --fx-bg-soft: #0f172a; /* slate-900 */
   --fx-surface: #0f172a; /* slate-900 */
   --fx-surface-raised: #1e293b; /* slate-800 */
   --fx-text: #f1f5f9; /* slate-100 */
-  --fx-text-muted: #cbd5e1; /* slate-400 */
+  --fx-text-muted: #94a3b8; /* slate-400 */
   --fx-border: #334155; /* slate-700 */
   --fx-primary: #60a5fa; /* blue-400 */
-  --fx-primary-foreground: #030712; /* slate-950 */
+  --fx-primary-foreground: #020617; /* slate-950 */
   --fx-success: #22c55e;
   --fx-warning: #fbbf24;
   --fx-danger: #f87171;

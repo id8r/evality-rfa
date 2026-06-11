@@ -19,7 +19,19 @@ function getThemeFromDom() {
   return document.documentElement.classList.contains("dark") ? THEMES.DARK : THEMES.LIGHT;
 }
 
-export function FxThemeToggle() {
+function applyTheme(nextTheme) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const root = document.documentElement;
+
+  root.classList.toggle("dark", nextTheme === THEMES.DARK);
+  window.localStorage.setItem(STORAGE_KEYS.THEME, nextTheme);
+  window.dispatchEvent(new Event("fx-theme-change"));
+}
+
+export function useFxTheme() {
   const [theme, setTheme] = useState(THEMES.LIGHT);
 
   useEffect(() => {
@@ -27,18 +39,16 @@ export function FxThemeToggle() {
   }, []);
 
   function handleToggleTheme() {
-    if (typeof window === "undefined") {
-      return;
-    }
-
     const nextTheme = theme === THEMES.DARK ? THEMES.LIGHT : THEMES.DARK;
-    const root = document.documentElement;
-
-    root.classList.toggle("dark", nextTheme === THEMES.DARK);
-    window.localStorage.setItem(STORAGE_KEYS.THEME, nextTheme);
-    window.dispatchEvent(new Event("fx-theme-change"));
+    applyTheme(nextTheme);
     setTheme(nextTheme);
   }
+
+  return { theme, handleToggleTheme };
+}
+
+export function FxThemeToggle() {
+  const { theme, handleToggleTheme } = useFxTheme();
 
   return (
     <button

@@ -88,27 +88,6 @@ export function FxAuthDialog({
   }
 
   function completeAuth(preference) {
-  if (typeof window !== "undefined") {
-    if (preference) {
-      localStorage.setItem(STORAGE_KEYS.HIRING_PREFERENCE, preference);
-    }
-    localStorage.setItem(STORAGE_KEYS.AUTH_COMPLETE, "true");
-    window.dispatchEvent(new Event("fx-auth-change"));
-  }
-
-  setIsOpen(false);
-
-  if (intent === "signup") {
-    router.replace(ROUTES.CREATE_JOB);
-  } else {
-    router.replace(ROUTES.APP);
-  }
-
-  router.refresh();
-}
-/* - - - - - - - - - - - - - - - - */
-
-  /* function completeAuth(preference) {
     if (typeof window !== "undefined") {
       if (preference) {
         localStorage.setItem(STORAGE_KEYS.HIRING_PREFERENCE, preference);
@@ -117,9 +96,9 @@ export function FxAuthDialog({
       window.dispatchEvent(new Event("fx-auth-change"));
     }
     setIsOpen(false);
-    router.replace(ROUTES.APP);
+    router.replace(intent === "signup" ? ROUTES.CREATE_JOB : ROUTES.ACTION_CENTER);
     router.refresh();
-  } */
+  }
 
   function handleAuthSuccess() {
     if (typeof window !== "undefined") {

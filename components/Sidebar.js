@@ -3,19 +3,26 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Briefcase, ChevronLeft, ChevronRight, FileText, FolderOpen, Inbox, Users } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Briefcase, ChevronLeft, ChevronRight, CircleHelp, FileText, FolderOpen, Inbox, LogOut, Users } from "lucide-react";
 
-import { useRouter } from "next/navigation";
-
+import { useFxTheme } from "@/components/FxThemeToggle";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  ACCOUNT_MENU_WIDTH_CLASS,
   APP_SHORT_NAME,
   DEMO_USER,
   NAV_ITEMS,
   ROUTES,
   SIDEBAR_COLLAPSED_WIDTH_CLASS,
   SIDEBAR_EXPANDED_WIDTH_CLASS,
-  STORAGE_KEYS
+  STORAGE_KEYS,
 } from "@/lib/FxConstants";
 
 const NAV_ICONS = {
@@ -42,19 +49,20 @@ function Avatar({ name }) {
 }
 /* - - - - - - - - - - - - - - - - */
 
-
-
 export function Sidebar({ isCollapsed, onToggle }) {
   const pathname = usePathname();
-
   const router = useRouter();
+  const { theme, handleToggleTheme } = useFxTheme();
 
-function handleLogout() {
-  window.localStorage.removeItem(STORAGE_KEYS.AUTH_COMPLETE);
-  router.push(ROUTES.LANDING);
-}
+  function handleLogout() {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(STORAGE_KEYS.AUTH_COMPLETE);
+      window.dispatchEvent(new Event("fx-auth-change"));
+    }
 
-/* - - - - - - - - - - - - - - - - */
+    router.replace(ROUTES.LANDING);
+    router.refresh();
+  }
 
   return (
     <aside
@@ -72,7 +80,7 @@ function handleLogout() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="https://www.evality.ai/logo.svg"
+              src="/evality-logo.svg"
               alt={APP_SHORT_NAME}
               className="h-[32px] w-auto shrink-0 transition-opacity duration-150 group-hover:opacity-0"
             />
@@ -80,9 +88,9 @@ function handleLogout() {
           </button>
         ) : (
           <>
-            <Link href={ROUTES.LANDING} className="inline-flex min-w-0 items-center">
+            <Link href={ROUTES.ACTION_CENTER} className="inline-flex min-w-0 items-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="https://www.evality.ai/logo.svg" alt={APP_SHORT_NAME} className="h-[32px] w-auto shrink-0" />
+              <img src="/evality-logo.svg" alt={APP_SHORT_NAME} className="h-[32px] w-auto shrink-0" />
             </Link>
 
             <button
@@ -109,16 +117,13 @@ function handleLogout() {
           return (
             <Link
               key={item.id}
-              href={item.disabled ? ROUTES.LANDING : item.href}
+              href={item.href}
               title={isCollapsed ? item.label : undefined}
               className={`${sharedClasses} ${
-                item.disabled
-                  ? "cursor-not-allowed text-muted-foreground opacity-50"
-                  : isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-foreground hover:bg-accent"
+                isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-foreground hover:bg-accent"
               }`}
-              onClick={(e) => item.disabled && e.preventDefault()}
             >
               <Icon className="size-[20px]" />
               {!isCollapsed ? <span>{item.label}</span> : null}
@@ -135,22 +140,55 @@ function handleLogout() {
       <div className="flex-1" />
 
       <div className={`border-t border-border pt-[16px] ${isCollapsed ? "flex justify-center" : ""}`}>
-        <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-[12px]"}`}>
-          <Avatar name={DEMO_USER.name} />
-          {!isCollapsed ? (
-            <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium text-foreground">{DEMO_USER.name}</p>
-              <p className="truncate text-[12px] text-muted-foreground">{DEMO_USER.email}</p>
-              <button
-  type="button"
-  onClick={handleLogout}
-  className="mt-[4px] text-left text-[12px] text-muted-foreground hover:text-foreground"
->
-  Logout
-</button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={`flex w-full cursor-pointer items-center rounded-[12px] px-[8px] py-[8px] text-left hover:bg-accent ${
+                isCollapsed ? "justify-center" : "gap-[12px]"
+              }`}
+            >
+              <Avatar name={DEMO_USER.name} />
+              {!isCollapsed ? (
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-foreground">{DEMO_USER.name}</p>
+                  <p className="truncate text-[12px] text-muted-foreground">{DEMO_USER.email}</p>
+                </div>
+              ) : null}
+            </button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align={isCollapsed ? "start" : "end"} side="top" className={ACCOUNT_MENU_WIDTH_CLASS}>
+            {/* <div className="flex items-center gap-[12px] rounded-[8px] px-[12px] py-[10px]">
+              <Avatar name={DEMO_USER.name} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px] font-medium text-foreground">{DEMO_USER.name}</p>
+                <p className="truncate text-[13px] text-muted-foreground">{DEMO_USER.email}</p>
+              </div>
             </div>
-          ) : null}
-        </div>
+
+            <DropdownMenuSeparator /> */}
+
+            <DropdownMenuItem onClick={handleToggleTheme}>
+              <span>Theme</span>
+              <span className="ml-auto text-[12px] text-muted-foreground">
+                {theme === "dark" ? "Dark" : "Light"}
+              </span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem disabled className="cursor-default opacity-60">
+              <CircleHelp className="size-[16px]" />
+              Help
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="size-[16px]" />
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   );
