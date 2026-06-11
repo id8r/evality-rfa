@@ -1,8 +1,4 @@
-/*
-components/FxProtectedAppPage.js | Authenticated app route guard and shell | Sree | 2026-06-11
-*/
-
-/* - - - - - - - - - - - - - - - - */
+/* components/FxProtectedAppPage.js | Authenticated app route guard and shell | Sree | 2026-06-11 */
 
 "use client";
 
@@ -10,11 +6,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/AppShell";
-import { CreateJobForm } from "@/components/CreateJobForm";
 import { ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_SURFACE } from "@/lib/FxTheme";
+/* - - - - - - - - - - - - - - - - */
 
-export function FxProtectedAppPage({ title = "Create Job" }) {
+export function FxProtectedAppPage({ children, title = "Create Job" }) {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
 
@@ -38,11 +34,51 @@ export function FxProtectedAppPage({ title = "Create Job" }) {
     return <div className={`min-h-screen ${FX_SURFACE.page}`} />;
   }
 
-  return (
-    <AppShell title={title}>
-      <CreateJobForm />
-    </AppShell>
-  );
+  return <AppShell title={title}>{children}</AppShell>;
 }
-
 /* - - - - - - - - - - - - - - - - */
+
+// /* components/FxProtectedAppPage.js | Authenticated app route guard and shell | Sree | 2026-06-11 */
+
+// "use client";
+
+// import { useEffect, useState } from "react";
+// import { useRouter } from "next/navigation";
+
+// import { AppShell } from "@/components/AppShell";
+// import { CreateJobForm } from "@/components/CreateJobForm";
+// import { ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
+// import { FX_SURFACE } from "@/lib/FxTheme";
+// /* - - - - - - - - - - - - - - - - */
+
+// export function FxProtectedAppPage({ title = "Create Job" }) {
+//   const router = useRouter();
+//   const [isReady, setIsReady] = useState(false);
+
+//   useEffect(() => {
+//     if (typeof window === "undefined") {
+//       return;
+//     }
+
+//     const authFlag = window.localStorage.getItem(STORAGE_KEYS.AUTH_COMPLETE);
+
+//     if (!authFlag) {
+//       router.replace(ROUTES.LOGIN);
+//       router.refresh();
+//       return;
+//     }
+
+//     setIsReady(true);
+//   }, [router]);
+
+//   if (!isReady) {
+//     return <div className={`min-h-screen ${FX_SURFACE.page}`} />;
+//   }
+
+//   return (
+//     <AppShell title={title}>
+//       <CreateJobForm />
+//     </AppShell>
+//   );
+// }
+// /* - - - - - - - - - - - - - - - - */

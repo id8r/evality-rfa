@@ -11,15 +11,15 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
 @theme inline {
   --color-background: var(--fx-bg);
   --color-foreground: var(--fx-text);
-  --color-card: var(--fx-bg);
+  --color-card: var(--fx-surface);
   --color-card-foreground: var(--fx-text);
-  --color-popover: var(--fx-bg);
+  --color-popover: var(--fx-surface-raised);
   --color-popover-foreground: var(--fx-text);
   --color-primary: var(--fx-primary);
   --color-primary-foreground: var(--fx-primary-foreground);
   --color-muted: var(--fx-bg-soft);
   --color-muted-foreground: var(--fx-text-muted);
-  --color-accent: var(--fx-bg-soft);
+  --color-accent: var(--fx-surface-raised);
   --color-accent-foreground: var(--fx-text);
   --color-border: var(--fx-border);
   --color-input: var(--fx-border);
@@ -35,6 +35,8 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
 :root {
   --fx-bg: #ffffff;
   --fx-bg-soft: #f9fafb;
+  --fx-surface: #ffffff;
+  --fx-surface-raised: #f9fafb;
   --fx-text: #111827;
   --fx-text-muted: #6b7280;
   --fx-border: #e5e7eb;
@@ -47,13 +49,16 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
 }
 
 .dark {
-  --fx-bg: #0b0f19;
-  --fx-bg-soft: #111827;
-  --fx-text: #f9fafb;
-  --fx-text-muted: #9ca3af;
-  --fx-border: #1f2937;
-  --fx-primary: #60a5fa;
-  --fx-primary-foreground: #0b0f19;
+  /* Tailwind slate neutral palette - VS Code / GitHub Dark Dimmed feel */
+  --fx-bg: #030712; /* slate-950 */
+  --fx-bg-soft: #0f172a; /* slate-900 */
+  --fx-surface: #0f172a; /* slate-900 */
+  --fx-surface-raised: #1e293b; /* slate-800 */
+  --fx-text: #f1f5f9; /* slate-100 */
+  --fx-text-muted: #cbd5e1; /* slate-400 */
+  --fx-border: #334155; /* slate-700 */
+  --fx-primary: #60a5fa; /* blue-400 */
+  --fx-primary-foreground: #030712; /* slate-950 */
   --fx-success: #22c55e;
   --fx-warning: #fbbf24;
   --fx-danger: #f87171;

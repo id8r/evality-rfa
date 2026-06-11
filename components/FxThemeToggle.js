@@ -36,6 +36,7 @@ export function FxThemeToggle() {
 
     root.classList.toggle("dark", nextTheme === THEMES.DARK);
     window.localStorage.setItem(STORAGE_KEYS.THEME, nextTheme);
+    window.dispatchEvent(new Event("fx-theme-change"));
     setTheme(nextTheme);
   }
 

@@ -6,31 +6,33 @@ components/AppShell.js | Main app shell with sidebar and navbar | Sree | 2026-06
 
 "use client";
 
-import { useEffect, useState } from "react";
+// import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Sidebar } from "@/components/Sidebar";
 import { Navbar } from "@/components/Navbar";
 import { LAYOUT, SIDEBAR_COLLAPSED_OFFSET_CLASS, SIDEBAR_EXPANDED_OFFSET_CLASS, STORAGE_KEYS } from "@/lib/FxConstants";
 
 export function AppShell({ children, title }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    setIsCollapsed(window.localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSED) === "true");
-  }, []);
-
-  function handleToggleSidebar() {
-    const nextValue = !isCollapsed;
-    setIsCollapsed(nextValue);
-
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, String(nextValue));
-    }
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+  if (typeof window === "undefined") {
+    return false;
   }
+
+  return window.localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSED) === "true";
+});
+
+function handleToggleSidebar() {
+  setIsCollapsed((currentValue) => {
+    const nextValue = !currentValue;
+
+    window.localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, String(nextValue));
+
+    return nextValue;
+  });
+}
+
+/* - - - - - - - - - - - - - - - - */
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">

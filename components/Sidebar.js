@@ -1,14 +1,12 @@
-/*
-components/Sidebar.js | Left sidebar navigation | Sree | 2026-06-10
-*/
-
-/* - - - - - - - - - - - - - - - - */
+/* components/Sidebar.js | Left sidebar navigation | Sree | 2026-06-10*/
 
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Briefcase, ChevronLeft, ChevronRight, FileText, FolderOpen, Inbox, Users } from "lucide-react";
+
+import { useRouter } from "next/navigation";
 
 import {
   APP_SHORT_NAME,
@@ -17,6 +15,7 @@ import {
   ROUTES,
   SIDEBAR_COLLAPSED_WIDTH_CLASS,
   SIDEBAR_EXPANDED_WIDTH_CLASS,
+  STORAGE_KEYS
 } from "@/lib/FxConstants";
 
 const NAV_ICONS = {
@@ -41,9 +40,21 @@ function Avatar({ name }) {
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
+
+
 
 export function Sidebar({ isCollapsed, onToggle }) {
   const pathname = usePathname();
+
+  const router = useRouter();
+
+function handleLogout() {
+  window.localStorage.removeItem(STORAGE_KEYS.AUTH_COMPLETE);
+  router.push(ROUTES.LANDING);
+}
+
+/* - - - - - - - - - - - - - - - - */
 
   return (
     <aside
@@ -130,6 +141,13 @@ export function Sidebar({ isCollapsed, onToggle }) {
             <div className="min-w-0">
               <p className="truncate text-[13px] font-medium text-foreground">{DEMO_USER.name}</p>
               <p className="truncate text-[12px] text-muted-foreground">{DEMO_USER.email}</p>
+              <button
+  type="button"
+  onClick={handleLogout}
+  className="mt-[4px] text-left text-[12px] text-muted-foreground hover:text-foreground"
+>
+  Logout
+</button>
             </div>
           ) : null}
         </div>
