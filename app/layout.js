@@ -31,9 +31,10 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <FxThemeController />
-        <FxToaster />
-        {children}
+        <FxToaster>
+          <FxThemeController />
+          {children}
+        </FxToaster>
       </body>
     </html>
   );

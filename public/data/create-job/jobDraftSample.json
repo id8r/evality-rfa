@@ -1,0 +1,53 @@
+{
+  "jobTitle": "React Developer",
+  "positions": "5",
+  "jobType": "Full-time",
+  "workplaceType": "Hybrid",
+  "priority": "High",
+  "experienceMin": "3",
+  "experienceMax": "6",
+  "location": "Bengaluru",
+  "department": "Engineering",
+  "salaryMin": "1800000",
+  "salaryMax": "2600000",
+  "salaryCurrency": "INR",
+  "hideSalary": false,
+  "clientCompany": "",
+  "assignee": "John Doe",
+  "summary": "Hiring 5 React developers for a Bengaluru product team with strong front-end ownership and collaboration skills.",
+  "jobDescription": "We are hiring React developers to build and improve product experiences for a fast-moving Bengaluru team. You will work closely with design, product, and backend teams to ship reliable user-facing features, improve performance, and maintain a thoughtful engineering bar across the frontend stack.",
+  "roleDetails": [
+    "Own implementation of user-facing product features in React.",
+    "Collaborate closely with product and design on delivery scope.",
+    "Improve performance, accessibility, and maintainability."
+  ],
+  "primarySkills": ["React", "JavaScript", "TypeScript", "HTML", "CSS"],
+  "secondarySkills": ["Next.js", "Testing Library", "REST APIs", "Performance Optimization"],
+  "screeningQuestions": [
+    {
+      "id": "availability",
+      "label": "Availability",
+      "question": "How soon can you join if selected?",
+      "note": "Helps the recruiter understand start-date flexibility."
+    },
+    {
+      "id": "location",
+      "label": "Location",
+      "question": "Are you comfortable working in a hybrid setup from Bengaluru?",
+      "note": "Confirms workplace fit early."
+    },
+    {
+      "id": "salary",
+      "label": "Salary",
+      "question": "What is your current and expected annual compensation?",
+      "note": "Sets expectations before interview rounds."
+    }
+  ],
+  "evaluationContext": "Prioritize candidates who have shipped real customer-facing interfaces in React, can explain collaboration with product and design, and demonstrate strong ownership over quality, performance, and frontend architecture decisions.",
+  "candidateCriteria": [
+    "Has delivered production React applications.",
+    "Can explain complex UI decisions clearly.",
+    "Shows strong ownership and communication."
+  ],
+  "publishNotes": "Publish only after the basics, description, and screening questions feel recruiter-ready."
+}

@@ -66,9 +66,8 @@ export function Sidebar({ isCollapsed, onToggle }) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[12px] py-[16px] transition-[width] duration-200 ${
-        isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_EXPANDED_WIDTH_CLASS
-      }`}
+      className={`fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[12px] py-[16px] transition-[width] duration-200 ${isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_EXPANDED_WIDTH_CLASS
+        }`}
     >
       <div className={`mb-[24px] flex items-center ${isCollapsed ? "justify-center" : "justify-between"} gap-[8px]`}>
         {isCollapsed ? (
@@ -108,22 +107,21 @@ export function Sidebar({ isCollapsed, onToggle }) {
       <nav className="flex flex-col gap-[4px]">
         {NAV_ITEMS.map((item) => {
           const Icon = NAV_ICONS[item.icon];
-          const isCreateJobRoute = pathname === ROUTES.APP || pathname === ROUTES.CREATE_JOB;
-          const isActive = item.id === "create-job" ? isCreateJobRoute : pathname === item.href;
-          const sharedClasses = `group relative flex h-[44px] items-center rounded-[10px] px-[12px] text-sm font-medium transition-colors ${
-            isCollapsed ? "justify-center" : "gap-[12px]"
-          }`;
+          const isJobsRoute =
+            pathname === ROUTES.APP || pathname === ROUTES.JOBS || pathname === ROUTES.CREATE_JOB;
+          const isActive = item.id === "jobs" ? isJobsRoute : pathname === item.href;
+          const sharedClasses = `group relative flex h-[44px] items-center rounded-[10px] px-[12px] text-sm font-medium transition-colors ${isCollapsed ? "justify-center" : "gap-[12px]"
+            }`;
 
           return (
             <Link
               key={item.id}
               href={item.href}
               title={isCollapsed ? item.label : undefined}
-              className={`${sharedClasses} ${
-                isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-foreground hover:bg-accent"
-              }`}
+              className={`${sharedClasses} ${isActive
+                ? "bg-primary/10 text-primary"
+                : "text-foreground hover:bg-accent"
+                }`}
             >
               <Icon className="size-[20px]" />
               {!isCollapsed ? <span>{item.label}</span> : null}
@@ -144,9 +142,8 @@ export function Sidebar({ isCollapsed, onToggle }) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className={`flex w-full cursor-pointer items-center rounded-[12px] px-[8px] py-[8px] text-left hover:bg-accent ${
-                isCollapsed ? "justify-center" : "gap-[12px]"
-              }`}
+              className={`flex w-full cursor-pointer items-center rounded-[12px] px-[8px] py-[8px] text-left hover:bg-accent ${isCollapsed ? "justify-center" : "gap-[12px]"
+                }`}
             >
               <Avatar name={DEMO_USER.name} />
               {!isCollapsed ? (
@@ -159,15 +156,6 @@ export function Sidebar({ isCollapsed, onToggle }) {
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align={isCollapsed ? "start" : "end"} side="top" className={ACCOUNT_MENU_WIDTH_CLASS}>
-            {/* <div className="flex items-center gap-[12px] rounded-[8px] px-[12px] py-[10px]">
-              <Avatar name={DEMO_USER.name} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-medium text-foreground">{DEMO_USER.name}</p>
-                <p className="truncate text-[13px] text-muted-foreground">{DEMO_USER.email}</p>
-              </div>
-            </div>
-
-            <DropdownMenuSeparator /> */}
 
             <DropdownMenuItem onClick={handleToggleTheme}>
               <span>Theme</span>
@@ -177,15 +165,13 @@ export function Sidebar({ isCollapsed, onToggle }) {
             </DropdownMenuItem>
 
             <DropdownMenuItem disabled className="cursor-default opacity-60">
-              <CircleHelp className="size-[16px]" />
-              Help
+              <CircleHelp className="size-[16px]" />Help
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
             <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="size-[16px]" />
-              Log out
+              <LogOut className="size-[16px]" />Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

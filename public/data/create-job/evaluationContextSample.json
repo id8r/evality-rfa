@@ -1,0 +1,8 @@
+{
+  "context": "The ideal candidate should show strong ownership over frontend delivery, work well with product and design, and balance shipping speed with code quality. Favor candidates who can explain tradeoffs, mentor peers, and improve the frontend system beyond their assigned tickets.",
+  "questions": [
+    "What product or business outcome should this hire influence within the first 6 months?",
+    "How much emphasis should we place on architectural thinking versus delivery speed?",
+    "Should the evaluation favor independent ownership or close collaboration across teams?"
+  ]
+}

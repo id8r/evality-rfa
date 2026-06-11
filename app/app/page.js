@@ -1,10 +1,10 @@
-import { CreateJobForm } from "@/components/CreateJobForm";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
+import { JobsWorkspace } from "@/components/JobsWorkspace";
 
 export default function Page() {
   return (
-    <FxProtectedAppPage title="Create Job">
-      <CreateJobForm />
+    <FxProtectedAppPage title="Jobs">
+      <JobsWorkspace />
     </FxProtectedAppPage>
   );
 }
