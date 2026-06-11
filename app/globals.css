@@ -9,73 +9,59 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --font-sans: "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif;
+  --color-background: var(--fx-bg);
+  --color-foreground: var(--fx-text);
+  --color-card: var(--fx-bg);
+  --color-card-foreground: var(--fx-text);
+  --color-popover: var(--fx-bg);
+  --color-popover-foreground: var(--fx-text);
+  --color-primary: var(--fx-primary);
+  --color-primary-foreground: var(--fx-primary-foreground);
+  --color-muted: var(--fx-bg-soft);
+  --color-muted-foreground: var(--fx-text-muted);
+  --color-accent: var(--fx-bg-soft);
+  --color-accent-foreground: var(--fx-text);
+  --color-border: var(--fx-border);
+  --color-input: var(--fx-border);
+  --color-ring: color-mix(in srgb, var(--fx-primary) 20%, transparent);
+  --font-sans: Inter, ui-sans-serif, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "IBM Plex Mono", "SFMono-Regular", "SF Mono", monospace;
+  --radius-sm: calc(var(--radius) * 0.75);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) * 1.5);
+  --radius-xl: calc(var(--radius) * 2);
 }
 
 :root {
-  --background: #edf3f7;
-  --foreground: #0f172a;
-  --card: rgba(255, 255, 255, 0.9);
-  --card-foreground: #0f172a;
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #0f172a;
-  --primary-foreground: #f8fafc;
-  --secondary: #dfe8ef;
-  --secondary-foreground: #334155;
-  --muted: #e7eef4;
-  --muted-foreground: #526071;
-  --accent: #dbe6ee;
-  --accent-foreground: #243447;
-  --destructive: #be123c;
-  --border: rgba(148, 163, 184, 0.28);
-  --input: rgba(255, 255, 255, 0.82);
-  --ring: rgba(15, 23, 42, 0.18);
+  --fx-bg: #ffffff;
+  --fx-bg-soft: #f9fafb;
+  --fx-text: #111827;
+  --fx-text-muted: #6b7280;
+  --fx-border: #e5e7eb;
+  --fx-primary: #2563eb;
+  --fx-primary-foreground: #ffffff;
+  --fx-success: #16a34a;
+  --fx-warning: #f59e0b;
+  --fx-danger: #dc2626;
+  --radius: 12px;
 }
 
 .dark {
-  --background: #020617;
-  --foreground: #e5eef7;
-  --card: rgba(15, 23, 42, 0.82);
-  --card-foreground: #e5eef7;
-  --popover: #0f172a;
-  --popover-foreground: #e5eef7;
-  --primary: #e2e8f0;
-  --primary-foreground: #020617;
-  --secondary: #162235;
-  --secondary-foreground: #d8e1eb;
-  --muted: #172334;
-  --muted-foreground: #93a4b8;
-  --accent: #1f2d3f;
-  --accent-foreground: #e2e8f0;
-  --destructive: #fb7185;
-  --border: rgba(148, 163, 184, 0.16);
-  --input: rgba(15, 23, 42, 0.8);
-  --ring: rgba(226, 232, 240, 0.2);
+  --fx-bg: #0b0f19;
+  --fx-bg-soft: #111827;
+  --fx-text: #f9fafb;
+  --fx-text-muted: #9ca3af;
+  --fx-border: #1f2937;
+  --fx-primary: #60a5fa;
+  --fx-primary-foreground: #0b0f19;
+  --fx-success: #22c55e;
+  --fx-warning: #fbbf24;
+  --fx-danger: #f87171;
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border outline-ring/50;
   }
 
   html {
