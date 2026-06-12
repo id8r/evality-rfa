@@ -4,74 +4,31 @@ components/CreateJobForm.js | Structured Create Job flow | Sree | 2026-06-11
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { FileUp, Sparkles, Upload, Wand2 } from "lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 
-import aiActions from "@/public/data/create-job/jobAiActions.json";
 import draftSample from "@/public/data/create-job/jobDraftSample.json";
 import evaluationContextSample from "@/public/data/create-job/evaluationContextSample.json";
 import jobOptions from "@/public/data/create-job/jobOptions.json";
 import screeningQuestionPresets from "@/public/data/create-job/screeningQuestionPresets.json";
-import { fxButtonClassName } from "@/components/FxButton";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Toast, ToastClose, ToastDescription, ToastTitle } from "@/components/ui/toast";
-import { CONTENT_WIDTH_NARROW_CLASS, DEMO_USER, STORAGE_KEYS } from "@/lib/FxConstants";
-import { readStoredCollection, writeStoredCollection } from "@/lib/demo-store";
-import { cn } from "@/lib/FxUtils";
+import { DEMO_USER, STORAGE_KEYS } from "@/lib/FxConstants";
+import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { cn, readStoredJSON, writeStoredJSON } from "@/lib/FxUtils";
 
 const STEPS = [
   { id: "basics", label: "Basics" },
-  { id: "description", label: "Job Description" },
+  { id: "description", label: "Description" },
   { id: "skills", label: "Skills" },
   { id: "screening", label: "Screening" },
   { id: "evaluation", label: "Evaluation" },
-  { id: "review", label: "Review & Publish" },
+  { id: "review", label: "Review" },
 ];
 
-const ACTION_META = {
-  "upload-jd": {
-    title: "Upload JD",
-    description: "Upload an existing job description and let Evality extract the useful structure.",
-    cta: "Populate from JD",
-  },
-  "write-ai": {
-    title: "Write with AI",
-    description: "Use the available role details to draft a recruiter-ready job description.",
-    cta: "Generate with AI",
-  },
-  "rewrite-ai": {
-    title: "Rewrite with AI",
-    description: "Improve clarity and tone without changing the role intent.",
-    cta: "Rewrite description",
-  },
-  "retrieve-primary-skills": {
-    title: "Retrieve Primary Skills from JD",
-    description: "Suggest the strongest required skills from the role and JD context.",
-    cta: "Apply primary skills",
-  },
-  "retrieve-secondary-skills": {
-    title: "Retrieve Secondary Skills from JD",
-    description: "Suggest supporting or nice-to-have skills from the role and JD context.",
-    cta: "Apply secondary skills",
-  },
-  "generate-screening": {
-    title: "Generate Screening Questions",
-    description: "Create first-pass pre-screening questions the recruiter can edit before publish.",
-    cta: "Generate questions",
-  },
-  "generate-evaluation": {
-    title: "Generate Evaluation Context",
-    description: "Generate role context and decision prompts for recruiter review.",
-    cta: "Generate context",
-  },
-};
+const INPUT_CLASS = `h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] ${FX_TYPOGRAPHY.input} text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring`;
+const INPUT_INLINE_CLASS = `h-[44px] rounded-[10px] border border-border bg-background px-[12px] ${FX_TYPOGRAPHY.input} text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring`;
+const TEXTAREA_CLASS = `w-full resize-none rounded-[12px] border border-border bg-background px-[16px] py-[16px] ${FX_TYPOGRAPHY.input} text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring`;
+const STEP_ACTION_CLASS = `inline-flex h-[36px] cursor-pointer items-center gap-[8px] rounded-[8px] border border-border bg-background px-[12px] ${FX_TYPOGRAPHY.stepLabel} text-foreground hover:bg-accent`;
+const CHIP_CLASS = `cursor-pointer rounded-full border border-border bg-background px-[12px] py-[8px] ${FX_TYPOGRAPHY.small} text-foreground hover:bg-accent`;
 
 function createInitialDraft() {
   return {
@@ -104,37 +61,40 @@ function Field({ label, optional, children }) {
   return (
     <label className="space-y-[8px]">
       <div className="flex items-center gap-[8px]">
-        <span className="text-[14px] font-medium leading-[22px] text-foreground">{label}</span>
-        {optional ? <span className="text-[12px] leading-[18px] text-muted-foreground">Optional</span> : null}
+        <span className={`${FX_TYPOGRAPHY.fieldLabel} text-foreground`}>{label}</span>
+        {optional ? <span className={`${FX_TYPOGRAPHY.fieldHint} text-muted-foreground`}>Optional</span> : null}
       </div>
       {children}
     </label>
   );
 }
 
-function StepButton({ isActive, isComplete, label, onClick }) {
+function WorkflowStep({ index, label, isActive, isComplete, onClick }) {
   return (
     <button
       type="button"
       className={cn(
-        "flex h-[40px] cursor-pointer items-center gap-[8px] rounded-[10px] border px-[12px] text-[13px] font-medium transition-colors",
+        `relative flex cursor-pointer items-center gap-[10px] border-b-[2px] px-[2px] pb-[12px] pt-[2px] ${FX_TYPOGRAPHY.stepLabel} transition-colors`,
         isActive
-          ? "border-primary bg-primary/10 text-primary"
-          : isComplete
-            ? "border-border bg-[var(--fx-bg-soft)] text-foreground"
-            : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+          ? "border-primary text-primary"
+          : "border-transparent text-muted-foreground hover:text-foreground",
       )}
       onClick={onClick}
     >
       <span
         className={cn(
-          "inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-[11px]",
-          isActive ? "bg-primary text-primary-foreground" : "bg-[var(--fx-bg-soft)] text-muted-foreground",
+          `inline-flex h-[24px] w-[24px] items-center justify-center rounded-full border ${FX_TYPOGRAPHY.stepCounter}`,
+          isActive
+            ? "border-primary bg-primary text-primary-foreground"
+            : isComplete
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border bg-background text-muted-foreground",
         )}
       >
-        {isComplete ? "✓" : ""}
+        {isComplete ? "✓" : index + 1}
       </span>
-      {label}
+      <span>{label}</span>
+      {isActive ? <span className="absolute inset-x-0 bottom-[-1px] h-[2px] rounded-full bg-primary" /> : null}
     </button>
   );
 }
@@ -144,15 +104,15 @@ function QuestionCard({ question, onRemove }) {
     <div className="rounded-[12px] border border-border bg-[var(--fx-bg-soft)] p-[16px]">
       <div className="flex items-start justify-between gap-[16px]">
         <div className="space-y-[8px]">
-          <span className="inline-flex rounded-full bg-primary/10 px-[10px] py-[4px] text-[12px] font-medium text-primary">
+          <span className={`inline-flex rounded-full bg-primary/10 px-[10px] py-[4px] ${FX_TYPOGRAPHY.metaLabel} text-primary`}>
             {question.label}
           </span>
-          <p className="text-[16px] leading-[24px] text-foreground">{question.question}</p>
-          <p className="text-[13px] leading-[20px] text-muted-foreground">{question.note}</p>
+          <p className={`${FX_TYPOGRAPHY.bodyLg} text-foreground`}>{question.question}</p>
+          <p className={`${FX_TYPOGRAPHY.small} text-muted-foreground`}>{question.note}</p>
         </div>
         <button
           type="button"
-          className="h-[28px] cursor-pointer rounded-[8px] px-[8px] text-[12px] text-muted-foreground hover:bg-accent hover:text-foreground"
+          className={`h-[28px] cursor-pointer rounded-[8px] px-[8px] ${FX_TYPOGRAPHY.caption} text-muted-foreground hover:bg-accent hover:text-foreground`}
           onClick={onRemove}
         >
           Remove
@@ -162,45 +122,21 @@ function QuestionCard({ question, onRemove }) {
   );
 }
 
-function AiActionButtons({ ids, onOpen }) {
-  const actions = aiActions.filter((action) => ids.includes(action.id));
-
-  return (
-    <div className="flex flex-wrap gap-[8px]">
-      {actions.map((action) => {
-        const Icon =
-          action.id === "upload-jd"
-            ? Upload
-            : action.id === "rewrite-ai"
-              ? Wand2
-              : Sparkles;
-
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className="inline-flex h-[36px] cursor-pointer items-center gap-[8px] rounded-[8px] border border-border bg-background px-[12px] text-[13px] font-medium text-foreground hover:bg-accent"
-            onClick={() => onOpen(action.id)}
-          >
-            <Icon className="size-[14px]" />
-            {action.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDraft, onPublishJob }) {
+export const CreateJobForm = forwardRef(function CreateJobForm(
+  { initialDraft = null, onSaveDraft, onPublishJob, onStateChange },
+  ref,
+) {
   const [currentStep, setCurrentStep] = useState("basics");
   const [draft, setDraft] = useState(() =>
     initialDraft ? { ...createInitialDraft(), ...initialDraft } : createInitialDraft(),
   );
-  const [activeSheet, setActiveSheet] = useState(null);
   const [toastState, setToastState] = useState({ open: false, title: "", description: "" });
+  const initialDraftSnapshot = useMemo(
+    () => JSON.stringify(initialDraft ? { ...createInitialDraft(), ...initialDraft } : createInitialDraft()),
+    [initialDraft],
+  );
 
   const currentStepIndex = STEPS.findIndex((step) => step.id === currentStep);
-  const sheetMeta = activeSheet ? ACTION_META[activeSheet] : null;
 
   const availablePresets = useMemo(
     () =>
@@ -229,10 +165,23 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
     [draft],
   );
 
+  const isDirty = useMemo(() => JSON.stringify(draft) !== initialDraftSnapshot, [draft, initialDraftSnapshot]);
+
   useEffect(() => {
     setDraft(initialDraft ? { ...createInitialDraft(), ...initialDraft } : createInitialDraft());
     setCurrentStep("basics");
   }, [initialDraft]);
+
+  useEffect(() => {
+    onStateChange?.({
+      draft,
+      currentStep,
+      currentStepIndex,
+      steps: STEPS,
+      stepCompletion,
+      isDirty,
+    });
+  }, [currentStep, currentStepIndex, draft, isDirty, onStateChange, stepCompletion]);
 
   function showToast(title, description) {
     setToastState({ open: true, title, description });
@@ -268,16 +217,8 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
     }
   }
 
-  function handleOpenSheet(actionId) {
-    setActiveSheet(actionId);
-  }
-
-  function handleApplySheetAction() {
-    if (!activeSheet) {
-      return;
-    }
-
-    if (activeSheet === "upload-jd") {
+  function applyAiAction(actionId) {
+    if (actionId === "upload-jd") {
       setDraft((currentDraft) => ({
         ...currentDraft,
         jobTitle: currentDraft.jobTitle || draftSample.jobTitle,
@@ -297,7 +238,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
       showToast("JD extracted", "Evality populated the basics and description from the uploaded JD.");
     }
 
-    if (activeSheet === "write-ai") {
+    if (actionId === "write-ai") {
       setDraft((currentDraft) => ({
         ...currentDraft,
         jobDescription: currentDraft.jobDescription || draftSample.jobDescription,
@@ -305,7 +246,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
       showToast("Description generated", "Evality drafted the job description from the current role details.");
     }
 
-    if (activeSheet === "rewrite-ai") {
+    if (actionId === "rewrite-ai") {
       setDraft((currentDraft) => ({
         ...currentDraft,
         jobDescription: currentDraft.jobDescription
@@ -315,7 +256,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
       showToast("Description rewritten", "Evality improved the job description without changing the role intent.");
     }
 
-    if (activeSheet === "retrieve-primary-skills") {
+    if (actionId === "retrieve-primary-skills") {
       setDraft((currentDraft) => ({
         ...currentDraft,
         primarySkills: draftSample.primarySkills,
@@ -323,7 +264,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
       showToast("Primary skills added", "Evality suggested required skills from the role context.");
     }
 
-    if (activeSheet === "retrieve-secondary-skills") {
+    if (actionId === "retrieve-secondary-skills") {
       setDraft((currentDraft) => ({
         ...currentDraft,
         secondarySkills: draftSample.secondarySkills,
@@ -331,7 +272,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
       showToast("Secondary skills added", "Evality suggested supporting skills from the role context.");
     }
 
-    if (activeSheet === "generate-screening") {
+    if (actionId === "generate-screening") {
       setDraft((currentDraft) => ({
         ...currentDraft,
         screeningQuestions: [...currentDraft.screeningQuestions, ...availablePresets.slice(0, 3)],
@@ -339,15 +280,13 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
       showToast("Screening questions generated", "Evality added first-pass screening questions for review.");
     }
 
-    if (activeSheet === "generate-evaluation") {
+    if (actionId === "generate-evaluation") {
       setDraft((currentDraft) => ({
         ...currentDraft,
         evaluationContext: evaluationContextSample.context,
       }));
       showToast("Evaluation context generated", "Evality generated recruiter-facing evaluation context.");
     }
-
-    setActiveSheet(null);
   }
 
   function validateDraftForPublish() {
@@ -375,18 +314,28 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
   }
 
   async function persistJob(status) {
-    const existingJobs = readStoredCollection(STORAGE_KEYS.JOBS) || [];
+    const existingJobs = readStoredJSON(STORAGE_KEYS.JOBS) || [];
+    const existingMatch = existingJobs.find((job) => job.id === draft.id) || null;
     const nextJob = {
       id: draft.id || `job-${Date.now()}`,
       title: draft.jobTitle || "Untitled Job",
       company: draft.clientCompany || "My Company",
+      positions: Number(draft.positions || existingMatch?.positions || 1),
+      createdBy: draft.assignee || existingMatch?.createdBy || DEMO_USER.name,
+      location: draft.location || (draft.workplaceType === "Remote" ? "Remote" : "—"),
+      experience: `${draft.experienceMin || "0"} - ${draft.experienceMax || "0"} yrs`,
+      unscreenedCount: existingMatch?.unscreenedCount ?? 0,
+      preScreenedCount: existingMatch?.preScreenedCount ?? 0,
+      shortlistedCount: existingMatch?.shortlistedCount ?? 0,
+      sentToClientCount: existingMatch?.sentToClientCount ?? 0,
       status,
+      createdAt: existingMatch?.createdAt || new Date().toISOString(),
       data: draft,
       updatedAt: new Date().toISOString(),
     };
 
     const updatedJobs = [nextJob, ...existingJobs.filter((job) => job.id !== nextJob.id)];
-    writeStoredCollection(STORAGE_KEYS.JOBS, updatedJobs);
+    writeStoredJSON(STORAGE_KEYS.JOBS, updatedJobs);
     setDraft((currentDraft) => ({ ...currentDraft, id: nextJob.id }));
   }
 
@@ -422,8 +371,8 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
       return (
         <div className="space-y-[24px] rounded-[16px] border border-border bg-card p-[24px]">
           <div className="space-y-[4px]">
-            <h2 className="text-[20px] leading-[28px] font-medium text-foreground">Basics</h2>
-            <p className="text-[14px] leading-[22px] text-muted-foreground">
+            <h2 className={`${FX_TYPOGRAPHY.sectionTitle} text-foreground`}>Basics</h2>
+            <p className={`${FX_TYPOGRAPHY.sectionSubtitle} text-muted-foreground`}>
               Fill the essentials first. Client is optional and assignee defaults to the current user.
             </p>
           </div>
@@ -433,7 +382,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               <input
                 value={draft.jobTitle}
                 onChange={(event) => updateDraftField("jobTitle", event.target.value)}
-                className="h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={INPUT_CLASS}
               />
             </Field>
 
@@ -442,7 +391,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
                 value={draft.clientCompany}
                 onChange={(event) => updateDraftField("clientCompany", event.target.value)}
                 placeholder="Select client or leave empty"
-                className="h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={INPUT_CLASS}
               />
             </Field>
 
@@ -452,13 +401,13 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
                   value={draft.experienceMin}
                   onChange={(event) => updateDraftField("experienceMin", event.target.value)}
                   placeholder="Min years"
-                  className="h-[44px] rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                  className={INPUT_INLINE_CLASS}
                 />
                 <input
                   value={draft.experienceMax}
                   onChange={(event) => updateDraftField("experienceMax", event.target.value)}
                   placeholder="Max years"
-                  className="h-[44px] rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                  className={INPUT_INLINE_CLASS}
                 />
               </div>
             </Field>
@@ -468,7 +417,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
                 value={draft.location}
                 onChange={(event) => updateDraftField("location", event.target.value)}
                 placeholder="City / locality"
-                className="h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={INPUT_CLASS}
               />
             </Field>
 
@@ -476,7 +425,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               <input
                 value={draft.positions}
                 onChange={(event) => updateDraftField("positions", event.target.value)}
-                className="h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={INPUT_CLASS}
               />
             </Field>
 
@@ -484,7 +433,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               <select
                 value={draft.jobType}
                 onChange={(event) => updateDraftField("jobType", event.target.value)}
-                className="h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={INPUT_CLASS}
               >
                 {jobOptions.jobTypes.map((option) => (
                   <option key={option} value={option}>
@@ -498,7 +447,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               <select
                 value={draft.workplaceType}
                 onChange={(event) => updateDraftField("workplaceType", event.target.value)}
-                className="h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={INPUT_CLASS}
               >
                 {jobOptions.workplaceTypes.map((option) => (
                   <option key={option} value={option}>
@@ -512,7 +461,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               <select
                 value={draft.priority}
                 onChange={(event) => updateDraftField("priority", event.target.value)}
-                className="h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={INPUT_CLASS}
               >
                 {jobOptions.priorities.map((option) => (
                   <option key={option} value={option}>
@@ -527,7 +476,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
                 <select
                   value={draft.salaryCurrency}
                   onChange={(event) => updateDraftField("salaryCurrency", event.target.value)}
-                  className="h-[44px] rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                  className={INPUT_INLINE_CLASS}
                 >
                   {jobOptions.currencies.map((option) => (
                     <option key={option} value={option}>
@@ -539,13 +488,13 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
                   value={draft.salaryMin}
                   onChange={(event) => updateDraftField("salaryMin", event.target.value)}
                   placeholder="Minimum"
-                  className="h-[44px] rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                  className={INPUT_INLINE_CLASS}
                 />
                 <input
                   value={draft.salaryMax}
                   onChange={(event) => updateDraftField("salaryMax", event.target.value)}
                   placeholder="Maximum"
-                  className="h-[44px] rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                  className={INPUT_INLINE_CLASS}
                 />
               </div>
             </Field>
@@ -554,8 +503,8 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               <input
                 value={draft.primarySkills.join(", ")}
                 onChange={(event) => updateArrayField("primarySkills", event.target.value)}
-                placeholder="React, TypeScript, Product thinking"
-                className="h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                placeholder="React, JavaScript, Product thinking"
+                className={INPUT_CLASS}
               />
             </Field>
 
@@ -563,7 +512,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               <select
                 value={draft.assignee}
                 onChange={(event) => updateDraftField("assignee", event.target.value)}
-                className="h-[44px] w-full rounded-[10px] border border-border bg-background px-[12px] text-[14px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={INPUT_CLASS}
               >
                 {[DEMO_USER.name, ...jobOptions.assignees.filter((name) => name !== DEMO_USER.name)].map((option) => (
                   <option key={option} value={option}>
@@ -581,7 +530,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               onChange={(event) => updateDraftField("hideSalary", event.target.checked)}
               className="h-[16px] w-[16px] rounded border-border"
             />
-            <span className="text-[14px] leading-[22px] text-muted-foreground">
+            <span className={FX_TYPOGRAPHY.body + " text-muted-foreground"}>
               Do not disclose salary to candidates
             </span>
           </label>
@@ -594,12 +543,34 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
         <div className="space-y-[24px] rounded-[16px] border border-border bg-card p-[24px]">
           <div className="flex flex-col gap-[16px] md:flex-row md:items-start md:justify-between">
             <div className="space-y-[4px]">
-              <h2 className="text-[20px] leading-[28px] font-medium text-foreground">Job Description</h2>
-              <p className="text-[14px] leading-[22px] text-muted-foreground">
+              <h2 className={`${FX_TYPOGRAPHY.sectionTitle} text-foreground`}>Job Description</h2>
+              <p className={`${FX_TYPOGRAPHY.sectionSubtitle} text-muted-foreground`}>
                 Upload an existing JD, write with AI, or draft the description directly.
               </p>
             </div>
-            <AiActionButtons ids={["upload-jd", "write-ai", "rewrite-ai"]} onOpen={handleOpenSheet} />
+            <div className="flex flex-wrap gap-[8px]">
+              <button
+                type="button"
+                className={STEP_ACTION_CLASS}
+                onClick={() => applyAiAction("upload-jd")}
+              >
+                Upload JD
+              </button>
+              <button
+                type="button"
+                className={STEP_ACTION_CLASS}
+                onClick={() => applyAiAction("write-ai")}
+              >
+                Write with AI
+              </button>
+              <button
+                type="button"
+                className={STEP_ACTION_CLASS}
+                onClick={() => applyAiAction("rewrite-ai")}
+              >
+                Rewrite with AI
+              </button>
+            </div>
           </div>
 
           <Field label="Job Description">
@@ -607,7 +578,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               value={draft.jobDescription}
               onChange={(event) => updateDraftField("jobDescription", event.target.value)}
               placeholder="Describe the role, responsibilities, and what good looks like."
-              className="min-h-[260px] w-full resize-none rounded-[12px] border border-border bg-background px-[16px] py-[16px] text-[14px] leading-[22px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+              className={`${TEXTAREA_CLASS} min-h-[260px]`}
             />
           </Field>
         </div>
@@ -619,15 +590,27 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
         <div className="space-y-[24px] rounded-[16px] border border-border bg-card p-[24px]">
           <div className="flex flex-col gap-[16px] md:flex-row md:items-start md:justify-between">
             <div className="space-y-[4px]">
-              <h2 className="text-[20px] leading-[28px] font-medium text-foreground">Skills</h2>
-              <p className="text-[14px] leading-[22px] text-muted-foreground">
+              <h2 className={`${FX_TYPOGRAPHY.sectionTitle} text-foreground`}>Skills</h2>
+              <p className={`${FX_TYPOGRAPHY.sectionSubtitle} text-muted-foreground`}>
                 Keep primary skills tight. Secondary skills are optional and helpful for matching later.
               </p>
             </div>
-            <AiActionButtons
-              ids={["retrieve-primary-skills", "retrieve-secondary-skills"]}
-              onOpen={handleOpenSheet}
-            />
+            <div className="flex flex-wrap gap-[8px]">
+              <button
+                type="button"
+                className={STEP_ACTION_CLASS}
+                onClick={() => applyAiAction("retrieve-primary-skills")}
+              >
+                Retrieve Primary Skills from JD
+              </button>
+              <button
+                type="button"
+                className={STEP_ACTION_CLASS}
+                onClick={() => applyAiAction("retrieve-secondary-skills")}
+              >
+                Retrieve Secondary Skills from JD
+              </button>
+            </div>
           </div>
 
           <div className="space-y-[16px]">
@@ -636,7 +619,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
                 value={draft.primarySkills.join(", ")}
                 onChange={(event) => updateArrayField("primarySkills", event.target.value)}
                 placeholder="React, JavaScript, TypeScript, Product sense"
-                className="min-h-[120px] w-full resize-none rounded-[12px] border border-border bg-background px-[16px] py-[16px] text-[14px] leading-[22px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={`${TEXTAREA_CLASS} min-h-[120px]`}
               />
             </Field>
 
@@ -645,7 +628,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
                 value={draft.secondarySkills.join(", ")}
                 onChange={(event) => updateArrayField("secondarySkills", event.target.value)}
                 placeholder="Next.js, Testing, Accessibility, Design collaboration"
-                className="min-h-[120px] w-full resize-none rounded-[12px] border border-border bg-background px-[16px] py-[16px] text-[14px] leading-[22px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+                className={`${TEXTAREA_CLASS} min-h-[120px]`}
               />
             </Field>
           </div>
@@ -658,12 +641,18 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
         <div className="space-y-[24px] rounded-[16px] border border-border bg-card p-[24px]">
           <div className="flex flex-col gap-[16px] md:flex-row md:items-start md:justify-between">
             <div className="space-y-[4px]">
-              <h2 className="text-[20px] leading-[28px] font-medium text-foreground">Screening</h2>
-              <p className="text-[14px] leading-[22px] text-muted-foreground">
+              <h2 className={`${FX_TYPOGRAPHY.sectionTitle} text-foreground`}>Screening</h2>
+              <p className={`${FX_TYPOGRAPHY.sectionSubtitle} text-muted-foreground`}>
                 Use AI for a first pass, then adjust the questions section by section.
               </p>
             </div>
-            <AiActionButtons ids={["generate-screening"]} onOpen={handleOpenSheet} />
+            <button
+              type="button"
+              className={STEP_ACTION_CLASS}
+              onClick={() => applyAiAction("generate-screening")}
+            >
+              Generate Screening Questions
+            </button>
           </div>
 
           <div className="space-y-[16px]">
@@ -681,26 +670,26 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
                 />
               ))
             ) : (
-              <div className="rounded-[12px] border border-dashed border-border bg-[var(--fx-bg-soft)] p-[16px] text-[14px] leading-[22px] text-muted-foreground">
+              <div className={`rounded-[12px] border border-dashed border-border bg-[var(--fx-bg-soft)] p-[16px] ${FX_TYPOGRAPHY.workspaceSubtitle} text-muted-foreground`}>
                 No screening questions yet. Generate them with AI or add preset questions below.
               </div>
             )}
 
             <div className="space-y-[12px]">
-              <p className="text-[14px] font-medium leading-[22px] text-foreground">Add preset questions</p>
+              <p className={`${FX_TYPOGRAPHY.fieldLabel} text-foreground`}>Add preset questions</p>
               <div className="flex flex-wrap gap-[8px]">
                 {availablePresets.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    className="cursor-pointer rounded-full border border-border bg-background px-[12px] py-[8px] text-[13px] leading-[20px] text-foreground hover:bg-accent"
-                    onClick={() =>
-                      updateDraftField("screeningQuestions", [...draft.screeningQuestions, preset])
-                    }
-                  >
-                    {preset.label}
-                  </button>
-                ))}
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={CHIP_CLASS}
+                  onClick={() =>
+                    updateDraftField("screeningQuestions", [...draft.screeningQuestions, preset])
+                  }
+                >
+                  {preset.label}
+                </button>
+              ))}
               </div>
             </div>
           </div>
@@ -713,12 +702,18 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
         <div className="space-y-[24px] rounded-[16px] border border-border bg-card p-[24px]">
           <div className="flex flex-col gap-[16px] md:flex-row md:items-start md:justify-between">
             <div className="space-y-[4px]">
-              <h2 className="text-[20px] leading-[28px] font-medium text-foreground">Evaluation</h2>
-              <p className="text-[14px] leading-[22px] text-muted-foreground">
+              <h2 className={`${FX_TYPOGRAPHY.sectionTitle} text-foreground`}>Evaluation</h2>
+              <p className={`${FX_TYPOGRAPHY.sectionSubtitle} text-muted-foreground`}>
                 AI can help create evaluation context, but the recruiter should still review and refine it.
               </p>
             </div>
-            <AiActionButtons ids={["generate-evaluation"]} onOpen={handleOpenSheet} />
+            <button
+              type="button"
+              className={STEP_ACTION_CLASS}
+              onClick={() => applyAiAction("generate-evaluation")}
+            >
+              Generate Evaluation Context
+            </button>
           </div>
 
           <Field label="Evaluation Context">
@@ -726,7 +721,7 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
               value={draft.evaluationContext}
               onChange={(event) => updateDraftField("evaluationContext", event.target.value)}
               placeholder="Describe what good looks like for the hiring team and interviewers."
-              className="min-h-[240px] w-full resize-none rounded-[12px] border border-border bg-background px-[16px] py-[16px] text-[14px] leading-[22px] text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring"
+              className={`${TEXTAREA_CLASS} min-h-[240px]`}
             />
           </Field>
         </div>
@@ -736,8 +731,8 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
     return (
       <div className="space-y-[24px] rounded-[16px] border border-border bg-card p-[24px]">
         <div className="space-y-[4px]">
-          <h2 className="text-[20px] leading-[28px] font-medium text-foreground">Review & Publish</h2>
-          <p className="text-[14px] leading-[22px] text-muted-foreground">
+          <h2 className={`${FX_TYPOGRAPHY.sectionTitle} text-foreground`}>Review</h2>
+          <p className={`${FX_TYPOGRAPHY.sectionSubtitle} text-muted-foreground`}>
             Review the essentials, then save or publish. Benefits and deeper settings stay out of the MVP flow.
           </p>
         </div>
@@ -745,16 +740,16 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
         <div className="space-y-[16px] rounded-[12px] border border-primary/20 bg-primary/5 p-[16px]">
           <div className="flex flex-wrap items-start justify-between gap-[12px]">
             <div className="space-y-[4px]">
-              <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-primary">Job summary</p>
-              <h3 className="text-[24px] leading-[32px] font-medium text-foreground">
+              <p className={`${FX_TYPOGRAPHY.metaLabel} uppercase tracking-[0.08em] text-primary`}>Job summary</p>
+              <h3 className={`${FX_TYPOGRAPHY.cardTitle} text-foreground`}>
                 {draft.jobTitle || "Untitled job"}
               </h3>
-              <p className="text-[14px] leading-[22px] text-muted-foreground">
+              <p className={`${FX_TYPOGRAPHY.cardSubtitle} text-muted-foreground`}>
                 {draft.clientCompany || "My Company"} · {draft.location || "Location pending"} · {draft.positions || "0"} positions
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-[8px] text-[13px] text-muted-foreground">
+            <div className={`flex flex-wrap gap-[8px] ${FX_TYPOGRAPHY.small} text-muted-foreground`}>
               <span className="rounded-full bg-background px-[12px] py-[8px]">{draft.jobType}</span>
               <span className="rounded-full bg-background px-[12px] py-[8px]">{draft.workplaceType}</span>
               <span className="rounded-full bg-background px-[12px] py-[8px]">{draft.priority}</span>
@@ -763,22 +758,22 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
 
           <div className="grid gap-[16px] md:grid-cols-2">
             <div className="space-y-[8px]">
-              <p className="text-[13px] font-medium text-foreground">Primary Skills</p>
-              <p className="text-[14px] leading-[22px] text-muted-foreground">
+              <p className={`${FX_TYPOGRAPHY.cardTitle} text-foreground`}>Primary Skills</p>
+              <p className={`${FX_TYPOGRAPHY.cardSubtitle} text-muted-foreground`}>
                 {draft.primarySkills.length ? draft.primarySkills.join(", ") : "Not added yet"}
               </p>
             </div>
             <div className="space-y-[8px]">
-              <p className="text-[13px] font-medium text-foreground">Screening Questions</p>
-              <p className="text-[14px] leading-[22px] text-muted-foreground">
+              <p className={`${FX_TYPOGRAPHY.cardTitle} text-foreground`}>Screening Questions</p>
+              <p className={`${FX_TYPOGRAPHY.cardSubtitle} text-muted-foreground`}>
                 {draft.screeningQuestions.length ? `${draft.screeningQuestions.length} questions prepared` : "No screening questions yet"}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-[12px] border border-border bg-[var(--fx-bg-soft)] p-[16px] text-[14px] leading-[22px] text-muted-foreground">
-          <p className="font-medium text-foreground">Minimum required before publish</p>
+        <div className={`rounded-[12px] border border-border bg-[var(--fx-bg-soft)] p-[16px] ${FX_TYPOGRAPHY.cardSubtitle} text-muted-foreground`}>
+          <p className={`${FX_TYPOGRAPHY.cardTitle} text-foreground`}>Minimum required before publish</p>
           <ul className="mt-[8px] list-disc space-y-[4px] pl-[20px]">
             <li>Role / title</li>
             <li>Job description</li>
@@ -788,165 +783,68 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
           </ul>
         </div>
 
-        <p className="text-[14px] leading-[22px] text-muted-foreground">{draft.publishNotes}</p>
+        <p className={`${FX_TYPOGRAPHY.cardSubtitle} text-muted-foreground`}>{draft.publishNotes}</p>
       </div>
     );
   }
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      saveDraft: handleSaveDraft,
+      publish: handlePublish,
+      back: handleBack,
+      next: handleNext,
+      goToStep: (stepId) => {
+        if (STEPS.some((step) => step.id === stepId)) {
+          setCurrentStep(stepId);
+        }
+      },
+      currentStep,
+      currentStepIndex,
+      steps: STEPS,
+      stepCompletion,
+      isDirty,
+      draft,
+      canGoBack: currentStepIndex > 0,
+      canGoNext: currentStepIndex < STEPS.length - 1,
+      isReviewStep: currentStep === "review",
+    }),
+    [currentStep, currentStepIndex, draft, handleBack, handleNext, handlePublish, handleSaveDraft, stepCompletion],
+  );
+
   return (
     <>
-      <div className={`${embedded ? "mt-0 w-full max-w-none" : `mx-auto mt-[32px] w-full ${CONTENT_WIDTH_NARROW_CLASS}`} space-y-[24px]`}>
-        <div
-          className={cn(
-            "flex flex-col gap-[16px] rounded-[16px] border border-border bg-card p-[24px] md:flex-row md:items-start",
-            embedded ? "md:justify-end" : "md:justify-between",
-          )}
-        >
-          {!embedded ? (
-            <div className="space-y-[4px]">
-              <h1 className="text-[30px] leading-[36px] font-medium text-foreground">Create Job</h1>
-              <p className="text-[14px] leading-[22px] text-muted-foreground">
-                Fill the essentials, use AI helpers where helpful, then review and publish.
+      <div className="space-y-[24px]">
+        <div className="space-y-[16px]">
+          <div className="flex items-center justify-between gap-[16px]">
+            <div className="min-w-0">
+              <p className={`${FX_TYPOGRAPHY.metaLabel} uppercase tracking-[0.08em] text-primary`}>Workflow</p>
+              <p className={`${FX_TYPOGRAPHY.small} text-muted-foreground`}>
+                Basics → Description → Skills → Screening → Evaluation → Review
               </p>
             </div>
-          ) : null}
+            <div className={`${FX_TYPOGRAPHY.fieldHint} text-muted-foreground`}>
+              Step {currentStepIndex + 1} of {STEPS.length}
+            </div>
+          </div>
 
-          <div className="flex items-center gap-[12px]">
-            <button
-              type="button"
-              className={fxButtonClassName({ variant: "outline", size: "md", className: "rounded-[8px]" })}
-              onClick={handleSaveDraft}
-            >
-              Save Draft
-            </button>
-            <button
-              type="button"
-              className={fxButtonClassName({ size: "md", className: "rounded-[8px]" })}
-              onClick={handlePublish}
-            >
-              Publish Job
-            </button>
+          <div className="flex flex-wrap items-center gap-x-[12px] gap-y-[4px] border-b border-border">
+            {STEPS.map((step, index) => (
+              <WorkflowStep
+                key={step.id}
+                index={index}
+                label={step.label}
+                isActive={currentStep === step.id}
+                isComplete={stepCompletion[step.id]}
+                onClick={() => setCurrentStep(step.id)}
+              />
+            ))}
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-[8px]">
-          {STEPS.map((step) => (
-            <StepButton
-              key={step.id}
-              label={step.label}
-              isActive={currentStep === step.id}
-              isComplete={stepCompletion[step.id]}
-              onClick={() => setCurrentStep(step.id)}
-            />
-          ))}
-        </div>
-
-        {renderCurrentStep()}
-
-        <div className="flex items-center justify-between gap-[16px] rounded-[16px] border border-border bg-card p-[24px]">
-          <button
-            type="button"
-            className={fxButtonClassName({
-              variant: "outline",
-              size: "md",
-              className: "rounded-[8px]",
-            })}
-            onClick={handleBack}
-            disabled={currentStepIndex === 0}
-          >
-            Back
-          </button>
-
-          <button
-            type="button"
-            className={fxButtonClassName({ size: "md", className: "rounded-[8px]" })}
-            onClick={handleNext}
-            disabled={currentStepIndex === STEPS.length - 1}
-          >
-            {currentStep === "evaluation" ? "Review" : "Next"}
-          </button>
-        </div>
+        <div>{renderCurrentStep()}</div>
       </div>
-
-      <Sheet open={Boolean(activeSheet)} onOpenChange={(open) => !open && setActiveSheet(null)}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{sheetMeta?.title}</SheetTitle>
-            <SheetDescription>{sheetMeta?.description}</SheetDescription>
-          </SheetHeader>
-
-          <div className="space-y-[16px]">
-            {activeSheet === "upload-jd" ? (
-              <div className="rounded-[16px] border border-dashed border-border bg-[var(--fx-bg-soft)] p-[24px] text-center">
-                <FileUp className="mx-auto size-[28px] text-primary" />
-                <p className="mt-[16px] text-[16px] leading-[24px] text-foreground">Drop a JD here to extract the role</p>
-                <p className="mt-[8px] text-[14px] leading-[22px] text-muted-foreground">
-                  In this prototype, applying this action will populate the basics and job description from sample data.
-                </p>
-              </div>
-            ) : null}
-
-            {activeSheet === "write-ai" ? (
-              <div className="rounded-[16px] border border-border bg-[var(--fx-bg-soft)] p-[16px] text-[14px] leading-[22px] text-muted-foreground">
-                AI will use the structured fields already entered to suggest a description. Without enough context, it should assist rather than invent.
-              </div>
-            ) : null}
-
-            {activeSheet === "rewrite-ai" ? (
-              <div className="rounded-[16px] border border-border bg-[var(--fx-bg-soft)] p-[16px] text-[14px] leading-[22px] text-muted-foreground">
-                Rewrite keeps the role intent intact while improving clarity and recruiter readability.
-              </div>
-            ) : null}
-
-            {activeSheet === "retrieve-primary-skills" || activeSheet === "retrieve-secondary-skills" ? (
-              <div className="rounded-[16px] border border-border bg-[var(--fx-bg-soft)] p-[16px] text-[14px] leading-[22px] text-muted-foreground">
-                Evality can suggest skills from the JD and current role details. Review them before moving to the next step.
-              </div>
-            ) : null}
-
-            {activeSheet === "generate-screening" ? (
-              <div className="space-y-[8px]">
-                {availablePresets.slice(0, 3).map((preset) => (
-                  <div key={preset.id} className="rounded-[12px] border border-border bg-[var(--fx-bg-soft)] p-[12px]">
-                    <p className="text-[13px] font-medium leading-[20px] text-foreground">{preset.label}</p>
-                    <p className="text-[13px] leading-[20px] text-muted-foreground">{preset.question}</p>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {activeSheet === "generate-evaluation" ? (
-              <div className="space-y-[8px]">
-                {evaluationContextSample.questions.map((question) => (
-                  <div
-                    key={question}
-                    className="rounded-[12px] border border-border bg-[var(--fx-bg-soft)] p-[12px] text-[13px] leading-[20px] text-foreground"
-                  >
-                    {question}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <SheetFooter>
-            <button
-              type="button"
-              className={fxButtonClassName({ variant: "outline", size: "md", className: "rounded-[8px]" })}
-              onClick={() => setActiveSheet(null)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={fxButtonClassName({ size: "md", className: "rounded-[8px]" })}
-              onClick={handleApplySheetAction}
-            >
-              {sheetMeta?.cta || "Apply"}
-            </button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
 
       <Toast
         open={toastState.open}
@@ -960,4 +858,4 @@ export function CreateJobForm({ embedded = false, initialDraft = null, onSaveDra
       </Toast>
     </>
   );
-}
+});

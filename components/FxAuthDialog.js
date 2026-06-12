@@ -19,7 +19,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AUTH_COPY, AUTH_OPTIONS, LABELS, ROUTES, STORAGE_KEYS, WELCOME_COPY } from "@/lib/FxConstants";
-import { FX_SURFACE } from "@/lib/FxTheme";
+import { FX_SURFACE, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { readStoredValue, writeStoredValue } from "@/lib/FxUtils";
 
 function GoogleIcon() {
   return (
@@ -90,19 +91,22 @@ export function FxAuthDialog({
   function completeAuth(preference) {
     if (typeof window !== "undefined") {
       if (preference) {
-        localStorage.setItem(STORAGE_KEYS.HIRING_PREFERENCE, preference);
+        writeStoredValue(STORAGE_KEYS.HIRING_PREFERENCE, preference);
       }
-      localStorage.setItem(STORAGE_KEYS.AUTH_COMPLETE, "true");
+      if (intent === "signup") {
+        writeStoredValue(STORAGE_KEYS.JOBS_DEMO_MODE, "true");
+      }
+      writeStoredValue(STORAGE_KEYS.AUTH_COMPLETE, "true");
       window.dispatchEvent(new Event("fx-auth-change"));
     }
     setIsOpen(false);
-    router.replace(intent === "signup" ? ROUTES.CREATE_JOB : ROUTES.ACTION_CENTER);
+    router.replace(intent === "signup" ? ROUTES.JOBS : ROUTES.ACTION_CENTER);
     router.refresh();
   }
 
   function handleAuthSuccess() {
     if (typeof window !== "undefined") {
-      const existingPreference = localStorage.getItem(STORAGE_KEYS.HIRING_PREFERENCE);
+      const existingPreference = readStoredValue(STORAGE_KEYS.HIRING_PREFERENCE);
       if (intent === "login") {
         completeAuth(existingPreference || null);
         return;
@@ -161,7 +165,7 @@ export function FxAuthDialog({
                   <button
                     key={option.id}
                     type="button"
-                    className={`flex h-[48px] w-full cursor-pointer items-center justify-center gap-[16px] rounded-[10px] border text-sm font-medium ${
+                    className={`flex h-[48px] w-full cursor-pointer items-center justify-center gap-[16px] rounded-[10px] border ${FX_TYPOGRAPHY.button} ${
                       option.id === "linkedin"
                         ? "border-[#0A66C2] bg-[#0A66C2] text-white hover:bg-[#0958A8]"
                         : "border-border bg-background text-foreground hover:bg-muted"
@@ -176,7 +180,7 @@ export function FxAuthDialog({
 
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-[24px]">
                 <div className="h-px bg-border" />
-                <span className="text-xs font-medium uppercase text-muted-foreground">or</span>
+                <span className={`${FX_TYPOGRAPHY.metaLabel} uppercase text-muted-foreground`}>or</span>
                 <div className="h-px bg-border" />
               </div>
 
@@ -186,12 +190,12 @@ export function FxAuthDialog({
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  className="h-[48px] w-full rounded-[10px] border border-border bg-background px-[14px] text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring"
+                  className={`h-[48px] w-full rounded-[10px] border border-border bg-background px-[14px] ${FX_TYPOGRAPHY.input} text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring`}
                   placeholder={LABELS.EMAIL}
                 />
                 <button
                   type="submit"
-                  className="h-[48px] w-full cursor-pointer rounded-[10px] bg-foreground text-sm font-medium text-background hover:bg-foreground/90"
+                  className={`h-[48px] w-full cursor-pointer rounded-[10px] bg-foreground ${FX_TYPOGRAPHY.button} text-background hover:bg-foreground/90`}
                 >
                   {LABELS.CONTINUE}
                 </button>
@@ -214,7 +218,7 @@ export function FxAuthDialog({
               <div className="space-y-[12px]">
                 <button
                   type="button"
-                  className={`flex h-[40px] w-full cursor-pointer items-center rounded-[10px] border border-border ${FX_SURFACE.subtleButton} px-[16px] text-left text-sm font-medium text-foreground transition-colors hover:border-primary/50`}
+                  className={`flex h-[40px] w-full cursor-pointer items-center rounded-[10px] border border-border ${FX_SURFACE.subtleButton} px-[16px] text-left ${FX_TYPOGRAPHY.button} text-foreground transition-colors hover:border-primary/50`}
                   onClick={() => handleWelcomeSelect("clients")}
                 >
                   {WELCOME_COPY.OPTION_2}
@@ -222,7 +226,7 @@ export function FxAuthDialog({
 
                 <button
                   type="button"
-                  className={`flex h-[40px] w-full cursor-pointer items-center rounded-[10px] border border-border ${FX_SURFACE.subtleButton} px-[16px] text-left text-sm font-medium text-foreground transition-colors hover:border-primary/50`}
+                  className={`flex h-[40px] w-full cursor-pointer items-center rounded-[10px] border border-border ${FX_SURFACE.subtleButton} px-[16px] text-left ${FX_TYPOGRAPHY.button} text-foreground transition-colors hover:border-primary/50`}
                   onClick={() => handleWelcomeSelect("company")}
                 >
                   {WELCOME_COPY.OPTION_1}

@@ -9,6 +9,7 @@ components/FxThemeController.js | Root theme synchronizer | Sree | 2026-06-11
 import { useEffect } from "react";
 
 import { STORAGE_KEYS, THEMES } from "@/lib/FxConstants";
+import { readStoredValue } from "@/lib/FxUtils";
 
 function applyTheme(theme) {
   if (typeof document === "undefined") {
@@ -19,11 +20,7 @@ function applyTheme(theme) {
 }
 
 function getStoredTheme() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.localStorage.getItem(STORAGE_KEYS.THEME);
+  return readStoredValue(STORAGE_KEYS.THEME);
 }
 
 export function FxThemeController() {

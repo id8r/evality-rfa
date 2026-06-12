@@ -8,9 +8,10 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_SURFACE } from "@/lib/FxTheme";
+import { readStoredValue } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
 
-export function FxProtectedAppPage({ children, title = "Create Job" }) {
+export function FxProtectedAppPage({ children, title = "Create Job", navbarLeading = null, navbarActions = null }) {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
 
@@ -19,10 +20,10 @@ export function FxProtectedAppPage({ children, title = "Create Job" }) {
       return;
     }
 
-    const authFlag = window.localStorage.getItem(STORAGE_KEYS.AUTH_COMPLETE);
+    const authFlag = readStoredValue(STORAGE_KEYS.AUTH_COMPLETE);
 
     if (!authFlag) {
-      router.replace(ROUTES.LOGIN);
+      router.replace(ROUTES.LANDING);
       router.refresh();
       return;
     }
@@ -34,6 +35,10 @@ export function FxProtectedAppPage({ children, title = "Create Job" }) {
     return <div className={`min-h-screen ${FX_SURFACE.page}`} />;
   }
 
-  return <AppShell title={title}>{children}</AppShell>;
+  return (
+    <AppShell title={title} navbarLeading={navbarLeading} navbarActions={navbarActions}>
+      {children}
+    </AppShell>
+  );
 }
 /* - - - - - - - - - - - - - - - - */

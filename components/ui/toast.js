@@ -11,6 +11,7 @@ import * as ToastPrimitives from "@radix-ui/react-toast";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/FxUtils";
+import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
 function ToastProvider(props) {
   return <ToastPrimitives.Provider data-slot="toast-provider" {...props} />;
@@ -46,7 +47,7 @@ function ToastTitle({ className, ...props }) {
   return (
     <ToastPrimitives.Title
       data-slot="toast-title"
-      className={cn("text-[14px] font-medium leading-[20px]", className)}
+      className={cn(FX_TYPOGRAPHY.toastTitle, className)}
       {...props}
     />
   );
@@ -56,7 +57,7 @@ function ToastDescription({ className, ...props }) {
   return (
     <ToastPrimitives.Description
       data-slot="toast-description"
-      className={cn("text-[13px] leading-[20px] text-muted-foreground", className)}
+      className={cn(FX_TYPOGRAPHY.toastDescription, "text-muted-foreground", className)}
       {...props}
     />
   );
@@ -83,7 +84,8 @@ function ToastAction({ className, ...props }) {
     <ToastPrimitives.Action
       data-slot="toast-action"
       className={cn(
-        "inline-flex h-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-border px-[12px] text-[13px] font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex h-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-border px-[12px] hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        FX_TYPOGRAPHY.button,
         className,
       )}
       {...props}

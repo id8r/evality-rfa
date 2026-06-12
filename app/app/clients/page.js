@@ -1,19 +1,20 @@
 /* app/app/clients/page.js | Clients placeholder and product intent | Sree | 2026-06-11 */
 
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
+import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
 /* - - - - - - - - - - - - - - - - */
 
 export default function ClientsPage() {
   return (
     <FxProtectedAppPage title="Clients">
       <section className="max-w-[800px] space-y-[16px]">
-        <h1 className="text-[30px] font-medium leading-[36px]">Clients</h1>
+        <h1 className={FX_TYPOGRAPHY.pageTitle}>Clients</h1>
 
-        <p className="text-[14px] leading-[22px] text-muted-foreground">
+        <p className={`${FX_TYPOGRAPHY.body} text-muted-foreground`}>
           A dedicated workspace for recruiters hiring on behalf of clients.
         </p>
 
-        <div className="space-y-[12px] text-[14px] leading-[22px]">
+        <div className={`space-y-[12px] ${FX_TYPOGRAPHY.body}`}>
           <p><strong>What resides here</strong></p>
           <ul className="list-disc pl-[24px] space-y-[4px]">
             <li>Client records</li>
@@ -25,7 +26,7 @@ export default function ClientsPage() {
           </ul>
         </div>
 
-        <p className="text-[14px] leading-[22px] text-muted-foreground">
+        <p className={`${FX_TYPOGRAPHY.body} text-muted-foreground`}>
           Evality is intentionally designed to support independent and
           client-facing recruiters, making this a first-class area.
         </p>

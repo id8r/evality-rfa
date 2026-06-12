@@ -1,38 +1,26 @@
-/*
-components/AppShell.js | Main app shell with sidebar and navbar | Sree | 2026-06-10
-*/
-
-/* - - - - - - - - - - - - - - - - */
-
 "use client";
 
-// import { useEffect, useState } from "react";
 import { useState } from "react";
 
 import { Sidebar } from "@/components/Sidebar";
 import { Navbar } from "@/components/Navbar";
 import { LAYOUT, SIDEBAR_COLLAPSED_OFFSET_CLASS, SIDEBAR_EXPANDED_OFFSET_CLASS, STORAGE_KEYS } from "@/lib/FxConstants";
+import { readStoredValue, writeStoredValue } from "@/lib/FxUtils";
 
-export function AppShell({ children, title }) {
+export function AppShell({ children, title, navbarLeading = null, navbarActions = null }) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return window.localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSED) === "true";
-});
-
-function handleToggleSidebar() {
-  setIsCollapsed((currentValue) => {
-    const nextValue = !currentValue;
-
-    window.localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, String(nextValue));
-
-    return nextValue;
+    return readStoredValue(STORAGE_KEYS.SIDEBAR_COLLAPSED) === "true";
   });
-}
 
-/* - - - - - - - - - - - - - - - - */
+  function handleToggleSidebar() {
+    setIsCollapsed((currentValue) => {
+      const nextValue = !currentValue;
+
+      writeStoredValue(STORAGE_KEYS.SIDEBAR_COLLAPSED, String(nextValue));
+
+      return nextValue;
+    });
+  }
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -43,16 +31,12 @@ function handleToggleSidebar() {
           isCollapsed ? SIDEBAR_COLLAPSED_OFFSET_CLASS : SIDEBAR_EXPANDED_OFFSET_CLASS
         }`}
       >
-        <Navbar title={title} />
+        <Navbar title={title} leading={navbarLeading} actions={navbarActions} />
 
         <main className="min-h-0 flex-1 overflow-auto">
-          <div className={LAYOUT.APP_CONTENT}>
-            {children}
-          </div>
+          <div className={LAYOUT.APP_CONTENT}>{children}</div>
         </main>
       </div>
     </div>
   );
 }
-
-/* - - - - - - - - - - - - - - - - */

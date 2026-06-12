@@ -11,6 +11,7 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/FxUtils";
+import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
 function DropdownMenu(props) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
@@ -40,7 +41,7 @@ function DropdownMenuLabel({ className, ...props }) {
   return (
     <DropdownMenuPrimitive.Label
       data-slot="dropdown-menu-label"
-      className={cn("px-[12px] py-[8px] text-[12px] font-medium text-muted-foreground", className)}
+      className={cn("px-[12px] py-[8px] text-muted-foreground", FX_TYPOGRAPHY.dropdownHeader, className)}
       {...props}
     />
   );
@@ -51,7 +52,8 @@ function DropdownMenuItem({ className, inset, ...props }) {
     <DropdownMenuPrimitive.Item
       data-slot="dropdown-menu-item"
       className={cn(
-        "relative flex cursor-pointer select-none items-center gap-[12px] rounded-[10px] px-[12px] py-[10px] text-[14px] outline-none transition-colors hover:bg-accent focus:bg-accent",
+        "relative flex cursor-pointer select-none items-center gap-[12px] rounded-[10px] px-[12px] py-[10px] outline-none transition-colors hover:bg-accent focus:bg-accent",
+        FX_TYPOGRAPHY.dropdownItem,
         inset && "pl-[40px]",
         className,
       )}
@@ -75,7 +77,8 @@ function DropdownMenuSubTrigger({ className, inset, children, ...props }) {
     <DropdownMenuPrimitive.SubTrigger
       data-slot="dropdown-menu-sub-trigger"
       className={cn(
-        "flex cursor-pointer select-none items-center gap-[12px] rounded-[10px] px-[12px] py-[10px] text-[14px] outline-none transition-colors hover:bg-accent focus:bg-accent",
+        "flex cursor-pointer select-none items-center gap-[12px] rounded-[10px] px-[12px] py-[10px] outline-none transition-colors hover:bg-accent focus:bg-accent",
+        FX_TYPOGRAPHY.dropdownItem,
         inset && "pl-[40px]",
         className,
       )}

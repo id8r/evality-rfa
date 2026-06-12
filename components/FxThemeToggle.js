@@ -10,6 +10,7 @@ import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { STORAGE_KEYS, THEMES } from "@/lib/FxConstants";
+import { writeStoredValue } from "@/lib/FxUtils";
 
 function getThemeFromDom() {
   if (typeof document === "undefined") {
@@ -27,7 +28,7 @@ function applyTheme(nextTheme) {
   const root = document.documentElement;
 
   root.classList.toggle("dark", nextTheme === THEMES.DARK);
-  window.localStorage.setItem(STORAGE_KEYS.THEME, nextTheme);
+  writeStoredValue(STORAGE_KEYS.THEME, nextTheme);
   window.dispatchEvent(new Event("fx-theme-change"));
 }
 

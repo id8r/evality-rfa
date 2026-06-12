@@ -9,6 +9,7 @@ components/ui/dialog.js | shadcn Dialog primitive | Sree | 2026-06-10
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 
+import { FX_PANEL, FX_SURFACE, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 function Dialog({ ...props }) {
@@ -31,7 +32,7 @@ function DialogOverlay({ className, ...props }) {
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
-      className={cn("fixed inset-0 z-[100] bg-slate-950/[0.04]", className)}
+      className={cn("fixed inset-0 z-[100]", FX_SURFACE.overlay, className)}
       {...props}
     />
   );
@@ -43,8 +44,8 @@ function DialogContent({ className, children, showCloseButton = true, ...props }
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
-        className={cn(
-          "fixed top-1/2 left-1/2 z-[101] grid w-[calc(100%-48px)] max-w-[460px] -translate-x-1/2 -translate-y-1/2 gap-[32px] border border-border bg-[var(--fx-surface-raised)] p-[48px] text-card-foreground shadow-sm duration-200 sm:rounded-[16px]",
+      className={cn(
+          `fixed top-1/2 left-1/2 z-[101] grid w-[calc(100%-48px)] ${FX_PANEL.dialogWidth} -translate-x-1/2 -translate-y-1/2 ${FX_PANEL.dialogGap} border border-border bg-[var(--fx-surface-raised)] ${FX_PANEL.dialogBodyPadding} text-card-foreground shadow-sm ${FX_PANEL.dialogRadius} ${FX_PANEL.dialogTransition}`,
           className,
         )}
         {...props}
@@ -72,7 +73,7 @@ function DialogTitle({ className, ...props }) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-[28px] font-semibold leading-tight tracking-[-0.04em] text-foreground", className)}
+      className={cn(FX_TYPOGRAPHY.dialogTitle, "text-foreground", className)}
       {...props}
     />
   );
@@ -82,7 +83,7 @@ function DialogDescription({ className, ...props }) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-sm leading-6 text-muted-foreground", className)}
+      className={cn(FX_TYPOGRAPHY.dialogSubtitle, "text-muted-foreground", className)}
       {...props}
     />
   );
