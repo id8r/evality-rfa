@@ -1,6 +1,4 @@
-/*
-components/JobsWorkspace.js | Jobs list workspace and create/edit sheet | Sree | 2026-06-12
-*/
+/* components/JobsWorkspace.js | Jobs list workspace and create/edit sheet | Sree | 2026-06-12 */
 
 "use client";
 
@@ -27,6 +25,7 @@ import { ROUTES, STORAGE_KEYS, CONTENT_WIDTH_WIDE_CLASS, DEMO_USER } from "@/lib
 import { ensureJobsStore } from "@/lib/demo-store";
 import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { readStoredJSON, readStoredValue, writeStoredJSON, writeStoredValue } from "@/lib/FxUtils";
+/* - - - - - - - - - - - - - - - - */
 
 function formatDate(value) {
   if (!value) {
@@ -840,3 +839,4 @@ export function JobsWorkspace({ initialCreateOpen = false }) {
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
