@@ -22,7 +22,7 @@ function ToastViewport({ className, ...props }) {
     <ToastPrimitives.Viewport
       data-slot="toast-viewport"
       className={cn(
-        "fixed top-[24px] right-[24px] z-[120] flex max-h-screen w-full max-w-[420px] flex-col gap-[12px] outline-none",
+        "fixed top-[24px] right-[24px] z-[120] flex max-h-screen w-full max-w-[480px] flex-col gap-[16px] outline-none",
         className,
       )}
       {...props}
@@ -35,7 +35,7 @@ function Toast({ className, ...props }) {
     <ToastPrimitives.Root
       data-slot="toast"
       className={cn(
-        "group pointer-events-auto relative flex w-full items-start justify-between gap-[16px] overflow-hidden rounded-[12px] border border-border bg-[var(--fx-surface-raised)] p-[16px] text-foreground shadow-sm",
+        "group pointer-events-auto relative flex w-full items-start justify-between gap-[16px] overflow-hidden rounded-[12px] border border-border bg-[var(--fx-surface-raised)] p-[16px] text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
         className,
       )}
       {...props}
@@ -68,13 +68,13 @@ function ToastClose({ className, ...props }) {
     <ToastPrimitives.Close
       data-slot="toast-close"
       className={cn(
-        "flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-[8px] text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-[6px] text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
       toast-close=""
       {...props}
     >
-      <X className="size-[14px]" />
+      <X className="size-[16px]" />
     </ToastPrimitives.Close>
   );
 }
@@ -84,7 +84,7 @@ function ToastAction({ className, ...props }) {
     <ToastPrimitives.Action
       data-slot="toast-action"
       className={cn(
-        "inline-flex h-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-border px-[12px] hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex h-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[6px] border border-border px-[16px] hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         FX_TYPOGRAPHY.button,
         className,
       )}

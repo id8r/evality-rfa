@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evality — Hiring is hard. Managing hiring shouldn't be.</title>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            letter-spacing: -0.01em;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-[#fafafa] text-slate-900 antialiased selection:bg-blue-100 selection:text-blue-800">
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/80">
+        <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded bg-blue-600 flex items-center justify-center">
+                    <span class="text-white text-xs font-bold font-mono">E</span>
+                </div>
+                <span class="font-semibold text-lg tracking-tight">Evality</span>
+            </div>
+            <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+                <a href="#workflow" class="hover:text-slate-900 transition-colors">How It Works</a>
+                <a href="#product" class="hover:text-slate-900 transition-colors">Product</a>
+                <a href="#audience" class="hover:text-slate-900 transition-colors">Who It's For</a>
+                <a href="#pricing" class="hover:text-slate-900 transition-colors">Pricing</a>
+            </nav>
+            <div class="flex items-center gap-4">
+                <a href="#" class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Log In</a>
+                <a href="#" class="text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md shadow-sm transition-colors">Get Started</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Section 1 — Hero & Massive Real Product Screenshot -->
+    <section class="pt-16 pb-20 border-b border-slate-200 bg-white">
+        <div class="max-w-6xl mx-auto px-6 space-y-12">
+            <div class="max-w-3xl space-y-6">
+                <h1 class="text-4xl md:text-5xl font-bold tracking-tight text-slate-900 leading-[1.1]">
+                    Hiring is hard.<br>Managing hiring shouldn't be.
+                </h1>
+                <p class="text-lg text-slate-600 max-w-xl leading-relaxed">
+                    Create jobs, manage candidates, screen talent, and keep recruiting moving from one workspace.
+                </p>
+                <div class="space-y-3 pt-2">
+                    <a href="#" class="inline-block px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm transition-colors text-sm">
+                        Get Started
+                    </a>
+                    <!-- Tiny Trust Statement -->
+                    <p class="text-xs text-slate-400 font-medium">
+                        Built for independent recruiters, agencies, and internal hiring teams.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Real Recruiting Product Dashboard Layout -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden">
+                <div class="bg-slate-900 px-4 py-3 flex items-center justify-between text-white">
+                    <div class="flex items-center gap-2">
+                        <div class="flex gap-1.5">
+                            <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                            <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                        </div>
+                        <span class="text-xs font-mono text-slate-400 ml-4">Evality Workspace v1.4</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs font-medium text-slate-300 bg-slate-800 px-2.5 py-1 rounded">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Live Sync Active
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+                    <!-- Dashboard Main Panel: Jobs & Candidate Matrix -->
+                    <div class="md:col-span-8 p-6 bg-white overflow-x-auto">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-bold text-slate-900 tracking-tight">Active Recruiting Funnels</h3>
+                            <span class="text-xs text-slate-400">Showing 3 active job specs</span>
+                        </div>
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-400 font-medium bg-slate-50">
+                                    <th class="p-3">Jobs Table</th>
+                                    <th class="p-3">Candidate Counts</th>
+                                    <th class="p-3">Statuses</th>
+                                    <th class="p-3 text-right">Client Shares</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-slate-700 divide-y divide-slate-100">
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="p-3 font-semibold text-slate-950">Senior Frontend Engineer</td>
+                                    <td class="p-3"><span class="font-medium text-slate-900">42 total</span> <span class="text-slate-400 font-mono ml-1">(12 new)</span></td>
+                                    <td class="p-3"><span class="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded font-medium text-[10px]">Technical Screen</span></td>
+                                    <td class="p-3 text-right text-slate-500 font-medium">4 Profiles Sent</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="p-3 font-semibold text-slate-950">Product Manager</td>
+                                    <td class="p-3"><span class="font-medium text-slate-900">18 total</span> <span class="text-slate-400 font-mono ml-1">(2 new)</span></td>
+                                    <td class="p-3"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded font-medium text-[10px]">Shortlisted</span></td>
+                                    <td class="p-3 text-right text-emerald-600 font-semibold bg-emerald-50/40 px-2 rounded">2 Client Approved</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="p-3 font-semibold text-slate-950">Director of Growth</td>
+                                    <td class="p-3"><span class="font-medium text-slate-900">29 total</span> <span class="text-slate-400 font-mono ml-1">(0 new)</span></td>
+                                    <td class="p-3"><span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-medium text-[10px]">Final Interview</span></td>
+                                    <td class="p-3 text-right text-slate-400">0 Pending</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Dashboard Sidebar Panel: Action Center -->
+                    <div class="md:col-span-4 p-6 bg-slate-50/60 flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Action Center</h4>
+                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                            </div>
+                            <div class="space-y-2.5">
+                                <div class="p-3 bg-white border border-slate-200 rounded-lg shadow-2xs space-y-1">
+                                    <div class="flex justify-between items-center text-[10px] font-bold text-amber-700">
+                                        <span>CLIENT FEEDBACK</span>
+                                        <span>48H DELAY</span>
+                                    </div>
+                                    <p class="text-xs text-slate-800 font-medium">Acme Labs left 3 profiles unreviewed</p>
+                                </div>
+                                <div class="p-3 bg-white border border-slate-200 rounded-lg shadow-2xs space-y-1">
+                                    <div class="flex justify-between items-center text-[10px] font-bold text-blue-700">
+                                        <span>CANDIDATE UPDATE</span>
+                                        <span>JUST NOW</span>
+                                    </div>
+                                    <p class="text-xs text-slate-800 font-medium">Sarah Jenkins submitted availability matrix</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pt-4 border-t border-slate-200/60 mt-6 md:mt-0">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                                <p class="text-xs text-blue-900 font-medium">All tasks synced to local email threads.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 2 — The Problem -->
+    <section id="problem" class="py-20 max-w-4xl mx-auto px-6 text-center">
+        <h2 class="text-xs font-semibold tracking-wider text-blue-600 uppercase mb-3">The Challenge</h2>
+        <p class="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 mb-4">
+            Recruiting Happens Everywhere.
+        </p>
+        <p class="text-slate-600 max-w-xl mx-auto mb-10 text-base leading-relaxed">
+            The work is everywhere. <span class="text-slate-900 font-semibold">The workflow isn't.</span>
+        </p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-2xl mx-auto">
+            <div class="px-4 py-2.5 bg-white border border-slate-200 rounded-md font-medium text-sm text-slate-600 shadow-2xs">LinkedIn</div>
+            <div class="px-4 py-2.5 bg-white border border-slate-200 rounded-md font-medium text-sm text-slate-600 shadow-2xs">Email</div>
+            <div class="px-4 py-2.5 bg-white border border-slate-200 rounded-md font-medium text-sm text-slate-600 shadow-2xs">Calls</div>
+            <div class="px-4 py-2.5 bg-white border border-slate-200 rounded-md font-medium text-sm text-slate-600 shadow-2xs">Spreadsheets</div>
+            <div class="px-4 py-2.5 bg-white border border-slate-200 rounded-md font-medium text-sm text-slate-600 shadow-2xs">ATS Tools</div>
+        </div>
+    </section>
+
+    <!-- Section 3 — The Evality Workflow (Product Architecture Model) -->
+    <section id="workflow" class="py-20 border-y border-slate-200 bg-white">
+        <div class="max-w-6xl mx-auto px-6 text-center">
+            <h2 class="text-xs font-semibold tracking-wider text-blue-600 uppercase mb-3">The North Star Architecture</h2>
+            <p class="text-3xl font-bold tracking-tight text-slate-900 mb-4">The Evality Product Model</p>
+            <p class="text-slate-600 max-w-md mx-auto mb-16 text-sm md:text-base">
+                A single unified workspace built natively around the standard sequence of fast-moving recruitment workflows.
+            </p>
+
+            <!-- Expanded Prominent Structural Model Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-5 max-w-5xl mx-auto relative items-stretch">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col justify-between items-center shadow-xs hover:border-slate-300 transition-all">
+                    <span class="text-xs font-mono text-slate-400 font-bold mb-3">01</span>
+                    <span class="font-bold text-slate-900 text-base">Need</span>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col justify-between items-center shadow-xs hover:border-slate-300 transition-all">
+                    <span class="text-xs font-mono text-slate-400 font-bold mb-3">02</span>
+                    <span class="font-bold text-slate-900 text-base">Create Job</span>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col justify-between items-center shadow-xs hover:border-slate-300 transition-all">
+                    <span class="text-xs font-mono text-slate-400 font-bold mb-3">03</span>
+                    <span class="font-bold text-slate-900 text-base">Add Candidates</span>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col justify-between items-center shadow-xs hover:border-slate-300 transition-all">
+                    <span class="text-xs font-mono text-slate-400 font-bold mb-3">04</span>
+                    <span class="font-bold text-slate-900 text-base">Screen</span>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col justify-between items-center shadow-xs hover:border-slate-300 transition-all">
+                    <span class="text-xs font-mono text-slate-400 font-bold mb-3">05</span>
+                    <span class="font-bold text-slate-900 text-base">Shortlist</span>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col justify-between items-center shadow-xs hover:border-slate-300 transition-all">
+                    <span class="text-xs font-mono text-slate-400 font-bold mb-3">06</span>
+                    <span class="font-bold text-slate-900 text-base">Share</span>
+                </div>
+                <div class="bg-blue-600 border border-blue-700 rounded-xl p-6 flex flex-col justify-between items-center shadow-md transform md:scale-105 sm:col-span-2 md:col-span-1">
+                    <span class="text-xs font-mono text-blue-200 font-bold mb-3">07</span>
+                    <span class="font-bold text-white text-base">Hire</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 4 — Product Sandbox -->
+    <section id="product" class="py-20 bg-slate-50/50 border-b border-slate-200">
+        <div class="max-w-5xl mx-auto px-6">
+            <div class="text-center mb-10">
+                <h2 class="text-xs font-semibold tracking-wider text-blue-600 uppercase mb-3">Interactive Engine</h2>
+                <p class="text-2xl font-bold tracking-tight text-slate-900">See inside the workspace</p>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="flex items-center justify-center border-b border-slate-200 mb-8 overflow-x-auto max-w-md mx-auto">
+                <button onclick="switchTab('jobs', this)" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-blue-600 text-blue-600 whitespace-nowrap focus:outline-none">
+                    Jobs
+                </button>
+                <button onclick="switchTab('candidates', this)" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-900 whitespace-nowrap focus:outline-none">
+                    Candidates
+                </button>
+                <button onclick="switchTab('workspace', this)" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-900 whitespace-nowrap focus:outline-none">
+                    Workspace
+                </button>
+                <button onclick="switchTab('action', this)" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-900 whitespace-nowrap focus:outline-none">
+                    Action Center
+                </button>
+            </div>
+
+            <!-- Product Display Box -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-xl max-w-4xl mx-auto overflow-hidden">
+                <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                        <span id="mock-breadcrumb" class="text-xs font-mono font-medium text-slate-400">workspace / jobs</span>
+                    </div>
+                </div>
+
+                <div class="p-6 min-h-[260px]">
+                    <!-- Tab Content: Jobs -->
+                    <div id="tab-jobs" class="tab-content active space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Workspace Pipelines</h4>
+                            <span class="text-xs text-blue-600 font-medium">Create Job Spec →</span>
+                        </div>
+                        <div class="border border-slate-200 rounded-md text-xs divide-y divide-slate-100">
+                            <div class="p-3 flex justify-between items-center bg-slate-50/50">
+                                <span class="font-semibold text-slate-900">Senior Systems Engineer</span>
+                                <span class="px-2 py-0.5 bg-green-50 text-green-700 border border-green-100 rounded text-[10px]">Published</span>
+                            </div>
+                            <div class="p-3 flex justify-between items-center">
+                                <span class="font-semibold text-slate-900">Staff Product Designer</span>
+                                <span class="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded text-[10px]">Internal Review</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Candidates -->
+                    <div id="tab-candidates" class="tab-content space-y-4">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Candidate Hub Workspace</h4>
+                        <div class="space-y-2">
+                            <div class="p-3 border border-slate-200 rounded-md flex items-center justify-between text-xs">
+                                <div>
+                                    <p class="font-semibold text-slate-900">Sarah Jenkins</p>
+                                    <p class="text-[11px] text-slate-500">6 Yrs Experience · Ex-Stripe</p>
+                                </div>
+                                <span class="text-blue-600 font-medium">Review Matching Profile</span>
+                            </div>
+                            <div class="p-3 border border-slate-200 rounded-md flex items-center justify-between text-xs">
+                                <div>
+                                    <p class="font-semibold text-slate-900">David Vance</p>
+                                    <p class="text-[11px] text-slate-500">4 Yrs Experience · Ex-Linear</p>
+                                </div>
+                                <span class="text-slate-400">Screen Scheduled</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Workspace -->
+                    <div id="tab-workspace" class="tab-content space-y-4">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Client Allocation Pools</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                            <div class="p-4 border border-slate-200 rounded-md bg-slate-50/50">
+                                <p class="font-bold text-slate-900">Acme Labs Inc.</p>
+                                <p class="text-slate-500 mt-1">3 Roles Open · 12 Candidates</p>
+                            </div>
+                            <div class="p-4 border border-slate-200 rounded-md bg-slate-50/50">
+                                <p class="font-bold text-slate-900">Stellar SaaS</p>
+                                <p class="text-slate-500 mt-1">1 Role Open · 5 Candidates</p>
+                            </div>
+                            <div class="p-4 border border-slate-200 rounded-md bg-slate-50/50">
+                                <p class="font-bold text-slate-900">Vortex Ventures</p>
+                                <p class="text-slate-500 mt-1">2 Roles Open · 8 Candidates</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content: Action Center -->
+                    <div id="tab-action" class="tab-content space-y-3">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Attention Stack</h4>
+                        <div class="p-3 bg-amber-50/50 border border-amber-200/60 rounded text-xs text-amber-900 flex justify-between items-center">
+                            <span>⚠️ 3 client feedback questionnaires left unreviewed for over 48 hours</span>
+                            <span class="font-semibold underline cursor-pointer">Resolve</span>
+                        </div>
+                        <div class="p-3 bg-blue-50/50 border border-blue-200/60 rounded text-xs text-blue-900 flex justify-between items-center">
+                            <span>✉️ Sarah Jenkins updated her interview availability dates</span>
+                            <span class="font-semibold underline cursor-pointer">View</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 5 — Practical Utility AI -->
+    <section class="py-20 bg-white border-b border-slate-200">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-xs font-semibold tracking-wider text-blue-600 uppercase mb-3">AI Where It Helps</h2>
+                <p class="text-2xl font-bold tracking-tight text-slate-900">No hype or buzzwords. Just practical utility.</p>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                <div class="p-4 border border-slate-200 rounded-lg space-y-1">
+                    <h3 class="font-semibold text-slate-900 text-sm">Generate jobs from prompts</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Turn basic conversational intent into a structured role architecture immediately.</p>
+                </div>
+                <div class="p-4 border border-slate-200 rounded-lg space-y-1">
+                    <h3 class="font-semibold text-slate-900 text-sm">Extract skills automatically</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Normalize experience variables across incoming applications without looking over parsing formats.</p>
+                </div>
+                <div class="p-4 border border-slate-200 rounded-lg space-y-1">
+                    <h3 class="font-semibold text-slate-900 text-sm">Generate screening questions</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Instantly populate precise vetting benchmarks matched directly to structural requirements.</p>
+                </div>
+                <div class="p-4 border border-slate-200 rounded-lg space-y-1">
+                    <h3 class="font-semibold text-slate-900 text-sm">Recommend candidates</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Highlight exact pipeline fits already inside your database environment based on historic parameters.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 6 — Audience Segment Persona -->
+    <section id="audience" class="py-20 bg-slate-100/60 border-b border-slate-200">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-xs font-semibold tracking-wider text-blue-600 uppercase mb-3">Target Focus</h2>
+                <p class="text-2xl font-bold tracking-tight text-slate-900">Built Around Real Recruiting Work</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                <div class="bg-white border border-slate-200 rounded-lg p-5 space-y-1.5 shadow-2xs">
+                    <h3 class="font-semibold text-slate-900 text-sm">Independent Recruiters</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Hire for multiple distinct client pipelines seamlessly.</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-lg p-5 space-y-1.5 shadow-2xs">
+                    <h3 class="font-semibold text-slate-900 text-sm">Recruiting Agencies</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Coordinate pipelines, open jobs, and overall placements at scale.</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-lg p-5 space-y-1.5 shadow-2xs">
+                    <h3 class="font-semibold text-slate-900 text-sm">Internal Talent Teams</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">Run end-to-end active hiring workflows across your company.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 7 — Outcomes -->
+    <section class="py-20 max-w-4xl mx-auto px-6">
+        <div class="text-center mb-14">
+            <h2 class="text-xs font-semibold tracking-wider text-blue-600 uppercase mb-3">Outcomes</h2>
+            <p class="text-3xl font-bold tracking-tight text-slate-900">Less Setup. More Recruiting.</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto text-sm">
+            <div class="space-y-1">
+                <h3 class="font-semibold text-slate-900">Create jobs in minutes</h3>
+                <p class="text-xs text-slate-600">Publish deep structured job specifications immediately without formatting friction.</p>
+            </div>
+            <div class="space-y-1">
+                <h3 class="font-semibold text-slate-900">Reduce manual screening</h3>
+                <p class="text-xs text-slate-600">Spend actual focused energy talking directly to candidates instead of cleaning worksheets.</p>
+            </div>
+            <div class="space-y-1">
+                <h3 class="font-semibold text-slate-900">Manage candidates in one workspace</h3>
+                <p class="text-xs text-slate-600">Centralize notes, touchpoints, and evaluations without switching tab interfaces.</p>
+            </div>
+            <div class="space-y-1">
+                <h3 class="font-semibold text-slate-900">Use AI only where it helps</h3>
+                <p class="text-xs text-slate-600">A clear framework built around tactical user utility, entirely free of marketing buzzwords.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 8 — Pricing Structure (Self-Serve Paradigm) -->
+    <section id="pricing" class="py-20 border-t border-slate-200 bg-slate-50/50">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <h2 class="text-xs font-semibold tracking-wider text-blue-600 uppercase mb-3">Pricing Plan</h2>
+                <p class="text-2xl font-bold tracking-tight text-slate-900">Extremely Simple, Self-Serve Framework</p>
+            </div>
+
+            <div class="grid sm:grid-cols-2 gap-6 max-w-xl mx-auto items-stretch">
+                <!-- Free Forever Tier -->
+                <div class="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between space-y-6 shadow-2xs">
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-bold text-slate-900 text-lg">Free</h3>
+                            <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold tracking-wider uppercase">Self-Serve</span>
+                        </div>
+                        <p class="text-xs text-slate-500">For individual recruiters establishing workspaces.</p>
+                        <div class="pt-2 text-slate-900">
+                            <span class="text-3xl font-extrabold tracking-tight">$0</span>
+                            <span class="text-xs text-slate-400 font-semibold block mt-0.5">Free Forever</span>
+                        </div>
+                    </div>
+                    <button class="w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold rounded-md text-xs transition-colors shadow-2xs">
+                        Start Free Workspace
+                    </button>
+                </div>
+
+                <!-- Pro Upgrade Tier -->
+                <div class="bg-white border-2 border-blue-600 rounded-xl p-6 flex flex-col justify-between space-y-6 shadow-md relative">
+                    <div class="absolute -top-3 right-4 bg-blue-600 text-white text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full">
+                        Growth
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-bold text-slate-900 text-lg">Pro</h3>
+                            <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold tracking-wider uppercase">Scale</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Advanced coordination workflows and automated metrics.</p>
+                        <div class="pt-2 text-slate-900">
+                            <span class="text-3xl font-extrabold tracking-tight">$49</span>
+                            <span class="text-xs text-blue-600 font-semibold block mt-0.5">Upgrade When Needed</span>
+                        </div>
+                    </div>
+                    <button class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md text-xs transition-colors shadow-sm">
+                        Upgrade Workspace
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer Area -->
+    <footer class="py-12 border-t border-slate-200 bg-white text-xs text-slate-500">
+        <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <p>&copy; 2026 Evality Technologies Inc. All parameters aligned to workspace guidelines.</p>
+            <div class="flex items-center gap-6 font-medium text-slate-400">
+                <a href="#" class="hover:text-slate-900 transition-colors">Privacy</a>
+                <a href="#" class="hover:text-slate-900 transition-colors">Terms</a>
+                <a href="#" class="hover:text-slate-900 transition-colors">Contact</a>
+                <a href="#" class="hover:text-slate-900 transition-colors flex items-center gap-1">
+                    LinkedIn
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Tab Switch Logic Script -->
+    <script>
+        function switchTab(tabName, clickedButton) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('border-blue-600', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-slate-500');
+            });
+
+            document.getElementById('tab-' + tabName).classList.add('active');
+            clickedButton.classList.remove('border-transparent', 'text-slate-500');
+            clickedButton.classList.add('border-blue-600', 'text-blue-600');
+
+            document.getElementById('mock-breadcrumb').innerText = 'workspace / ' + tabName;
+        }
+    </script>
+</body>
+</html>

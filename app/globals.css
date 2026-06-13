@@ -24,7 +24,7 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
   --color-border: var(--fx-border);
   --color-input: var(--fx-border);
   --color-ring: color-mix(in srgb, var(--fx-primary) 20%, transparent);
-  --font-sans: Inter, ui-sans-serif, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "IBM Plex Mono", "SFMono-Regular", "SF Mono", monospace;
   --radius-sm: calc(var(--radius) * 0.75);
   --radius-md: var(--radius);
@@ -34,34 +34,33 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
 
 :root {
   --fx-bg: #ffffff;
-  --fx-bg-soft: #f9fafb;
+  --fx-bg-soft: #f8fafc;
   --fx-surface: #ffffff;
-  --fx-surface-raised: #f9fafb;
-  --fx-text: #111827;
-  --fx-text-muted: #6b7280;
-  --fx-border: #e5e7eb;
+  --fx-surface-raised: #f8fafc;
+  --fx-text: #0f172a;
+  --fx-text-muted: #64748b;
+  --fx-border: #e2e8f0;
   --fx-primary: #2563eb;
   --fx-primary-foreground: #ffffff;
   --fx-success: #16a34a;
-  --fx-warning: #f59e0b;
+  --fx-warning: #d97706;
   --fx-danger: #dc2626;
-  --radius: 12px;
+  --radius: 8px;
 }
 
 .dark {
-  /* Tailwind slate neutral palette - VS Code / GitHub Dark Dimmed feel */
-  --fx-bg: #020617; /* slate-950 */
-  --fx-bg-soft: #0f172a; /* slate-900 */
-  --fx-surface: #0f172a; /* slate-900 */
-  --fx-surface-raised: #1e293b; /* slate-800 */
-  --fx-text: #f1f5f9; /* slate-100 */
-  --fx-text-muted: #94a3b8; /* slate-400 */
-  --fx-border: #334155; /* slate-700 */
-  --fx-primary: #60a5fa; /* blue-400 */
-  --fx-primary-foreground: #020617; /* slate-950 */
+  --fx-bg: #0b0f19;
+  --fx-bg-soft: #111827;
+  --fx-surface: #111827;
+  --fx-surface-raised: #1f2937;
+  --fx-text: #f9fafb;
+  --fx-text-muted: #9ca3af;
+  --fx-border: #374151;
+  --fx-primary: #3b82f6;
+  --fx-primary-foreground: #ffffff;
   --fx-success: #22c55e;
   --fx-warning: #fbbf24;
-  --fx-danger: #f87171;
+  --fx-danger: #ef4444;
 }
 
 @layer base {

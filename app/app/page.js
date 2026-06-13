@@ -1,10 +1,7 @@
-import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
-import { JobsWorkspace } from "@/components/JobsWorkspace";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <FxProtectedAppPage title="Jobs">
-      <JobsWorkspace />
-    </FxProtectedAppPage>
-  );
+import { ROUTES } from "@/lib/FxConstants";
+
+export default function AppPage() {
+  redirect(ROUTES.JOBS);
 }

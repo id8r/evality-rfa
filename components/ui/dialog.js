@@ -45,7 +45,7 @@ function DialogContent({ className, children, showCloseButton = true, ...props }
       <DialogPrimitive.Content
         data-slot="dialog-content"
       className={cn(
-          `fixed top-1/2 left-1/2 z-[101] grid w-[calc(100%-48px)] ${FX_PANEL.dialogWidth} -translate-x-1/2 -translate-y-1/2 ${FX_PANEL.dialogGap} border border-border bg-[var(--fx-surface-raised)] ${FX_PANEL.dialogBodyPadding} text-card-foreground shadow-sm ${FX_PANEL.dialogRadius} ${FX_PANEL.dialogTransition}`,
+        `fixed top-1/2 left-1/2 z-[101] grid w-[calc(100%-48px)] ${FX_PANEL.dialogWidth} -translate-x-1/2 -translate-y-1/2 ${FX_PANEL.dialogGap} border border-border bg-[var(--fx-surface-raised)] ${FX_PANEL.dialogBodyPadding} text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${FX_PANEL.dialogRadius} ${FX_PANEL.dialogTransition}`,
           className,
         )}
         {...props}
@@ -54,9 +54,9 @@ function DialogContent({ className, children, showCloseButton = true, ...props }
         {showCloseButton ? (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-[16px] right-[16px] flex size-[32px] shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute top-[16px] right-[16px] flex size-[32px] shrink-0 items-center justify-center rounded-[6px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <XIcon className="size-[18px]" />
+            <XIcon className="size-[16px]" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         ) : null}

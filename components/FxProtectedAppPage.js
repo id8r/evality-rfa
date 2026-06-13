@@ -11,7 +11,7 @@ import { FX_SURFACE } from "@/lib/FxTheme";
 import { readStoredValue } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
 
-export function FxProtectedAppPage({ children, title = "Create Job", navbarLeading = null, navbarActions = null }) {
+export function FxProtectedAppPage({ children, title = "Jobs", navbarLeading = null, navbarActions = null }) {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
 

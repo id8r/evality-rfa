@@ -21,7 +21,7 @@ function AlertDialogOverlay({ className, ...props }) {
   return (
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
-      className={cn("fixed inset-0 z-[110] bg-slate-950/[0.14] backdrop-blur-[8px]", className)}
+      className={cn("fixed inset-0 z-[110] bg-slate-950/[0.14] backdrop-blur-[4px]", className)}
       {...props}
     />
   );
@@ -34,7 +34,7 @@ function AlertDialogContent({ className, ...props }) {
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          "fixed left-1/2 top-1/2 z-[111] grid w-[calc(100%-48px)] max-w-[420px] -translate-x-1/2 -translate-y-1/2 gap-[20px] rounded-[16px] border border-border bg-[var(--fx-surface-raised)] p-[24px] text-card-foreground shadow-none",
+          "fixed left-1/2 top-1/2 z-[111] grid w-[calc(100%-48px)] max-w-[480px] -translate-x-1/2 -translate-y-1/2 gap-[24px] rounded-[16px] border border-border bg-[var(--fx-surface-raised)] p-[24px] text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
           className,
         )}
         {...props}
@@ -51,7 +51,7 @@ function AlertDialogFooter({ className, ...props }) {
   return (
     <div
       data-slot="alert-dialog-footer"
-      className={cn("flex flex-col-reverse gap-[12px] sm:flex-row sm:justify-end", className)}
+      className={cn("flex flex-col-reverse gap-[16px] sm:flex-row sm:justify-end", className)}
       {...props}
     />
   );

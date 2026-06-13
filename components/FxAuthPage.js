@@ -10,8 +10,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { FxAuthDialog } from "@/components/FxAuthDialog";
-import { LAYOUT, ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
-import { FX_SURFACE } from "@/lib/FxTheme";
+import { ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
+import { FX_LAYOUT, FX_SURFACE } from "@/lib/FxTheme";
 import { readStoredValue } from "@/lib/FxUtils";
 
 export function FxAuthPage({ intent = "signup" }) {
@@ -26,7 +26,7 @@ export function FxAuthPage({ intent = "signup" }) {
     const authFlag = readStoredValue(STORAGE_KEYS.AUTH_COMPLETE);
 
     if (authFlag) {
-      router.replace(intent === "signup" ? ROUTES.JOBS : ROUTES.ACTION_CENTER);
+      router.replace(ROUTES.APP);
       router.refresh();
       return;
     }
@@ -40,8 +40,8 @@ export function FxAuthPage({ intent = "signup" }) {
 
   return (
     <div className={`min-h-screen ${FX_SURFACE.page}`}>
-      <div className={LAYOUT.PAGE_FRAME}>
-        <main className={LAYOUT.AUTH_PAGE_MAIN}>
+      <div className={FX_LAYOUT.pageFrame}>
+        <main className={FX_LAYOUT.authPageMain}>
           <FxAuthDialog defaultOpen showTrigger={false} intent={intent} />
         </main>
       </div>

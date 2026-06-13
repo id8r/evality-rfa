@@ -15,16 +15,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  ACCOUNT_MENU_WIDTH_CLASS,
   APP_SHORT_NAME,
   DEMO_USER,
   NAV_ITEMS,
   ROUTES,
-  SIDEBAR_COLLAPSED_WIDTH_CLASS,
-  SIDEBAR_EXPANDED_WIDTH_CLASS,
   STORAGE_KEYS,
 } from "@/lib/FxConstants";
-import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { removeStoredValue } from "@/lib/FxUtils";
 
 const NAV_ICONS = {
@@ -44,7 +41,7 @@ function Avatar({ name }) {
     .toUpperCase();
 
   return (
-    <div className={`flex h-[36px] w-[36px] items-center justify-center rounded-[10px] bg-[var(--fx-bg-soft)] ${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text)]`}>
+    <div className={`flex h-[36px] w-[36px] items-center justify-center rounded-[8px] bg-[var(--fx-bg-soft)] ${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text)]`}>
       {initials}
     </div>
   );
@@ -68,14 +65,14 @@ export function Sidebar({ isCollapsed, onToggle }) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[12px] py-[16px] transition-[width] duration-200 ${isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_EXPANDED_WIDTH_CLASS
+      className={`fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[16px] py-[16px] transition-[width] duration-200 ${isCollapsed ? FX_LAYOUT.sidebarCollapsedWidth : FX_LAYOUT.sidebarExpandedWidth
         }`}
     >
       <div className={`mb-[24px] flex items-center ${isCollapsed ? "justify-center" : "justify-between"} gap-[8px]`}>
         {isCollapsed ? (
           <button
             type="button"
-            className="group relative flex h-[40px] w-[40px] cursor-pointer items-center justify-center rounded-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="group relative flex h-[40px] w-[40px] cursor-pointer items-center justify-center rounded-[8px] text-muted-foreground hover:bg-muted hover:text-foreground"
             onClick={onToggle}
             aria-label="Expand sidebar"
           >
@@ -106,16 +103,15 @@ export function Sidebar({ isCollapsed, onToggle }) {
         )}
       </div>
 
-      <nav className="flex flex-col gap-[4px]">
+      <nav className="flex flex-col gap-[8px]">
         {NAV_ITEMS.map((item) => {
           const Icon = NAV_ICONS[item.icon];
           const isJobsRoute =
             pathname === ROUTES.APP ||
             pathname === ROUTES.JOBS ||
-            pathname.startsWith(`${ROUTES.JOBS}/`) ||
-            pathname === ROUTES.CREATE_JOB;
+            pathname.startsWith(`${ROUTES.JOBS}/`);
           const isActive = item.id === "jobs" ? isJobsRoute : pathname === item.href;
-          const sharedClasses = `group relative flex h-[44px] items-center rounded-[10px] px-[12px] ${FX_TYPOGRAPHY.button} transition-colors ${isCollapsed ? "justify-center" : "gap-[12px]"
+          const sharedClasses = `group relative flex h-[44px] items-center rounded-[8px] px-[16px] ${FX_TYPOGRAPHY.button} transition-colors ${isCollapsed ? "justify-center" : "gap-[16px]"
             }`;
 
           return (
@@ -131,7 +127,7 @@ export function Sidebar({ isCollapsed, onToggle }) {
               <Icon className="size-[20px]" />
               {!isCollapsed ? <span>{item.label}</span> : null}
               {isCollapsed ? (
-                <span className={`pointer-events-none absolute left-[52px] top-1/2 hidden -translate-y-1/2 rounded-[8px] border border-border bg-background px-[10px] py-[6px] ${FX_TYPOGRAPHY.metaLabel} text-foreground shadow-sm group-hover:block`}>
+                <span className={`pointer-events-none absolute left-[52px] top-1/2 hidden -translate-y-1/2 rounded-[8px] border border-border bg-background px-[8px] py-[8px] ${FX_TYPOGRAPHY.metaLabel} text-foreground shadow-sm group-hover:block`}>
                   {item.label}
                 </span>
               ) : null}
@@ -147,7 +143,7 @@ export function Sidebar({ isCollapsed, onToggle }) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className={`flex w-full cursor-pointer items-center rounded-[12px] px-[8px] py-[8px] text-left hover:bg-accent ${isCollapsed ? "justify-center" : "gap-[12px]"
+            className={`flex w-full cursor-pointer items-center rounded-[12px] px-[8px] py-[8px] text-left hover:bg-accent ${isCollapsed ? "justify-center" : "gap-[16px]"
                 }`}
             >
               <Avatar name={DEMO_USER.name} />
@@ -160,7 +156,7 @@ export function Sidebar({ isCollapsed, onToggle }) {
             </button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align={isCollapsed ? "start" : "end"} side="top" className={ACCOUNT_MENU_WIDTH_CLASS}>
+          <DropdownMenuContent align={isCollapsed ? "start" : "end"} side="top" className={FX_LAYOUT.accountMenuWidth}>
             <DropdownMenuItem onClick={handleToggleTheme}>
               <span>Theme</span>
               <span className={`ml-auto ${FX_TYPOGRAPHY.metaLabel} text-muted-foreground`}>

@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import { Sidebar } from "@/components/Sidebar";
 import { Navbar } from "@/components/Navbar";
-import { LAYOUT, SIDEBAR_COLLAPSED_OFFSET_CLASS, SIDEBAR_EXPANDED_OFFSET_CLASS, STORAGE_KEYS } from "@/lib/FxConstants";
+import { STORAGE_KEYS } from "@/lib/FxConstants";
+import { FX_LAYOUT } from "@/lib/FxTheme";
 import { readStoredValue, writeStoredValue } from "@/lib/FxUtils";
 
 export function AppShell({ children, title, navbarLeading = null, navbarActions = null }) {
@@ -28,13 +29,13 @@ export function AppShell({ children, title, navbarLeading = null, navbarActions 
 
       <div
         className={`flex min-w-0 flex-1 flex-col transition-[padding-left] duration-200 ${
-          isCollapsed ? SIDEBAR_COLLAPSED_OFFSET_CLASS : SIDEBAR_EXPANDED_OFFSET_CLASS
+          isCollapsed ? FX_LAYOUT.sidebarCollapsedOffset : FX_LAYOUT.sidebarExpandedOffset
         }`}
       >
         <Navbar title={title} leading={navbarLeading} actions={navbarActions} />
 
         <main className="min-h-0 flex-1 overflow-auto">
-          <div className={LAYOUT.APP_CONTENT}>{children}</div>
+          <div className={FX_LAYOUT.appContent}>{children}</div>
         </main>
       </div>
     </div>

@@ -55,7 +55,7 @@ export function FxThemeToggle() {
     <button
       type="button"
       onClick={handleToggleTheme}
-      className="flex h-[36px] w-[36px] cursor-pointer items-center justify-center rounded-[8px] border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+      className="flex h-[36px] w-[36px] cursor-pointer items-center justify-center rounded-[6px] border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
       aria-label={theme === THEMES.DARK ? "Switch to light theme" : "Switch to dark theme"}
       title={theme === THEMES.DARK ? "Switch to light theme" : "Switch to dark theme"}
     >

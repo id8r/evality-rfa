@@ -1,8 +1,0 @@
-{
-  "jobTypes": ["Full-time", "Contract", "Part-time", "Internship"],
-  "workplaceTypes": ["On-site", "Hybrid", "Remote"],
-  "priorities": ["High", "Medium", "Low"],
-  "departments": ["Engineering", "Product", "Design", "Sales", "Support", "Operations"],
-  "currencies": ["INR", "USD", "EUR"],
-  "assignees": ["John Doe", "Ayush", "Punit", "Sree"]
-}

@@ -1,9 +1,0 @@
-[
-  { "id": "upload-jd", "label": "Upload JD", "target": "description", "variant": "outline" },
-  { "id": "write-ai", "label": "Write with AI", "target": "description", "variant": "outline" },
-  { "id": "rewrite-ai", "label": "Rewrite with AI", "target": "description", "variant": "outline" },
-  { "id": "retrieve-primary-skills", "label": "Retrieve Primary Skills from JD", "target": "skills", "variant": "outline" },
-  { "id": "retrieve-secondary-skills", "label": "Retrieve Secondary Skills from JD", "target": "skills", "variant": "outline" },
-  { "id": "generate-screening", "label": "Generate Screening Questions", "target": "screening", "variant": "outline" },
-  { "id": "generate-evaluation", "label": "Generate Evaluation Context", "target": "evaluation", "variant": "outline" }
-]
