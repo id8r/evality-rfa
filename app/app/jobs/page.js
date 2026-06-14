@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import {
   ArrowRight,
   ArrowUpDown,
+  Archive,
   ListChecks,
   Mail,
   MoreHorizontal,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { FxButton } from "@/components/FxButton";
+import { FxAiButton } from "@/components/FxAiButton";
 import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxTable } from "@/components/FxTable";
@@ -55,9 +57,11 @@ import {
   ensureJobsStore,
   readStoredWorkspaceType,
   readStoredJobsPageState,
+  readStoredJobsViewMode,
   upsertStoredJob,
   writeStoredJobs,
   writeStoredJobsPageState,
+  writeStoredJobsViewMode,
 } from "@/lib/FxStore";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
@@ -66,6 +70,8 @@ const DEFAULT_PAGE_STATE = {
   selectedTab: "active",
   sortConfig: { key: "updatedAt", direction: "desc" },
 };
+
+const DEFAULT_JOBS_VIEW_MODE = "table";
 
 const JOB_SHEET_STEPS = [
   { value: "basic", label: "Basic Details" },
@@ -339,6 +345,10 @@ function subscribeToWorkspaceTypeChange(onStoreChange) {
 export default function JobsPage() {
   const router = useRouter();
   const initialPageState = readStoredJobsPageState() ?? DEFAULT_PAGE_STATE;
+  const [jobsViewMode, setJobsViewMode] = useState(() => {
+    const storedViewMode = readStoredJobsViewMode();
+    return storedViewMode === "empty" ? "empty" : DEFAULT_JOBS_VIEW_MODE;
+  });
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [jobForm, setJobForm] = useState(EMPTY_JOB_FORM);
@@ -356,6 +366,30 @@ export default function JobsPage() {
   const isJobFormDirty = JSON.stringify(jobForm) !== JSON.stringify(baselineJobForm);
   const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
   const showClientInfo = workspaceType === WORKSPACE_TYPES.CLIENTS || workspaceType === WORKSPACE_TYPES.BOTH;
+
+  useEffect(() => {
+    const syncJobsViewMode = () => {
+      const storedViewMode = readStoredJobsViewMode();
+      setJobsViewMode(storedViewMode === "empty" ? "empty" : DEFAULT_JOBS_VIEW_MODE);
+    };
+
+    syncJobsViewMode();
+    window.addEventListener("storage", syncJobsViewMode);
+    window.addEventListener("fx-auth-change", syncJobsViewMode);
+    window.addEventListener("focus", syncJobsViewMode);
+    document.addEventListener("visibilitychange", syncJobsViewMode);
+
+    return () => {
+      window.removeEventListener("storage", syncJobsViewMode);
+      window.removeEventListener("fx-auth-change", syncJobsViewMode);
+      window.removeEventListener("focus", syncJobsViewMode);
+      document.removeEventListener("visibilitychange", syncJobsViewMode);
+    };
+  }, []);
+
+  useEffect(() => {
+    writeStoredJobsViewMode(jobsViewMode);
+  }, [jobsViewMode]);
 
   useEffect(() => {
     writeStoredJobsPageState({ searchTerm, selectedTab, sortConfig });
@@ -652,6 +686,37 @@ export default function JobsPage() {
     }));
   }
 
+  function buildGeneratedJobContent(form, includeClientInfo) {
+    const title = form.title.trim();
+    const client = includeClientInfo ? form.company.trim() : "";
+    const roleContext = client ? `${title} at ${client}` : title;
+
+    return {
+      aiPrompt: form.aiPrompt.trim(),
+      jobDescription:
+        form.jobDescription.trim() ||
+        `We are hiring for ${roleContext}. The role should support a practical, AI-assisted recruiting flow without unnecessary ATS overhead.`,
+      primarySkills: form.primarySkills.trim() || "Communication, Collaboration, Structured Screening",
+      secondarySkills: form.secondarySkills.trim() || "Candidate Experience, Workflow Coordination, Hiring Ops",
+      responsibilities:
+        form.responsibilities.trim() ||
+        `Support ${roleContext} by keeping screening context current, coordinating evaluations, and helping the hiring team move quickly.`,
+      evaluationContext:
+        form.evaluationContext.trim() ||
+        `Use concise role context for ${roleContext} so the AI can screen for practical fit and generate better candidate follow-ups.`,
+      evaluationRounds: form.evaluationRounds.length ? form.evaluationRounds : createDefaultRounds(),
+      questionFormat: form.questionFormat || "cv_and_prescreen",
+      questions: form.questions.length ? form.questions : createDefaultQuestions(),
+      benefitsSummary:
+        form.benefitsSummary.trim() ||
+        `Candidates for ${title || "the role"} can expect a clear process, responsive feedback, and practical conversations focused on fit.`,
+      preScreeningMode: form.preScreeningMode || "call_with_email_backup",
+      callingBackup: form.callingBackup || "email",
+      backupNotes: form.backupNotes || "If a call fails, fall back to email and keep the candidate moving.",
+      interviewRounds: form.evaluationRounds.length ? form.evaluationRounds : createDefaultRounds(),
+    };
+  }
+
   function commitJob(nextStatus = jobForm.status) {
     const title = jobForm.title.trim();
     const company = jobForm.company.trim();
@@ -796,12 +861,17 @@ export default function JobsPage() {
 
   const activeCount = useMemo(() => jobs.filter((job) => !job.isArchived).length, [jobs]);
   const archivedCount = useMemo(() => jobs.filter((job) => job.isArchived).length, [jobs]);
+  const showArchivedEmptyState = selectedTab === "archived" && archivedCount === 0;
 
   function handleResetDemoData() {
     clearAllStoredState();
     window.dispatchEvent(new Event("fx-auth-change"));
     router.replace(ROUTES.LANDING);
     router.refresh();
+  }
+
+  function toggleJobsViewMode() {
+    setJobsViewMode((current) => (current === "empty" ? DEFAULT_JOBS_VIEW_MODE : "empty"));
   }
 
   const columns = [
@@ -909,12 +979,12 @@ export default function JobsPage() {
   const rows = filteredJobs.map((job) => ({
     id: job.id,
     title: (
-      <div className="flex items-center gap-[10px]">
+      <div className="flex min-w-0 items-center gap-[10px]">
         {renderStatusDot(job)}
         {job.status === "Draft" ? (
           <button
             type="button"
-            className={`block truncate text-left text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
+            className={`block min-w-0 truncate text-left text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
             title={job.title}
             onClick={() => handleEditJob(job)}
           >
@@ -923,7 +993,7 @@ export default function JobsPage() {
         ) : (
           <Link
             href={ROUTES.JOB(job.id)}
-            className={`block truncate text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
+            className={`block min-w-0 truncate text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
             title={job.title}
           >
             {job.title}
@@ -1043,12 +1113,60 @@ export default function JobsPage() {
             tabIndex={0}
             className="min-h-0 flex-1 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[var(--fx-primary)]/20"
           >
-            <FxTable columns={columns} rows={rows} stickyHeader emptyMessage={PAGE_COPY.jobs.tableEmpty} />
+            {showArchivedEmptyState ? (
+              <div className={`flex h-full min-h-0 items-center justify-center border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)] px-[24px] py-[24px]`}>
+                <div className="max-w-[420px] space-y-[16px] text-center">
+                  <div className="mx-auto flex size-[48px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] text-[var(--fx-primary)]">
+                    <Archive className="size-[22px]" />
+                  </div>
+                  <div className="space-y-[8px]">
+                    <p className={FX_TYPOGRAPHY.sectionTitle}>No archived jobs yet</p>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                      Archive filled, closed, or inactive roles to keep your active workspace focused.
+                    </p>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                      Archived jobs can be restored later.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {jobsViewMode === "empty" ? (
+              <div className={`flex h-full min-h-0 items-center justify-center border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)] px-[24px] py-[24px]`}>
+                <div className="max-w-[420px] space-y-[16px] text-center">
+                  <div className="mx-auto flex size-[44px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] text-[var(--fx-primary)]">
+                    <ListChecks className="size-[20px]" />
+                  </div>
+                  <div className="space-y-[8px]">
+                    <p className={FX_TYPOGRAPHY.sectionTitle}>{PAGE_COPY.jobs.empty}</p>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{PAGE_COPY.jobs.emptyBody}</p>
+                  </div>
+                  <div className="flex justify-center gap-[8px]">
+                    <FxButton type="button" onClick={handleCreateJob}>
+                      {PAGE_COPY.jobs.createCta}
+                    </FxButton>
+                  </div>
+                </div>
+              </div>
+            ) : !showArchivedEmptyState ? (
+              <FxTable columns={columns} rows={rows} stickyHeader emptyMessage={PAGE_COPY.jobs.tableEmpty} />
+            ) : null}
           </div>
         </div>
       </section>
 
       <div className="fixed bottom-[16px] right-[16px] z-20 flex items-center gap-[8px]">
+        {process.env.NODE_ENV === "development" ? (
+          <button
+            type="button"
+            aria-label={jobsViewMode === "empty" ? "Show table view" : "Show empty view"}
+            title={jobsViewMode === "empty" ? "Show table view" : "Show empty view"}
+            className={`flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-full border ${FX_COLORS.border} bg-[var(--fx-surface)] ${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)] opacity-25 transition-opacity hover:opacity-100`}
+            onClick={toggleJobsViewMode}
+          >
+            J
+          </button>
+        ) : null}
         {process.env.NODE_ENV === "development" ? (
           <button
             type="button"
@@ -1066,7 +1184,7 @@ export default function JobsPage() {
         <SheetContent size="xl">
           <SheetHeader
             title={editingJob ? PAGE_COPY.jobs.editCta : PAGE_COPY.jobs.createCta}
-            description={editingJob ? PAGE_COPY.jobs.sheetEditDescription : PAGE_COPY.jobs.sheetCreateDescription}
+            description={null}
           />
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmitJob}>
@@ -1093,11 +1211,10 @@ export default function JobsPage() {
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
                     "Basic Details",
-                    "Set the role skeleton. Evality uses this to seed AI-assisted screening and candidate context.",
-                    <FxButton type="button" variant="outline" size="sm" onClick={autofillBasicDetails}>
-                      <Sparkles className="size-[16px]" />
-                      Generate
-                    </FxButton>,
+                    null,
+                    <FxAiButton onClick={autofillBasicDetails}>
+                      Generate Basics
+                    </FxAiButton>,
                   )}
                   <div className="grid gap-[16px] md:grid-cols-2">
                     <FxInput
@@ -1154,12 +1271,7 @@ export default function JobsPage() {
                   </div>
                   <section className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[16px] py-[16px]">
                     <div className="flex items-start justify-between gap-[16px]">
-                      <div className="space-y-[4px]">
-                        <p className={FX_TYPOGRAPHY.button}>AI Prompt</p>
-                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                          Optional guidance for job generation and screening context.
-                        </p>
-                      </div>
+                      <p className={FX_TYPOGRAPHY.button}>AI Prompt</p>
                       <FxButton
                         type="button"
                         variant="ghost"
@@ -1177,7 +1289,6 @@ export default function JobsPage() {
                           placeholder="e.g. Keep it direct, practical, and candidate-friendly."
                           value={jobForm.aiPrompt}
                           onChange={handleJobFormChange}
-                          helperText="This stays optional and should not distract from the job fields."
                           className="min-h-[120px]"
                         />
                       ) : (
@@ -1197,11 +1308,10 @@ export default function JobsPage() {
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
                     "Job Description",
-                    "Keep the JD concise. Evality can rewrite and expand it later without ATS-heavy setup.",
-                    <FxButton type="button" variant="outline" size="sm" onClick={autofillJobDescription}>
-                      <WandSparkles className="size-[16px]" />
+                    "Keep the JD concise. AI can expand it later.",
+                    <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
                       Rewrite with AI
-                    </FxButton>,
+                    </FxAiButton>,
                   )}
                   <FxInput
                     textarea
@@ -1249,11 +1359,10 @@ export default function JobsPage() {
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
                     "Evaluation",
-                    "Give Evality enough context to generate practical screening and interview guidance.",
-                    <FxButton type="button" variant="outline" size="sm" onClick={autofillEvaluation}>
-                      <WandSparkles className="size-[16px]" />
+                    "Give the AI enough context to screen well.",
+                    <FxAiButton icon={WandSparkles} onClick={autofillEvaluation}>
                       Generate Context
-                    </FxButton>,
+                    </FxAiButton>,
                   )}
                   <FxInput
                     textarea
@@ -1321,11 +1430,10 @@ export default function JobsPage() {
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
                     "Questionnaire",
-                    "Define the screening format and the questions Evality should ask before handoff.",
-                    <FxButton type="button" variant="outline" size="sm" onClick={autofillQuestions}>
-                      <WandSparkles className="size-[16px]" />
+                    "Define the screening flow and questions.",
+                    <FxAiButton icon={WandSparkles} onClick={autofillQuestions}>
                       Suggest Questions
-                    </FxButton>,
+                    </FxAiButton>,
                   )}
                   <div className="grid gap-[12px] md:grid-cols-2">
                     {renderOptionCard({
@@ -1363,10 +1471,9 @@ export default function JobsPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-[8px]">
-                        <FxButton type="button" variant="outline" size="sm" onClick={() => addQuestion(DEFAULT_QUESTION_SUGGESTIONS[0])}>
-                          <Plus className="size-[16px]" />
+                        <FxAiButton onClick={() => addQuestion(DEFAULT_QUESTION_SUGGESTIONS[0])}>
                           Add Suggested
-                        </FxButton>
+                        </FxAiButton>
                       </div>
                     </div>
 
@@ -1426,11 +1533,10 @@ export default function JobsPage() {
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
                     "Benefits",
-                    "Keep this concise and candidate-facing. Evality can surface it in conversations.",
-                    <FxButton type="button" variant="outline" size="sm" onClick={autofillBenefits}>
-                      <WandSparkles className="size-[16px]" />
+                    "Keep this concise and candidate-facing.",
+                    <FxAiButton icon={WandSparkles} onClick={autofillBenefits}>
                       Suggest Benefits
-                    </FxButton>,
+                    </FxAiButton>,
                   )}
                   <FxInput
                     textarea
@@ -1449,11 +1555,10 @@ export default function JobsPage() {
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
                     "Settings",
-                    "Only the essentials: pre-screening mode and fallback communication for the AI flow.",
-                    <FxButton type="button" variant="outline" size="sm" onClick={autofillSettings}>
-                      <WandSparkles className="size-[16px]" />
+                    "Only the essentials for the AI flow.",
+                    <FxAiButton icon={WandSparkles} onClick={autofillSettings}>
                       Fill Defaults
-                    </FxButton>,
+                    </FxAiButton>,
                   )}
                   <div className="grid gap-[12px] md:grid-cols-2">
                     {renderOptionCard({

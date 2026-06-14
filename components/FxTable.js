@@ -6,6 +6,16 @@ import { FX_COLORS, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 export function FxTable({ columns, rows, className, stickyHeader = false, emptyMessage = "No rows to display." }) {
+  function renderColGroup() {
+    return (
+      <colgroup>
+        {columns.map((column) => (
+          <col key={column.key} style={column.width ? { width: column.width } : undefined} />
+        ))}
+      </colgroup>
+    );
+  }
+
   function renderHeader() {
     return (
       <thead className={`bg-[var(--fx-bg-soft)] ${FX_TYPOGRAPHY.tableHeader}`}>
@@ -68,11 +78,13 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
       <div className={cn(`flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)]`, className)}>
         <div className="shrink-0 overflow-hidden">
           <table className="w-full table-fixed border-collapse">
+            {renderColGroup()}
             {renderHeader()}
           </table>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
           <table className="w-full table-fixed border-collapse">
+            {renderColGroup()}
             {renderBody()}
           </table>
         </div>
@@ -83,6 +95,7 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
   return (
     <div className={cn(`w-full min-w-0 overflow-hidden border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)]`, className)}>
       <table className="w-full table-fixed border-collapse">
+        {renderColGroup()}
         {renderHeader()}
         {renderBody()}
       </table>
