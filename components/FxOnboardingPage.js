@@ -4,19 +4,14 @@ components/FxOnboardingPage.js | Persona onboarding route | Sree | 2026-06-13
 
 "use client";
 
-import { ArrowLeft, BriefcaseBusiness, Check, ChevronDown } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { FxButton } from "@/components/FxButton";
+import { FxCreatableCombobox } from "@/components/FxCreatableCombobox";
 import { PERSONAS, ROUTES, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { ONBOARDING_COPY } from "@/lib/FxCopy";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   hasStoredPersona,
   markOnboardingComplete,
@@ -66,8 +61,10 @@ export function FxOnboardingPage() {
 
     const storedContext = readStoredOnboardingContext();
     if (storedContext) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setRole(storedContext.role ?? "");
       setPurpose(storedContext.purpose ?? "internal");
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [router]);
 
@@ -79,7 +76,7 @@ export function FxOnboardingPage() {
     markOnboardingComplete();
     writeStoredOnboardingContext({
       role,
-      roleLabel: ROLE_OPTIONS.find((option) => option.value === role)?.label ?? "Recruiter",
+      roleLabel: (ROLE_OPTIONS.find((option) => option.value === role)?.label ?? role) || "Recruiter",
       purpose,
       workspaceType,
     });
@@ -113,40 +110,17 @@ export function FxOnboardingPage() {
                   <div className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>
                     {ONBOARDING_COPY.roleLabel}
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className={`flex h-[40px] w-full max-w-[320px] items-center justify-between rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg)] px-[14px] ${FX_TYPOGRAPHY.input} ${role ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"} outline-none transition-colors hover:bg-[var(--fx-bg-soft)] focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
-                      >
-                        <span className="truncate">
-                          {ONBOARDING_COPY.roleOptions.find((option) => option.value === role)?.label ??
-                            ONBOARDING_COPY.roleOptions[0].label}
-                        </span>
-                        <ChevronDown className="ml-[12px] size-[16px] shrink-0 text-[var(--fx-text-muted)]" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[320px]">
-                      {ONBOARDING_COPY.roleOptions.map((option) => {
-                        const isSelected = role === option.value;
-
-                        return (
-                          <DropdownMenuItem
-                            key={option.value || "placeholder"}
-                            className={isSelected ? "bg-accent" : ""}
-                            onSelect={() => setRole(option.value)}
-                          >
-                            <span className="flex min-w-0 flex-1 items-center gap-[12px]">
-                              <span className={option.value ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"}>
-                                {option.label}
-                              </span>
-                            </span>
-                            {isSelected ? <Check className="ml-auto size-[16px]" /> : null}
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <FxCreatableCombobox
+                    value={role}
+                    placeholder="Select your role"
+                    options={ROLE_OPTIONS}
+                    onChange={setRole}
+                    onCreate={(nextRole) => nextRole}
+                    allowCreate
+                    createLabel="Create new role"
+                    className="max-w-[320px]"
+                    contentClassName="w-[320px]"
+                  />
                 </div>
 
                 <div className="space-y-[12px]">

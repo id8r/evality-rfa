@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   ArrowRight,
@@ -41,6 +41,7 @@ import {
   SheetFooter,
   SheetHeader,
 } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -328,6 +329,10 @@ function fieldButtonClassName(isInteractive = false) {
   }`;
 }
 
+function fieldHeaderLabelClassName() {
+  return `${FX_TYPOGRAPHY.metaLabel} font-normal text-[var(--fx-text-muted)]`;
+}
+
 function subscribeToWorkspaceTypeChange(onStoreChange) {
   if (typeof window === "undefined") {
     return () => {};
@@ -344,6 +349,7 @@ function subscribeToWorkspaceTypeChange(onStoreChange) {
 
 export default function JobsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const initialPageState = readStoredJobsPageState() ?? DEFAULT_PAGE_STATE;
   const [jobsViewMode, setJobsViewMode] = useState(() => {
     const storedViewMode = readStoredJobsViewMode();
@@ -362,6 +368,7 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState(() => ensureJobsStore().map(normalizeJob));
   const searchInputRef = useRef(null);
   const tableSurfaceRef = useRef(null);
+  const handledEditJobIdRef = useRef(null);
   const baselineJobForm = editingJob ? createFormFromJob(editingJob) : EMPTY_JOB_FORM;
   const isJobFormDirty = JSON.stringify(jobForm) !== JSON.stringify(baselineJobForm);
   const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
@@ -390,6 +397,20 @@ export default function JobsPage() {
   useEffect(() => {
     writeStoredJobsViewMode(jobsViewMode);
   }, [jobsViewMode]);
+
+  useEffect(() => {
+    const editJobId = searchParams?.get("edit");
+
+    if (!editJobId || handledEditJobIdRef.current === editJobId) {
+      return;
+    }
+
+    const jobToEdit = jobs.find((job) => job.id === editJobId);
+    if (jobToEdit) {
+      handledEditJobIdRef.current = editJobId;
+      handleEditJob(jobToEdit);
+    }
+  }, [jobs, searchParams]);
 
   useEffect(() => {
     writeStoredJobsPageState({ searchTerm, selectedTab, sortConfig });
@@ -906,35 +927,35 @@ export default function JobsPage() {
       : []),
     {
       key: "positions",
-      label: <button type="button" className={fieldButtonClassName()} disabled><span>Positions</span></button>,
+      label: <span className={fieldHeaderLabelClassName()}>Positions</span>,
       width: "7%",
     },
     {
       key: "location",
-      label: <button type="button" className={fieldButtonClassName()} disabled><span>Location</span></button>,
+      label: <span className={fieldHeaderLabelClassName()}>Location</span>,
       width: showClientInfo ? "17%" : "22%",
     },
     {
       key: "unscreenedCount",
-      label: <button type="button" className={fieldButtonClassName()} disabled><span>Unscreened</span></button>,
+      label: <span className={fieldHeaderLabelClassName()}>Unscreened</span>,
       width: "7%",
       align: "center",
     },
     {
       key: "screenedCount",
-      label: <button type="button" className={fieldButtonClassName()} disabled><span>Screened</span></button>,
+      label: <span className={fieldHeaderLabelClassName()}>Screened</span>,
       width: "7%",
       align: "center",
     },
     {
       key: "shortlistedCount",
-      label: <button type="button" className={fieldButtonClassName()} disabled><span>Shortlisted</span></button>,
+      label: <span className={fieldHeaderLabelClassName()}>Shortlisted</span>,
       width: "7%",
       align: "center",
     },
     {
       key: "sharedCount",
-      label: <button type="button" className={fieldButtonClassName()} disabled><span>Shared</span></button>,
+      label: <span className={fieldHeaderLabelClassName()}>Shared</span>,
       width: "6%",
       align: "center",
     },
@@ -956,15 +977,29 @@ export default function JobsPage() {
     },
   ];
 
-  function renderPipelineCell(jobId, value, label, tab) {
-    return (
-      <Link
-        href={getJobWorkspaceHref(jobId, tab)}
-        className={`block w-full rounded-[8px] px-[4px] py-[4px] text-center ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)] hover:bg-[var(--fx-surface-selected)] hover:text-[var(--fx-primary)]`}
-        title={`${label}: ${value}`}
+  function renderPipelineCell(value, label, href) {
+    const content = (
+      <span
+        className={`inline-flex min-w-[56px] items-center justify-center rounded-[8px] px-[8px] py-[4px] text-center ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)]`}
       >
         {value}
-      </Link>
+      </span>
+    );
+
+    if (href) {
+      return (
+        <Link
+          href={href}
+          className="inline-flex w-full items-center justify-center rounded-[8px] text-[var(--fx-text)] hover:bg-[var(--fx-bg-soft)] hover:text-[var(--fx-text)]"
+          title={`Open ${label} candidates`}
+        >
+          {content}
+        </Link>
+      );
+    }
+
+    return (
+      <span title={`${label}: ${value}`}>{content}</span>
     );
   }
 
@@ -972,11 +1007,18 @@ export default function JobsPage() {
     const isDraft = job.status === "Draft";
 
     return (
-      <span
-        className={`inline-flex size-[8px] shrink-0 cursor-help rounded-full ${isDraft ? "bg-[var(--fx-warning)]" : "bg-[var(--fx-success)]"}`}
-        title={isDraft ? "Draft" : "Published"}
-        aria-label={isDraft ? "Draft" : "Published"}
-      />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className={`inline-flex size-[8px] shrink-0 cursor-default rounded-full ${isDraft ? "bg-[var(--fx-warning)]" : "bg-[var(--fx-success)]"}`}
+            aria-label={isDraft ? "Draft" : "Published"}
+          />
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={10}>
+          {isDraft ? "Draft" : "Published"}
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -985,22 +1027,33 @@ export default function JobsPage() {
     title: (
       <div className="flex min-w-0 items-center gap-[10px]">
         {renderStatusDot(job)}
-        <Link
-          href={getJobWorkspaceHref(job.id, "unscreened")}
-          className={`block min-w-0 truncate text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
-          title={job.title}
-        >
-          {job.title}
-        </Link>
+        {job.status === "Draft" ? (
+          <button
+            type="button"
+            className={`block min-w-0 truncate text-left text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
+            title={job.title}
+            onClick={() => handleEditJob(job)}
+          >
+            {job.title}
+          </button>
+        ) : (
+          <Link
+            href={getJobWorkspaceHref(job.id, "unscreened")}
+            className={`block min-w-0 truncate text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
+            title={job.title}
+          >
+            {job.title}
+          </Link>
+        )}
       </div>
     ),
     company: <span className={`block truncate ${FX_TYPOGRAPHY.tableCell}`}>{job.company}</span>,
     positions: <span className={FX_TYPOGRAPHY.tableCell}>{job.positions}</span>,
     location: <span className={`block truncate ${FX_TYPOGRAPHY.tableCell}`}>{job.location}</span>,
-    unscreenedCount: renderPipelineCell(job.id, job.unscreenedCount, "Unscreened", "unscreened"),
-    screenedCount: renderPipelineCell(job.id, job.screenedCount, "Screened", "screened"),
-    shortlistedCount: renderPipelineCell(job.id, job.shortlistedCount, "Shortlisted", "shortlisted"),
-    sharedCount: renderPipelineCell(job.id, job.sharedCount, "Shared", "shared"),
+    unscreenedCount: renderPipelineCell(job.unscreenedCount, "Unscreened", getJobWorkspaceHref(job.id, "unscreened")),
+    screenedCount: renderPipelineCell(job.screenedCount, "Screened", getJobWorkspaceHref(job.id, "screened")),
+    shortlistedCount: renderPipelineCell(job.shortlistedCount, "Shortlisted", getJobWorkspaceHref(job.id, "shortlisted")),
+    sharedCount: renderPipelineCell(job.sharedCount, "Shared", getJobWorkspaceHref(job.id, "shared")),
     lastActivity: (
       <span className={`block truncate ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text-muted)]`} title={new Date(job.updatedAt).toLocaleString()}>
         {formatRelativeTime(job.updatedAt)}
@@ -1057,7 +1110,8 @@ export default function JobsPage() {
 
   return (
     <FxProtectedAppPage pageId="jobs">
-      <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden`}>
+      <TooltipProvider delayDuration={0}>
+        <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden`}>
         <div className="flex min-h-0 flex-1 flex-col gap-[24px] overflow-hidden">
           <div className="grid min-w-0 flex-none grid-cols-[minmax(0,1fr)_auto] items-end gap-[16px]">
             <div className="flex min-w-0 items-end gap-[24px]">
@@ -1146,7 +1200,8 @@ export default function JobsPage() {
             ) : null}
           </div>
         </div>
-      </section>
+        </section>
+      </TooltipProvider>
 
       <div className="fixed bottom-[16px] right-[16px] z-20 flex items-center gap-[8px]">
         {process.env.NODE_ENV === "development" ? (

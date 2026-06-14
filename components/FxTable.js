@@ -2,10 +2,22 @@
 components/FxTable.js | Shared dense table primitive | Sree | 2026-06-13
 */
 
-import { FX_COLORS, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_TABLE, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
-export function FxTable({ columns, rows, className, stickyHeader = false, emptyMessage = "No rows to display." }) {
+export function FxTable({
+  columns,
+  rows,
+  className,
+  stickyHeader = false,
+  emptyMessage = "No rows to display.",
+  headerClassName,
+  bodyClassName,
+  rowClassName,
+  headerCellClassName,
+  bodyCellClassName,
+  emptyClassName,
+}) {
   function renderColGroup() {
     return (
       <colgroup>
@@ -19,14 +31,15 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
   function renderHeader() {
     return (
       <thead className={`bg-[var(--fx-bg-soft)] ${FX_TYPOGRAPHY.tableHeader}`}>
-        <tr className={FX_COLORS.border}>
+        <tr className={FX_TABLE.headerRowHeight}>
           {columns.map((column) => (
             <th
               key={column.key}
               className={cn(
-                "border-b border-[var(--fx-border)] px-[16px] py-[16px] text-left text-[var(--fx-text-muted)]",
+                FX_TABLE.headerCell,
                 column.align === "right" ? "text-right" : "",
                 column.align === "center" ? "text-center" : "",
+                headerCellClassName,
               )}
               style={column.width ? { width: column.width } : undefined}
             >
@@ -45,16 +58,17 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
           rows.map((row, rowIndex) => (
             <tr
               key={row.id ?? rowIndex}
-              className="odd:bg-[var(--fx-surface)] even:bg-[var(--fx-bg-soft)]/70 hover:bg-[var(--fx-surface-hover)]"
+              className={cn(FX_TABLE.row, rowClassName)}
             >
               {columns.map((column) => (
                 <td
                   key={column.key}
                   className={cn(
-                    "px-[16px] py-[8px] align-middle text-[var(--fx-text)]",
+                    FX_TABLE.bodyCell,
                     column.align === "right" ? "text-right" : "",
                     column.align === "center" ? "text-center" : "",
                     column.cellClassName,
+                    bodyCellClassName,
                   )}
                 >
                   {row[column.key]}
@@ -64,7 +78,7 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
           ))
         ) : (
           <tr>
-            <td className="px-[16px] py-[16px] text-[var(--fx-text-muted)]" colSpan={columns.length}>
+            <td className={cn(FX_TABLE.emptyCell, emptyClassName)} colSpan={columns.length}>
               {emptyMessage}
             </td>
           </tr>
@@ -75,15 +89,15 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
 
   if (stickyHeader) {
     return (
-      <div className={cn(`flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)]`, className)}>
-        <div className="shrink-0 overflow-hidden">
-          <table className="w-full table-fixed border-collapse">
+      <div className={cn(FX_TABLE.stickyContainer, className)}>
+        <div className={cn(FX_TABLE.headerWrap, headerClassName)}>
+          <table className={FX_TABLE.headerTable}>
             {renderColGroup()}
             {renderHeader()}
           </table>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-          <table className="w-full table-fixed border-collapse">
+        <div className={cn(FX_TABLE.bodyWrap, bodyClassName)}>
+          <table className={FX_TABLE.bodyTable}>
             {renderColGroup()}
             {renderBody()}
           </table>
@@ -93,8 +107,8 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
   }
 
   return (
-    <div className={cn(`w-full min-w-0 overflow-hidden border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)]`, className)}>
-      <table className="w-full table-fixed border-collapse">
+    <div className={cn(FX_TABLE.container, className)}>
+      <table className={FX_TABLE.headerTable}>
         {renderColGroup()}
         {renderHeader()}
         {renderBody()}

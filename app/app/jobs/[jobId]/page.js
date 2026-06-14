@@ -3,50 +3,112 @@
 "use client";
 
 import Link from "next/link";
-import React, { useMemo, useSyncExternalStore } from "react";
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  MoreHorizontal,
+  PencilLine,
+  Users,
+} from "lucide-react";
 
+import { FxAiButton } from "@/components/FxAiButton";
+import { FxButton } from "@/components/FxButton";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
-import { FxTabs } from "@/components/FxTabs";
 import { FxTable } from "@/components/FxTable";
+import { FxTabs } from "@/components/FxTabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/sheet";
 import { ROUTES, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
-import { findStoredCandidatesByJob, findStoredJob, readStoredWorkspaceType } from "@/lib/FxStore";
+import {
+  findStoredCandidatesByJob,
+  findStoredJob,
+  readStoredCandidates,
+  readStoredWorkspaceType,
+} from "@/lib/FxStore";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { cn } from "@/lib/FxUtils";
 
-const PIPELINE_TABS = [
+const PIPELINE_STAGES = [
   { value: "unscreened", label: "Unscreened" },
-  { value: "screened", label: "Screened" },
+  { value: "screened", label: "Pre-Screened" },
   { value: "shortlisted", label: "Shortlisted" },
-  { value: "shared", label: "Shared" },
+  { value: "shared", label: "Sent to Client" },
   { value: "rejected", label: "Rejected" },
 ];
+
+const EMPTY_STAGE_COPY = {
+  unscreened: {
+    title: "No unscreened candidates yet",
+    body: "Candidates enter this stage when fresh profiles land on the job.",
+  },
+  screened: {
+    title: "No pre-screened candidates yet",
+    body: "Move candidates from Unscreened after AI or recruiter screening.",
+  },
+  shortlisted: {
+    title: "No shortlisted candidates yet",
+    body: "Promote strong fits here once the screening pass is complete.",
+  },
+  shared: {
+    title: "No candidates sent to client yet",
+    body: "Share shortlisted candidates with the client from this stage.",
+  },
+  rejected: {
+    title: "No rejected candidates yet",
+    body: "Rejected candidates appear here after review or client feedback.",
+  },
+};
 
 function normalizeJob(job) {
   if (!job) {
     return null;
   }
 
+  const data = job.data ?? {};
+
   return {
     ...job,
     status: job.status === "Published" ? "Published" : "Draft",
     positions: Number(job.positions) || 1,
+    unscreenedCount: Number(job.unscreenedCount) || 0,
+    screenedCount: Number(job.preScreenedCount ?? job.screenedCount) || 0,
+    shortlistedCount: Number(job.shortlistedCount) || 0,
+    sharedCount: Number(job.sentToClientCount ?? job.sharedCount) || 0,
+    client: job.client ?? job.company ?? data.client ?? "",
+    domain: job.domain ?? data.domain ?? "Engineering",
+    department: job.department ?? data.department ?? "Engineering",
+    employmentType: job.employmentType ?? data.employmentType ?? "Full-time",
+    salaryRange: job.salaryRange ?? data.salaryRange ?? "—",
+    priority: job.priority ?? data.priority ?? "Medium",
+    questionFormat: job.questionFormat ?? data.questionFormat ?? "CV + AI pre-screening",
+    publishDate: job.publishDate ?? data.publishDate ?? null,
   };
 }
 
-function normalizeCandidate(candidate) {
+function normalizeCandidate(candidate, job) {
   if (!candidate) {
     return null;
   }
 
   return {
     ...candidate,
+    jobId: candidate.jobId ?? job?.id ?? null,
+    jobTitle: candidate.jobTitle ?? job?.title ?? "",
+    client: candidate.client ?? job?.company ?? "",
     status: candidate.status ?? "unscreened",
-    matchScore: Number(candidate.matchScore) || null,
+    matchScore: candidate.matchScore != null ? Number(candidate.matchScore) : null,
     availabilityDays: candidate.availabilityDays != null ? Number(candidate.availabilityDays) : null,
     currentSalary: candidate.currentSalary != null ? Number(candidate.currentSalary) : null,
     expectedSalary: candidate.expectedSalary != null ? Number(candidate.expectedSalary) : null,
+    email: candidate.email ?? "—",
+    phone: candidate.phone ?? "—",
   };
 }
 
@@ -73,6 +135,25 @@ function formatRelativeTime(value) {
 
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  if (Number.isNaN(timestamp)) {
+    return "—";
+  }
+
+  return new Date(timestamp).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function formatCurrency(value) {
@@ -104,11 +185,39 @@ function formatAvailability(value) {
   return `${dayCount} day${dayCount === 1 ? "" : "s"}`;
 }
 
-function Field({ label, value }) {
+function getStoredPipelineCounts(candidateRows) {
+  return candidateRows.reduce(
+    (counts, candidate) => {
+      counts[candidate.status] = (counts[candidate.status] || 0) + 1;
+      return counts;
+    },
+    { unscreened: 0, screened: 0, shortlisted: 0, shared: 0, rejected: 0 },
+  );
+}
+
+function getStageCopy(stage, query) {
+  const copy = EMPTY_STAGE_COPY[stage] ?? EMPTY_STAGE_COPY.unscreened;
+
+  if (!query) {
+    return copy;
+  }
+
+  return {
+    title: `No results for "${query}"`,
+    body: `Search only applies to the current stage. Try a different name, email, or phone inside ${PIPELINE_STAGES.find((item) => item.value === stage)?.label ?? "this stage"}.`,
+  };
+}
+
+function isEditableTarget(target) {
+  const tag = target?.tagName?.toLowerCase();
+  return tag === "input" || tag === "textarea" || target?.isContentEditable;
+}
+
+function MetaField({ label, value, valueClassName }) {
   return (
-    <div className="space-y-[4px]">
+    <div className="min-w-0 space-y-[4px]">
       <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{label}</p>
-      <p className={FX_TYPOGRAPHY.body}>{value}</p>
+      <p className={cn(FX_TYPOGRAPHY.body, "min-w-0 truncate text-[var(--fx-text)]", valueClassName)}>{value}</p>
     </div>
   );
 }
@@ -126,6 +235,151 @@ function WorkspaceEmptyState({ title, body }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function CandidateMatchDrawer({ candidate, open, onOpenChange }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="xl">
+        <SheetHeader
+          title="Match Analysis"
+          description="Fast AI context for why this candidate is worth a closer look."
+        />
+        <SheetBody>
+          {candidate ? (
+            <div className="space-y-[20px]">
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[20px]`}>
+                <div className="flex flex-wrap items-start justify-between gap-[16px]">
+                  <div className="space-y-[6px]">
+                    <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Candidate</p>
+                    <h3 className={FX_TYPOGRAPHY.sectionTitle}>{candidate.name}</h3>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{candidate.email}</p>
+                  </div>
+                  <span className="rounded-full bg-[var(--fx-surface-selected)] px-[12px] py-[6px] text-[13px] font-medium text-[var(--fx-primary)]">
+                    {candidate.matchScore != null ? `${candidate.matchScore}% match` : "Match unavailable"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-[16px] md:grid-cols-2">
+                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Matching skills</p>
+                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
+                    Strong signal on role-aligned skills, screening readiness, and likely interview fit.
+                  </p>
+                </div>
+                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Missing skills</p>
+                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
+                    Use this drawer later to surface gaps that matter for the job context.
+                  </p>
+                </div>
+                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Experience fit</p>
+                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
+                    {candidate.availabilityDays != null ? `Available in ${formatAvailability(candidate.availabilityDays)}.` : "Availability not captured."}
+                  </p>
+                </div>
+                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Location fit</p>
+                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
+                    {candidate.phone !== "—" ? "No location mismatch signal captured in demo data." : "Location context will appear here."}
+                  </p>
+                </div>
+              </div>
+
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <p className={FX_TYPOGRAPHY.cardTitle}>AI reasoning</p>
+                <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
+                  This drawer will later explain why the candidate was recommended, what the model matched, and which
+                  screening signals influenced the score.
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </SheetBody>
+        <SheetFooter
+          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Future drawer content for match analysis.</span>}
+          right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function RecommendedCandidatesDrawer({ open, onOpenChange, candidates }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="xl">
+        <SheetHeader
+          title="Recommend Candidates"
+          description="Candidates who are not yet attached to this job, surfaced from the current demo pool."
+          actions={
+            <span className="rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
+              {candidates.length} ready
+            </span>
+          }
+        />
+        <SheetBody>
+          <div className="space-y-[12px]">
+            {candidates.length ? (
+              candidates.map((candidate) => (
+                <div key={`${candidate.id}-recommendation`} className={`rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <div className="flex items-start justify-between gap-[12px]">
+                    <div className="min-w-0 space-y-[4px]">
+                      <p className={`${FX_TYPOGRAPHY.button} truncate text-[var(--fx-text)]`}>{candidate.name}</p>
+                      <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
+                        {candidate.email} {candidate.phone !== "—" ? `· ${candidate.phone}` : ""}
+                      </p>
+                      <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                        From {candidate.jobTitle || "another job"} · {candidate.status}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
+                      {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <WorkspaceEmptyState
+                title="No recommendations yet"
+                body="Add more demo candidates or keep seeding jobs to populate this panel."
+              />
+            )}
+          </div>
+        </SheetBody>
+        <SheetFooter
+          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>AI recommendations will become attachable later.</span>}
+          right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function CallPreviewDrawer({ open, onOpenChange, job }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="lg">
+        <SheetHeader title="Call Preview" description="A quick preview of how pre-screening will sound on this job." />
+        <SheetBody>
+          <div className={`space-y-[16px] rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+            <p className={FX_TYPOGRAPHY.cardTitle}>{job?.title ?? "Job"} screening flow</p>
+            <ul className="space-y-[8px] text-[var(--fx-text-muted)]">
+              <li>1. Confirm role interest and availability.</li>
+              <li>2. Validate experience and compensation fit.</li>
+              <li>3. Capture response and move the candidate forward.</li>
+            </ul>
+          </div>
+        </SheetBody>
+        <SheetFooter
+          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Placeholder for the call preview workflow.</span>}
+          right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
+        />
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -151,102 +405,240 @@ export default function JobDetailsPage({ params }) {
   const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
   const showClientInfo = workspaceType === WORKSPACE_TYPES.CLIENTS || workspaceType === WORKSPACE_TYPES.BOTH;
 
-  const activeTab = PIPELINE_TABS.some((tab) => tab.value === searchParams?.get("tab")) ? searchParams.get("tab") : "unscreened";
+  const activeStage = PIPELINE_STAGES.some((stage) => stage.value === searchParams?.get("tab"))
+    ? searchParams.get("tab")
+    : "unscreened";
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [recommendedOpen, setRecommendedOpen] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [callPreviewOpen, setCallPreviewOpen] = useState(false);
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const searchRef = useRef(null);
 
   const candidateRows = useMemo(
     () =>
-      (job ? findStoredCandidatesByJob(job.id) : []).map((candidate) => normalizeCandidate(candidate)).filter(Boolean),
+      (job ? findStoredCandidatesByJob(job.id) : [])
+        .map((candidate) => normalizeCandidate(candidate, job))
+        .filter(Boolean),
     [job],
   );
 
-  const candidateCounts = useMemo(
-    () =>
-      candidateRows.reduce(
-        (counts, candidate) => {
-          counts[candidate.status] = (counts[candidate.status] || 0) + 1;
-          return counts;
-        },
-        { unscreened: 0, screened: 0, shortlisted: 0, shared: 0, rejected: 0 },
-      ),
-    [candidateRows],
+  const candidateCounts = useMemo(() => getStoredPipelineCounts(candidateRows), [candidateRows]);
+  const pipelineCandidates = useMemo(
+    () => candidateRows.filter((candidate) => candidate.status === activeStage),
+    [candidateRows, activeStage],
   );
 
-  const filteredCandidates = candidateRows.filter((candidate) => candidate.status === activeTab);
-  const lastActivity = formatRelativeTime(job?.updatedAt);
+  const filteredCandidates = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
 
-  function handleTabChange(nextTab) {
-    router.replace(`${ROUTES.JOB(jobId)}?tab=${nextTab}`, { scroll: false });
+    if (!query) {
+      return pipelineCandidates;
+    }
+
+    return pipelineCandidates.filter((candidate) => {
+      const haystack = [candidate.name, candidate.email, candidate.phone].join(" ").toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [pipelineCandidates, searchTerm]);
+
+  const selectedCandidate = useMemo(
+    () => candidateRows.find((candidate) => candidate.id === selectedCandidateId) ?? null,
+    [candidateRows, selectedCandidateId],
+  );
+
+  const recommendedCandidates = useMemo(() => {
+    const allCandidates = readStoredCandidates();
+    const attachedIds = new Set(candidateRows.map((candidate) => candidate.id));
+
+    return allCandidates
+      .filter((candidate) => candidate.jobId !== job?.id && !attachedIds.has(candidate.id))
+      .map((candidate) => normalizeCandidate(candidate, findStoredJob(candidate.jobId)))
+      .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0))
+      .slice(0, 6);
+  }, [candidateRows, job?.id]);
+
+  function handleStageChange(nextStage) {
+    router.replace(`${ROUTES.JOB(jobId)}?tab=${nextStage}`, { scroll: false });
   }
+
+  function handleOpenMatchAnalysis(candidate) {
+    setSelectedCandidateId(candidate.id);
+    setAnalysisOpen(true);
+  }
+
+  async function handleShareJob() {
+    const shareUrl = `${window.location.origin}${ROUTES.JOB(jobId)}`;
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      window.prompt("Copy job link", shareUrl);
+    }
+  }
+
+  useEffect(() => {
+    function handleKeydown(event) {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+
+      if (event.key === "/" && !isEditableTarget(event.target)) {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeydown);
+
+    return () => window.removeEventListener("keydown", handleKeydown);
+  }, []);
 
   const tableColumns = [
     {
       key: "name",
-      label: <span className={FX_TYPOGRAPHY.metaLabel}>Candidate Name</span>,
-      width: "19%",
-      cellClassName: FX_TYPOGRAPHY.clickableData,
+      label: "Candidate Name",
+      width: "28%",
+      cellClassName: "text-[13px] leading-[20px] font-medium",
     },
     {
       key: "matchScore",
-      label: <span className={FX_TYPOGRAPHY.metaLabel}>JD Match Score</span>,
-      width: "12%",
+      label: "JD Match Score",
+      width: "11%",
       align: "center",
     },
     {
-      key: "uploadedBy",
-      label: <span className={FX_TYPOGRAPHY.metaLabel}>Uploaded By</span>,
-      width: "16%",
-    },
-    {
       key: "interested",
-      label: <span className={FX_TYPOGRAPHY.metaLabel}>Interested</span>,
+      label: "Interested",
       width: "10%",
       align: "center",
     },
     {
       key: "availability",
-      label: <span className={FX_TYPOGRAPHY.metaLabel}>Availability</span>,
+      label: "Availability",
       width: "10%",
       align: "center",
     },
     {
       key: "currentSalary",
-      label: <span className={FX_TYPOGRAPHY.metaLabel}>Current Salary</span>,
-      width: "13%",
-      align: "center",
+      label: "Current Salary",
+      width: "14%",
+      align: "right",
     },
     {
       key: "expectedSalary",
-      label: <span className={FX_TYPOGRAPHY.metaLabel}>Expectation</span>,
-      width: "13%",
-      align: "center",
+      label: "Expectation",
+      width: "14%",
+      align: "right",
     },
     {
-      key: "lastActivity",
-      label: <span className={FX_TYPOGRAPHY.metaLabel}>Last Activity</span>,
-      width: "7%",
+      key: "source",
+      label: "Source",
+      width: "11%",
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      width: "2%",
       align: "center",
     },
   ];
 
   const rows = filteredCandidates.map((candidate) => ({
     id: candidate.id,
-    name: <span className={`block truncate ${FX_TYPOGRAPHY.clickableData} text-[var(--fx-primary)]`}>{candidate.name}</span>,
+    name: (
+      <div className="flex min-w-0 flex-col gap-[2px]">
+        <Link
+          href={ROUTES.CANDIDATE(candidate.id)}
+          className="block truncate text-[13px] leading-[20px] font-medium text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
+        >
+          {candidate.name}
+        </Link>
+        <span className="block truncate text-[12px] leading-[18px] text-[var(--fx-text-muted)]">
+          {candidate.jobTitle || job?.title || "Candidate profile"}
+        </span>
+      </div>
+    ),
     matchScore: (
-      <span className="inline-flex min-w-[64px] justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[var(--fx-text)]">
+      <button
+        type="button"
+        onClick={() => handleOpenMatchAnalysis(candidate)}
+        className="inline-flex min-w-[64px] items-center justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[13px] leading-[20px] font-medium text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface-selected)_84%)]"
+      >
         {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
+      </button>
+    ),
+    interested: (
+      <span className="inline-flex min-w-[56px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+        {candidate.interested ?? "—"}
       </span>
     ),
-    uploadedBy: <span className={`block truncate ${FX_TYPOGRAPHY.tableCell}`}>{candidate.uploadedBy ?? "—"}</span>,
-    interested: <span className={FX_TYPOGRAPHY.tableCell}>{candidate.interested ?? "—"}</span>,
-    availability: <span className={FX_TYPOGRAPHY.tableCell}>{formatAvailability(candidate.availabilityDays)}</span>,
-    currentSalary: <span className={FX_TYPOGRAPHY.tableCell}>{formatCurrency(candidate.currentSalary)}</span>,
-    expectedSalary: <span className={FX_TYPOGRAPHY.tableCell}>{formatCurrency(candidate.expectedSalary)}</span>,
-    lastActivity: (
-      <span className={`block truncate ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text-muted)]`}>
-        {formatRelativeTime(candidate.updatedAt)}
+    availability: (
+      <span className="inline-flex min-w-[64px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+        {formatAvailability(candidate.availabilityDays)}
       </span>
+    ),
+    currentSalary: (
+      <span className="tabular-nums text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+        {formatCurrency(candidate.currentSalary)}
+      </span>
+    ),
+    expectedSalary: (
+      <span className="tabular-nums text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+        {formatCurrency(candidate.expectedSalary)}
+      </span>
+    ),
+    source: (
+      <span className="block truncate text-[13px] leading-[20px] font-normal text-[var(--fx-text)]">
+        {candidate.uploadedBy || "—"}
+      </span>
+    ),
+    actions: (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex size-[32px] items-center justify-center rounded-[8px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+            aria-label={`Open actions for ${candidate.name}`}
+          >
+            <MoreHorizontal className="size-[16px]" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-[220px]">
+          <DropdownMenuItem asChild>
+            <Link href={ROUTES.CANDIDATE(candidate.id)}>Open Candidate Workspace</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault();
+              handleOpenMatchAnalysis(candidate);
+            }}
+          >
+            Open Match Analysis
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={async (event) => {
+              event.preventDefault();
+              try {
+                await navigator.clipboard.writeText(candidate.email || "");
+              } catch {
+                window.prompt("Copy email", candidate.email || "");
+              }
+            }}
+          >
+            Copy Email
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     ),
   }));
+
+  const jobIdLabel = job?.id ?? jobId;
+  const jobStatusTone =
+    job?.status === "Published"
+      ? "bg-[color-mix(in_srgb,var(--fx-success)_16%,var(--fx-surface)_84%)] text-[var(--fx-success)]"
+      : "bg-[color-mix(in_srgb,var(--fx-warning)_14%,var(--fx-surface)_86%)] text-[var(--fx-warning)]";
 
   return (
     <FxProtectedAppPage
@@ -260,38 +652,108 @@ export default function JobDetailsPage({ params }) {
       }
     >
       <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px]`}>
-        <Link href={ROUTES.JOBS} className={`inline-flex items-center gap-[8px] ${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)] hover:text-[var(--fx-text)]`}>
-          <ArrowLeft className="size-[16px]" />
-          Back to Jobs
-        </Link>
-
         {job ? (
           <>
-            <div className={`space-y-[20px] rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[24px]`}>
-              <div className="space-y-[6px]">
-                <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Job Title</p>
-                <h1 className={FX_TYPOGRAPHY.workspaceTitle}>{job.title}</h1>
+            <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[24px]`}>
+              <div className="flex flex-col gap-[20px] lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 space-y-[12px]">
+                  <div className="flex flex-wrap items-center gap-[8px]">
+                    <span className="rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-text-muted)]">
+                      Job ID {jobIdLabel}
+                    </span>
+                    <span className={`rounded-full px-[10px] py-[4px] text-[12px] font-medium ${jobStatusTone}`}>
+                      {job.status}
+                    </span>
+                    <span className="rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
+                      {job.priority}
+                    </span>
+                  </div>
+
+                  <div className="space-y-[6px]">
+                    <h1 className={`${FX_TYPOGRAPHY.h3} text-[var(--fx-text)]`}>{job.title}</h1>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                      {showClientInfo && job.client ? `${job.client} · ` : ""}
+                      {job.domain} · {job.department} · {job.location || "Location not set"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-[8px]">
+                  <FxAiButton onClick={() => setRecommendedOpen(true)}>Recommend Candidates</FxAiButton>
+                  <FxButton variant="outline" size="sm" onClick={() => setCallPreviewOpen(true)}>
+                    Call Preview
+                  </FxButton>
+                  <FxButton variant="secondary" size="sm" onClick={handleShareJob}>
+                    Share Job
+                  </FxButton>
+                  <FxButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push(`${ROUTES.JOBS}?edit=${job.id}`)}
+                  >
+                    <PencilLine className="size-[16px]" />
+                    Edit Job
+                  </FxButton>
+                  <FxButton variant="ghost" size="sm" onClick={() => router.push(ROUTES.SETTINGS)}>
+                    Job Settings
+                  </FxButton>
+                </div>
               </div>
 
-              <div className={`grid gap-[16px] sm:grid-cols-2 lg:grid-cols-4 ${showClientInfo ? "xl:grid-cols-5" : ""}`}>
-                {showClientInfo && job.company ? <Field label="Client" value={job.company} /> : null}
-                <Field label="Location" value={job.location || "Not set"} />
-                <Field label="Status" value={job.status} />
-                <Field label="Positions" value={String(job.positions || 1)} />
-                <Field label="Last Activity" value={lastActivity} />
+              <div className="mt-[20px] grid gap-[16px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <MetaField label="Job ID" value={jobIdLabel} valueClassName="font-mono text-[13px]" />
+                {showClientInfo && job.client ? <MetaField label="Client" value={job.client} /> : null}
+                <MetaField label="Domain / Department" value={`${job.domain} / ${job.department}`} />
+                <MetaField label="Experience" value={job.experience || "—"} />
+                <MetaField label="Employment Type" value={job.employmentType || "Full-time"} />
+                <MetaField label="Salary Range" value={job.salaryRange || "—"} />
+                <MetaField label="Positions" value={String(job.positions || 1)} />
+                <MetaField label="Location" value={job.location || "—"} />
+                <MetaField label="Publish Date" value={job.publishDate ? formatDate(job.publishDate) : "Draft"} />
+                <MetaField label="Question Format" value={job.questionFormat || "CV + AI pre-screening"} />
+                <MetaField label="Last Activity" value={formatRelativeTime(job.updatedAt)} />
               </div>
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-[16px]">
-              <FxTabs
-                tabs={PIPELINE_TABS.map((tab) => ({
-                  value: tab.value,
-                  label: `${tab.label} (${candidateCounts[tab.value] || 0})`,
-                }))}
-                active={activeTab}
-                onChange={handleTabChange}
-                className="w-full justify-start"
-              />
+              <div className="flex flex-col gap-[16px] lg:flex-row lg:items-end lg:justify-between">
+                <FxTabs
+                  tabs={PIPELINE_STAGES.map((stage) => ({
+                    value: stage.value,
+                    label: `${stage.label} (${candidateCounts[stage.value] || 0})`,
+                  }))}
+                  active={activeStage}
+                  onChange={handleStageChange}
+                  className="w-full justify-start"
+                />
+
+                <div className="w-full max-w-[360px]">
+                  <div className={`flex h-[40px] items-center rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-text)_18%,var(--fx-border)_82%)] bg-[var(--fx-bg)] px-[16px]`}>
+                    <input
+                      ref={searchRef}
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+
+                          if (searchTerm) {
+                            setSearchTerm("");
+                            return;
+                          }
+
+                          event.currentTarget.blur();
+                        }
+                      }}
+                      placeholder="Search candidates"
+                      className="h-full w-full min-w-0 bg-transparent text-[14px] leading-[22px] font-normal text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)]"
+                    />
+                    <kbd className="ml-[12px] inline-flex h-[24px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[8px] text-[12px] font-medium text-[var(--fx-text-muted)]">
+                      /
+                    </kbd>
+                  </div>
+                </div>
+              </div>
 
               <div className="min-h-0 flex-1 overflow-hidden">
                 {filteredCandidates.length ? (
@@ -303,8 +765,8 @@ export default function JobDetailsPage({ params }) {
                   />
                 ) : (
                   <WorkspaceEmptyState
-                    title={`No ${PIPELINE_TABS.find((tab) => tab.value === activeTab)?.label.toLowerCase() ?? "candidates"} yet`}
-                    body="Move candidates through the pipeline to see them here."
+                    title={getStageCopy(activeStage, searchTerm).title}
+                    body={getStageCopy(activeStage, searchTerm).body}
                   />
                 )}
               </div>
@@ -322,6 +784,14 @@ export default function JobDetailsPage({ params }) {
           </section>
         )}
       </section>
+
+      <RecommendedCandidatesDrawer
+        open={recommendedOpen}
+        onOpenChange={setRecommendedOpen}
+        candidates={recommendedCandidates}
+      />
+      <CandidateMatchDrawer open={analysisOpen} onOpenChange={setAnalysisOpen} candidate={selectedCandidate} />
+      <CallPreviewDrawer open={callPreviewOpen} onOpenChange={setCallPreviewOpen} job={job} />
     </FxProtectedAppPage>
   );
 }

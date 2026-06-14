@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/AppShell";
@@ -12,26 +12,51 @@ import { ensureDemoStore } from "@/lib/FxStore";
 import { readStoredValue } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
 
+function subscribeToAuthChange(onStoreChange) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("fx-auth-change", onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("fx-auth-change", onStoreChange);
+  };
+}
+
+function readStoredAuthStatus() {
+  return typeof window !== "undefined" && Boolean(readStoredValue(STORAGE_KEYS.AUTH_COMPLETE));
+}
+
 export function FxProtectedAppPage({ children, pageId = "jobs", title = null, navbarLeading = null, navbarActions = null }) {
   const router = useRouter();
   const pageMeta = getPageMeta(pageId);
   const pageTitle = title === false ? null : title ?? pageMeta?.pageTitle ?? "Evality";
-  const isAuthenticated = typeof window !== "undefined" && Boolean(readStoredValue(STORAGE_KEYS.AUTH_COMPLETE));
+  const isAuthenticated = useSyncExternalStore(subscribeToAuthChange, readStoredAuthStatus, () => false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace(ROUTES.LANDING);
-      router.refresh();
+    if (isAuthenticated) {
+      ensureDemoStore();
+      return undefined;
     }
-  }, [isAuthenticated, router]);
 
-  if (isAuthenticated) {
-    ensureDemoStore();
-  }
+    const redirectTimer = window.setTimeout(() => {
+      if (!readStoredValue(STORAGE_KEYS.AUTH_COMPLETE)) {
+        router.replace(ROUTES.LANDING);
+        router.refresh();
+      }
+    }, 0);
+
+    return () => window.clearTimeout(redirectTimer);
+  }, [isAuthenticated, router]);
 
   if (!isAuthenticated) {
     return <div className={`min-h-screen ${FX_SURFACE.page}`} />;
   }
+
+  ensureDemoStore();
 
   return (
     <AppShell title={pageTitle} navbarLeading={navbarLeading} navbarActions={navbarActions}>
