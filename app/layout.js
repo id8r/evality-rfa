@@ -7,6 +7,7 @@ app/layout.js | Root layout with theme and providers | Sree | 2026-06-10
 import { APP_DESCRIPTION, APP_TITLE } from "@/lib/FxConstants";
 import { FxThemeController } from "@/components/FxThemeController";
 import { FxToaster } from "@/components/FxToaster";
+import Script from "next/script";
 
 import "./globals.css";
 
@@ -30,7 +31,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeScript}
+        </Script>
         <FxToaster>
           <FxThemeController />
           {children}

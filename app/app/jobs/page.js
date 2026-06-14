@@ -1159,23 +1159,23 @@ export default function JobsPage() {
         {process.env.NODE_ENV === "development" ? (
           <button
             type="button"
-            aria-label={jobsViewMode === "empty" ? "Show table view" : "Show empty view"}
-            title={jobsViewMode === "empty" ? "Show table view" : "Show empty view"}
-            className={`flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-full border ${FX_COLORS.border} bg-[var(--fx-surface)] ${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)] opacity-25 transition-opacity hover:opacity-100`}
-            onClick={toggleJobsViewMode}
-          >
-            J
-          </button>
-        ) : null}
-        {process.env.NODE_ENV === "development" ? (
-          <button
-            type="button"
             aria-label="Reset demo data"
             title="Reset demo data"
             className={`flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-full border ${FX_COLORS.border} bg-[var(--fx-surface)] ${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)] opacity-25 transition-opacity hover:opacity-100`}
             onClick={handleResetDemoData}
           >
             <RefreshCcw className="size-[12px]" />
+          </button>
+        ) : null}
+        {process.env.NODE_ENV === "development" ? (
+          <button
+            type="button"
+            aria-label={jobsViewMode === "empty" ? "Show table view" : "Show empty view"}
+            title={jobsViewMode === "empty" ? "Show table view" : "Show empty view"}
+            className={`flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-full border ${FX_COLORS.border} bg-[var(--fx-surface)] ${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)] opacity-25 transition-opacity hover:opacity-100`}
+            onClick={toggleJobsViewMode}
+          >
+            J
           </button>
         ) : null}
       </div>
