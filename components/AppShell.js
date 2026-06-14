@@ -24,18 +24,20 @@ export function AppShell({ children, title, navbarLeading = null, navbarActions 
   }
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <Sidebar isCollapsed={isCollapsed} onToggle={handleToggleSidebar} />
 
       <div
-        className={`flex min-w-0 flex-1 flex-col transition-[padding-left] duration-200 ${
+        className={`flex min-w-0 flex-1 flex-col overflow-hidden transition-[padding-left] duration-200 ${
           isCollapsed ? FX_LAYOUT.sidebarCollapsedOffset : FX_LAYOUT.sidebarExpandedOffset
         }`}
       >
         <Navbar title={title} leading={navbarLeading} actions={navbarActions} />
 
-        <main className="min-h-0 flex-1 overflow-auto">
-          <div className={`${FX_LAYOUT.appContent} flex h-full min-h-0 flex-col`}>{children}</div>
+        <main className="min-h-0 flex-1 overflow-hidden">
+          <div className={`${FX_LAYOUT.appContent} flex h-full min-h-0 min-w-0 flex-col overflow-hidden`}>
+            {children}
+          </div>
         </main>
       </div>
     </div>

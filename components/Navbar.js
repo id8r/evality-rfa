@@ -10,7 +10,9 @@ import { FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
 export function Navbar({ title, leading = null, actions = null }) {
   return (
-    <header className={`sticky top-0 z-20 flex ${FX_LAYOUT.navbarHeight} items-center justify-between border-b border-border bg-background ${FX_LAYOUT.pagePaddingX}`}>
+    <header
+      className={`sticky top-0 z-40 flex ${FX_LAYOUT.navbarHeight} items-center justify-between border-b border-border bg-background ${FX_LAYOUT.pagePaddingX}`}
+    >
       <div className="flex min-w-0 items-center gap-[16px]">
         {leading ? <div className="flex shrink-0 items-center">{leading}</div> : null}
         {title ? <h1 className={`${FX_TYPOGRAPHY.navTitle} min-w-0 truncate text-foreground`}>{title}</h1> : null}
