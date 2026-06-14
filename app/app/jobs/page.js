@@ -870,6 +870,10 @@ export default function JobsPage() {
     router.refresh();
   }
 
+  function getJobWorkspaceHref(jobId, tab = "unscreened") {
+    return `${ROUTES.JOB(jobId)}?tab=${tab}`;
+  }
+
   function toggleJobsViewMode() {
     setJobsViewMode((current) => (current === "empty" ? DEFAULT_JOBS_VIEW_MODE : "empty"));
   }
@@ -952,15 +956,15 @@ export default function JobsPage() {
     },
   ];
 
-  function renderPipelineCell(value, label) {
+  function renderPipelineCell(jobId, value, label, tab) {
     return (
-      <button
-        type="button"
+      <Link
+        href={getJobWorkspaceHref(jobId, tab)}
         className={`block w-full rounded-[8px] px-[4px] py-[4px] text-center ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)] hover:bg-[var(--fx-surface-selected)] hover:text-[var(--fx-primary)]`}
         title={`${label}: ${value}`}
       >
         {value}
-      </button>
+      </Link>
     );
   }
 
@@ -981,33 +985,22 @@ export default function JobsPage() {
     title: (
       <div className="flex min-w-0 items-center gap-[10px]">
         {renderStatusDot(job)}
-        {job.status === "Draft" ? (
-          <button
-            type="button"
-            className={`block min-w-0 truncate text-left text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
-            title={job.title}
-            onClick={() => handleEditJob(job)}
-          >
-            {job.title}
-          </button>
-        ) : (
-          <Link
-            href={ROUTES.JOB(job.id)}
-            className={`block min-w-0 truncate text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
-            title={job.title}
-          >
-            {job.title}
-          </Link>
-        )}
+        <Link
+          href={getJobWorkspaceHref(job.id, "unscreened")}
+          className={`block min-w-0 truncate text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
+          title={job.title}
+        >
+          {job.title}
+        </Link>
       </div>
     ),
     company: <span className={`block truncate ${FX_TYPOGRAPHY.tableCell}`}>{job.company}</span>,
     positions: <span className={FX_TYPOGRAPHY.tableCell}>{job.positions}</span>,
     location: <span className={`block truncate ${FX_TYPOGRAPHY.tableCell}`}>{job.location}</span>,
-    unscreenedCount: renderPipelineCell(job.unscreenedCount, "Unscreened"),
-    screenedCount: renderPipelineCell(job.screenedCount, "Screened"),
-    shortlistedCount: renderPipelineCell(job.shortlistedCount, "Shortlisted"),
-    sharedCount: renderPipelineCell(job.sharedCount, "Shared"),
+    unscreenedCount: renderPipelineCell(job.id, job.unscreenedCount, "Unscreened", "unscreened"),
+    screenedCount: renderPipelineCell(job.id, job.screenedCount, "Screened", "screened"),
+    shortlistedCount: renderPipelineCell(job.id, job.shortlistedCount, "Shortlisted", "shortlisted"),
+    sharedCount: renderPipelineCell(job.id, job.sharedCount, "Shared", "shared"),
     lastActivity: (
       <span className={`block truncate ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text-muted)]`} title={new Date(job.updatedAt).toLocaleString()}>
         {formatRelativeTime(job.updatedAt)}
@@ -1036,7 +1029,7 @@ export default function JobsPage() {
             ) : selectedTab === "archived" ? (
               <>
                 <DropdownMenuItem asChild>
-                  <Link href={ROUTES.JOB(job.id)}>View Candidates</Link>
+                  <Link href={getJobWorkspaceHref(job.id, "unscreened")}>View Candidates</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleEditJob(job)}>Edit Job</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleRestoreJob(job.id)}>Restore Job</DropdownMenuItem>
@@ -1047,7 +1040,7 @@ export default function JobsPage() {
             ) : (
               <>
                 <DropdownMenuItem asChild>
-                  <Link href={ROUTES.JOB(job.id)}>View Candidates</Link>
+                  <Link href={getJobWorkspaceHref(job.id, "unscreened")}>View Candidates</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleEditJob(job)}>Edit Job</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleArchiveJob(job.id)}>Archive Job</DropdownMenuItem>
