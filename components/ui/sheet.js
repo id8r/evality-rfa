@@ -3,7 +3,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
-import { FX_PANEL, FX_SHEET, FX_SURFACE } from "@/lib/FxTheme";
+import { FX_SHEET, FX_SURFACE } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 const Sheet = DialogPrimitive.Root;
@@ -14,8 +14,9 @@ const SheetPortal = DialogPrimitive.Portal;
 function SheetOverlay({ className, ...props }) {
   return (
     <DialogPrimitive.Overlay
+      forceMount
       className={cn(
-        "fixed inset-0 z-[100] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-[200ms] data-[state=closed]:duration-[160ms]",
+        `fixed inset-0 z-[100] transition-opacity ${FX_SHEET.overlayOpenMotion} ${FX_SHEET.overlayCloseMotion} data-[state=open]:opacity-100 data-[state=closed]:pointer-events-none data-[state=closed]:invisible data-[state=closed]:opacity-0`,
         FX_SURFACE.overlay,
         className,
       )}
@@ -26,8 +27,8 @@ function SheetOverlay({ className, ...props }) {
 
 function SheetContent({ className, children, side = "right", size = "md", ...props }) {
   const sideClasses = {
-    right: "inset-y-0 right-0 h-full border-l data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
-    left: "inset-y-0 left-0 h-full border-r data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
+    right: "inset-y-0 right-0 h-full border-l translate-x-full data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full",
+    left: "inset-y-0 left-0 h-full border-r -translate-x-full data-[state=open]:translate-x-0 data-[state=closed]:-translate-x-full",
   };
 
   const widthClasses = {
@@ -41,8 +42,9 @@ function SheetContent({ className, children, side = "right", size = "md", ...pro
     <SheetPortal>
       <SheetOverlay />
       <DialogPrimitive.Content
+        forceMount
         className={cn(
-          `fixed z-[101] flex h-full flex-col overflow-hidden bg-[var(--fx-surface-raised)] text-foreground shadow-none ${FX_PANEL.dialogTransition} data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-[200ms] data-[state=closed]:duration-[160ms]`,
+          `fixed z-[101] flex h-full flex-col overflow-hidden bg-[var(--fx-surface-raised)] text-foreground shadow-none transition-[transform,opacity] ${FX_SHEET.contentOpenMotion} ${FX_SHEET.contentCloseMotion} will-change-transform data-[state=open]:opacity-100 data-[state=closed]:pointer-events-none data-[state=closed]:invisible data-[state=closed]:opacity-0`,
           sideClasses[side],
           widthClasses[size],
           className,

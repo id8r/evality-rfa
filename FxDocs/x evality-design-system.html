@@ -1,0 +1,432 @@
+<!-- evality-design-system.html -->
+
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evality AI Design System Reference Baseline</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                    },
+                    colors: {
+                        evality: {
+                            primary: 'var(--ev-primary)',
+                            bg: 'var(--ev-bg)',
+                            surface: 'var(--ev-surface)',
+                            raised: 'var(--ev-raised)',
+                            border: 'var(--ev-border)',
+                            textPrimary: 'var(--ev-text-primary)',
+                            textSecondary: 'var(--ev-text-secondary)',
+                            success: 'var(--ev-success)',
+                            warning: 'var(--ev-warning)',
+                            danger: 'var(--ev-danger)',
+                        }
+                    },
+                    borderRadius: {
+                        'ev-interactive': '6px', // 6px absolute for buttons, inputs, tags
+                        'ev-s': '8px',
+                        'ev-m': '12px',
+                        'ev-l': '16px',
+                    },
+                    boxShadow: {
+                        'ev-default': '0 1px 2px rgba(0, 0, 0, 0.04)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        /* Light Theme Mappings (8px Multiple Grid Base) */
+        :root {
+            --ev-primary: #2563EB;
+            --ev-bg: #FFFFFF;
+            --ev-surface: #FFFFFF;
+            --ev-raised: #F8FAFC;
+            --ev-border: #E2E8F0;
+            --ev-text-primary: #0F172A;
+            --ev-text-secondary: #64748B;
+            --ev-success: #16A34A;
+            --ev-warning: #D97706;
+            --ev-danger: #DC2626;
+        }
+
+        /* Dark Theme Variant: Pure Deep Charcoal Jet */
+        .dark {
+            --ev-primary: #3B82F6;
+            --ev-bg: #0B0F19;
+            --ev-surface: #111827;
+            --ev-raised: #1F2937;
+            --ev-border: #374151;
+            --ev-text-primary: #F9FAFB;
+            --ev-text-secondary: #9CA3AF;
+            --ev-success: #22C55E;
+            --ev-warning: #F59E0B;
+            --ev-danger: #EF4444;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased dark:bg-slate-950 dark:text-slate-100 transition-colors duration-150">
+
+    <!-- Framework Header Component -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200 px-6 py-4 dark:bg-slate-900/90 dark:border-slate-800 flex justify-between items-center max-w-[1440px] mx-auto">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-lg font-bold tracking-tight">Evality AI</h1>
+                <span class="font-mono text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded dark:bg-slate-800 dark:text-slate-400">Design System v1.0</span>
+                <span class="font-mono text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded dark:bg-emerald-950/50 dark:text-emerald-400">Approved Spec</span>
+            </div>
+            <p class="font-mono text-xs text-slate-400 mt-1 uppercase tracking-wider">Visual Token Reference & Interface Elements Sandbox</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="toggleDarkMode()" class="font-mono text-xs text-slate-500 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 transition-all">
+                🌓 [Toggle Theme Context]
+            </button>
+        </div>
+    </header>
+
+    <!-- Master Grid Layout constrained to exactly 1440px -->
+    <main class="max-w-[1440px] mx-auto p-6 grid grid-cols-1 xl:grid-cols-4 gap-8">
+
+        <!-- SIDEBAR: Guidelines & Rules (Mono font for system context separation) -->
+        <div class="xl:col-span-1 space-y-6 font-mono text-xs text-slate-500 dark:text-slate-400">
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 dark:bg-slate-900 dark:border-slate-800 space-y-4">
+                <div class="text-slate-400 font-bold uppercase tracking-wider">// Structural Guardrails</div>
+                <div class="space-y-2">
+                    <p>• Max Content Width: <span class="text-slate-800 dark:text-slate-200 font-bold">1440px</span></p>
+                    <p>• Grid Pattern: <span class="text-slate-800 dark:text-slate-200 font-bold">8px Increments</span></p>
+                    <p>• Input & Button Radius: <span class="text-slate-800 dark:text-slate-200 font-bold">6px Strict</span></p>
+                    <p>• Container Radii: <span class="text-slate-800 dark:text-slate-200 font-bold">8px / 12px / 16px</span></p>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 dark:bg-slate-900 dark:border-slate-800 space-y-3">
+                <div class="text-slate-400 font-bold uppercase tracking-wider">// Philosophy Strategy</div>
+                <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                    High information density UI explicitly optimized for recruiter parsing speeds. Eliminate extraneous shadows, complex gradients, or exaggerated border roundings that delay layout rendering and workflows.
+                </p>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <div class="text-slate-400 font-bold uppercase tracking-wider mb-2">// Architecture Tokens</div>
+                <div class="space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+                    <p>📁 app/globals.css</p>
+                    <p>📁 lib/FxTheme.js</p>
+                    <p>📁 lib/FxConstants.js</p>
+                    <p>📁 components/FxThemeToggle.js</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN VIEWPORT: Live Designs & Component Previews -->
+        <div class="xl:col-span-3 space-y-8">
+
+            <!-- Live Preview Sandbox Engine Context -->
+            <section class="bg-white p-6 rounded-xl border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <div class="mb-6 pb-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                    <div>
+                        <h2 class="font-mono text-xs font-bold text-slate-400 uppercase tracking-wider">Visual Interface Component Sandbox</h2>
+                        <p class="font-mono text-[11px] text-slate-400 mt-0.5">Live previews inheriting central theme variable assignments.</p>
+                    </div>
+                    <span class="font-mono text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded dark:bg-slate-800">Token Environment</span>
+                </div>
+
+                <!-- Simulation Wrapper Box -->
+                <div class="p-8 rounded-ev-l bg-evality-bg text-evality-textPrimary border border-evality-border shadow-ev-default transition-all space-y-12">
+
+                    <!-- SECTION: LANDING PAGE COMPONENTS PREVIEW -->
+                    <div>
+                        <span class="font-mono text-[11px] text-evality-textSecondary block mb-4 uppercase tracking-wider">// Context A: Landing Page Elements</span>
+
+                        <!-- Hero Section Block -->
+                        <div class="text-center py-8 border border-dashed border-evality-border rounded-ev-m px-4 bg-evality-raised/40">
+                            <h3 class="text-[36px] leading-[40px] font-bold tracking-tight text-evality-textPrimary mb-3">
+                                High-Density AI Assisted Sourcing
+                            </h3>
+                            <p class="text-[14px] leading-[22px] text-evality-textSecondary max-w-lg mx-auto mb-6">
+                                Streamline technical candidate mapping workflows with zero noise. Fast analytics, minimal interfaces, and information density tailored directly for enterprise recruiting teams.
+                            </p>
+                            <!-- Landing CTA Buttons (6px Rounding) -->
+                            <div class="flex justify-center gap-3">
+                                <button class="bg-evality-primary text-white text-[14px] leading-[22px] font-medium px-5 py-2.5 rounded-ev-interactive hover:opacity-90 transition-all">
+                                    Start Free Trial
+                                </button>
+                                <button class="bg-evality-surface text-evality-textPrimary border border-evality-border text-[14px] leading-[22px] font-medium px-5 py-2.5 rounded-ev-interactive hover:bg-evality-raised transition-all">
+                                    Schedule Developer Deep-dive
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Feature Cards Grid (8px Grid Rules Multiples) -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                            <div class="p-4 bg-evality-surface border border-evality-border rounded-ev-s">
+                                <span class="text-xs font-mono text-evality-primary block mb-1">01 / Performance</span>
+                                <h5 class="text-[14px] leading-[22px] font-semibold mb-1">Zero Layout Lag</h5>
+                                <p class="text-[13px] leading-[20px] text-evality-textSecondary">Stripped of excessive shadows and nested decoration layouts for raw performance speeds.</p>
+                            </div>
+                            <div class="p-4 bg-evality-surface border border-evality-border rounded-ev-s">
+                                <span class="text-xs font-mono text-evality-primary block mb-1">02 / Automation</span>
+                                <h5 class="text-[14px] leading-[22px] font-semibold mb-1">Context Enrichment</h5>
+                                <p class="text-[13px] leading-[20px] text-evality-textSecondary">Deep LLM mapping processes raw engineering logs directly into standardized talent matrix tables.</p>
+                            </div>
+                            <div class="p-4 bg-evality-surface border border-evality-border rounded-ev-s">
+                                <span class="text-xs font-mono text-evality-primary block mb-1">03 / Layout</span>
+                                <h5 class="text-[14px] leading-[22px] font-semibold mb-1">Dense Typography</h5>
+                                <p class="text-[13px] leading-[20px] text-evality-textSecondary">Designed entirely inside structural 8px spatial scales to display max data footprint on single viewports.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION: RECRUITER APP UI COMPONENTS -->
+                    <div class="pt-6 border-t border-evality-border">
+                        <span class="font-mono text-[11px] text-evality-textSecondary block mb-4 uppercase tracking-wider">// Context B: Recruiter UI App Elements</span>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+                            <!-- Column 1 & 2: Dense Job Table (Zebra, CamelCase Headers, ID Normal, Title Primary Color Accent) -->
+                            <div class="lg:col-span-2 space-y-4">
+                                <div class="overflow-x-auto border border-evality-border rounded-ev-s">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr class="h-[48px] border-b border-evality-border bg-evality-raised text-[12px] leading-[18px] font-medium text-evality-textSecondary">
+                                                <th class="px-4 font-medium">Job Identification</th>
+                                                <th class="px-4 font-medium">Target Title</th>
+                                                <th class="px-4 font-medium text-right">Total Applicants</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="text-[14px] leading-[22px] text-evality-textPrimary">
+                                            <!-- Alternate Rows Striping. ID prefixed directly with status dot tokens. -->
+                                            <tr class="h-[56px] border-b border-evality-border bg-evality-surface">
+                                                <td class="px-4 font-mono text-xs text-evality-textSecondary">
+                                                    <span class="inline-block w-2 h-2 rounded-full bg-evality-success mr-2"></span>JOB-402
+                                                </td>
+                                                <td class="px-4 font-medium text-evality-primary cursor-pointer hover:opacity-85 transition-opacity">Staff AI Sourcing Architect</td>
+                                                <td class="px-4 text-right font-mono text-xs text-evality-textSecondary">248</td>
+                                            </tr>
+                                            <tr class="h-[56px] border-b border-evality-border bg-evality-raised/50">
+                                                <td class="px-4 font-mono text-xs text-evality-textSecondary">
+                                                    <span class="inline-block w-2 h-2 rounded-full bg-evality-success mr-2"></span>JOB-193
+                                                </td>
+                                                <td class="px-4 font-medium text-evality-primary cursor-pointer hover:opacity-85 transition-opacity">Senior Infrastructure Engineer</td>
+                                                <td class="px-4 text-right font-mono text-xs text-evality-textSecondary">142</td>
+                                            </tr>
+                                            <tr class="h-[56px] border-b border-evality-border bg-evality-surface">
+                                                <td class="px-4 font-mono text-xs text-evality-textSecondary">
+                                                    <span class="inline-block w-2 h-2 rounded-full bg-evality-warning mr-2"></span>JOB-082
+                                                </td>
+                                                <td class="px-4 font-medium text-evality-primary cursor-pointer hover:opacity-85 transition-opacity">Lead Frontend Architect</td>
+                                                <td class="px-4 text-right font-mono text-xs text-evality-textSecondary">89</td>
+                                            </tr>
+                                            <tr class="h-[56px] border-b border-evality-border bg-evality-raised/50">
+                                                <td class="px-4 font-mono text-xs text-evality-textSecondary">
+                                                    <span class="inline-block w-2 h-2 rounded-full bg-evality-danger mr-2"></span>JOB-311
+                                                </td>
+                                                <td class="px-4 font-medium text-evality-primary cursor-pointer hover:opacity-85 transition-opacity">Junior Backend Engineer (Go)</td>
+                                                <td class="px-4 text-right font-mono text-xs text-evality-textSecondary">0</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Standard Inputs Demo Row (6px Rule Match) -->
+                                <div class="flex gap-3 max-w-md">
+                                    <input type="text" placeholder="Quick search candidates..." class="w-full bg-evality-surface border border-evality-border text-evality-textPrimary rounded-ev-interactive px-3 py-1.5 text-[14px] leading-[22px] focus:outline-none focus:border-evality-primary focus:ring-1 focus:ring-evality-primary placeholder:text-evality-textSecondary/40 transition-all">
+                                    <button class="bg-evality-primary text-white text-[14px] font-medium px-4 py-1.5 rounded-ev-interactive hover:opacity-90 transition-all">
+                                        Filter
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Column 3: Candidate Card & Action Center Task Card Components -->
+                            <div class="lg:col-span-1 space-y-4">
+
+                                <!-- Candidate Card Container Layout -->
+                                <div class="p-4 bg-evality-surface border border-evality-border rounded-ev-s shadow-ev-default">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h5 class="text-[14px] leading-[22px] font-semibold">Ananya Sharma</h5>
+                                            <p class="text-[12px] text-evality-textSecondary">Backend Lead • 8 Yrs Exp</p>
+                                        </div>
+                                        <span class="text-[11px] font-mono bg-evality-raised px-1.5 py-0.5 rounded border border-evality-border">94% Match</span>
+                                    </div>
+                                    <p class="text-[13px] leading-[20px] text-evality-textSecondary mb-3">
+                                        Distributed systems specialist. Ex-Systems Infra lead scaling low-latency data loops.
+                                    </p>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <span class="text-[11px] px-2 py-0.5 bg-evality-raised rounded-ev-interactive text-evality-textSecondary">Go</span>
+                                        <span class="text-[11px] px-2 py-0.5 bg-evality-raised rounded-ev-interactive text-evality-textSecondary">Kubernetes</span>
+                                        <span class="text-[11px] px-2 py-0.5 bg-evality-raised rounded-ev-interactive text-evality-textSecondary">Kafka</span>
+                                    </div>
+                                </div>
+
+                                <!-- Action Center Task Card Component -->
+                                <div class="p-4 bg-evality-raised border border-evality-border rounded-ev-s border-l-4 border-l-evality-primary">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-[11px] font-mono uppercase text-evality-textSecondary tracking-wider">Action Required</span>
+                                        <span class="w-2 h-2 rounded-full bg-evality-danger"></span>
+                                    </div>
+                                    <h5 class="text-[13px] font-semibold text-evality-textPrimary mb-1">Calibrate Screening Parameters</h5>
+                                    <p class="text-[12px] leading-[18px] text-evality-textSecondary mb-3">
+                                        JOB-402 pipeline drop-off rate exceeded threshold during technical screening.
+                                    </p>
+                                    <button class="w-full bg-evality-surface text-evality-textPrimary border border-evality-border text-[12px] font-medium py-1 rounded-ev-interactive hover:bg-evality-raised transition-all">
+                                        Review Metrics
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Typography Metric System Reference -->
+            <section class="bg-white p-6 rounded-xl border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <div class="mb-4">
+                    <h2 class="font-mono text-xs font-bold text-slate-400 uppercase tracking-wider">Typography Token Architecture</h2>
+                    <p class="font-mono text-[11px] text-slate-400 mt-0.5">Hierarchy metrics locked down inside Inter scales.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-mono tracking-wider text-[11px]">
+                                <th class="pb-2 font-medium">Style Token</th>
+                                <th class="pb-2 font-medium">Size / Line Height</th>
+                                <th class="pb-2 font-medium">Weight</th>
+                                <th class="pb-2 font-medium">Visual Context Preview</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/40">
+                            <tr>
+                                <td class="py-3 font-mono text-slate-400">Hero</td>
+                                <td class="py-3 text-slate-400">56px / 64px</td>
+                                <td class="py-3 font-mono text-slate-400">700</td>
+                                <td class="py-3 text-[56px] leading-[64px] font-bold tracking-tight text-slate-900 dark:text-white">Evality AI</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 font-mono text-slate-400">H1 / PageTitle</td>
+                                <td class="py-3 text-slate-400">28px / 36px</td>
+                                <td class="py-3 font-mono text-slate-400">600</td>
+                                <td class="py-3 text-[28px] leading-[36px] font-semibold text-slate-900 dark:text-white">Job Pipeline Workspace</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 font-mono text-slate-400">CardTitle</td>
+                                <td class="py-3 text-slate-400">16px / 24px</td>
+                                <td class="py-3 font-mono text-slate-400">600</td>
+                                <td class="py-3 text-[16px] leading-[24px] font-semibold text-slate-900 dark:text-white">Recent Submissions Matrix</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 font-mono text-slate-400">Body</td>
+                                <td class="py-3 text-slate-400">14px / 22px</td>
+                                <td class="py-3 font-mono text-slate-400">400</td>
+                                <td class="py-3 text-[14px] leading-[22px] text-slate-600 dark:text-slate-300">High density structural layers allow quick evaluation patterns across long table streams.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Hex Strategy Breakdown Matrix Section (ALL colors mapped completely) -->
+            <section class="bg-white p-6 rounded-xl border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <h2 class="font-mono text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Complete Hex Architecture Mapping Matrix</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 font-mono text-xs">
+
+                    <!-- Comprehensive Light Mappings -->
+                    <div class="space-y-4">
+                        <div class="text-slate-400 font-bold">// ☀️ Complete Light Theme Tokens</div>
+                        <div class="space-y-1.5 text-slate-600">
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Primary (Brand & Accent)</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#2563EB</span><span class="w-3 h-3 rounded bg-[#2563EB]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Background (Base Canvas)</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#FFFFFF</span><span class="w-3 h-3 rounded bg-[#FFFFFF] border border-slate-200"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Surface (Containers & Cards)</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#FFFFFF</span><span class="w-3 h-3 rounded bg-[#FFFFFF] border border-slate-200"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Surface Raised (Zebra / Headers)</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#F8FAFC</span><span class="w-3 h-3 rounded bg-[#F8FAFC] border border-slate-200"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Border Token</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#E2E8F0</span><span class="w-3 h-3 rounded bg-[#E2E8F0]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Text Primary</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#0F172A</span><span class="w-3 h-3 rounded bg-[#0F172A]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Text Secondary</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#64748B</span><span class="w-3 h-3 rounded bg-[#64748B]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Success State</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#16A34A</span><span class="w-3 h-3 rounded bg-[#16A34A]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Warning State</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#D97706</span><span class="w-3 h-3 rounded bg-[#D97706]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                                <span>Danger / Destructive State</span><div class="flex items-center gap-2"><span class="font-bold text-slate-800">#DC2626</span><span class="w-3 h-3 rounded bg-[#DC2626]"></span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comprehensive Charcoal Dark Mappings -->
+                    <div class="space-y-4">
+                        <div class="text-slate-400 font-bold">// 🌙 Complete Charcoal Dark Tokens</div>
+                        <div class="space-y-1.5 text-slate-400">
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Primary (Brand & Accent)</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#3B82F6</span><span class="w-3 h-3 rounded bg-[#3B82F6]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Background (Base Canvas)</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#0B0F19</span><span class="w-3 h-3 rounded bg-[#0B0F19]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Surface (Containers & Cards)</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#111827</span><span class="w-3 h-3 rounded bg-[#111827]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Surface Raised (Zebra / Headers)</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#1F2937</span><span class="w-3 h-3 rounded bg-[#1F2937]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Border Token</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#374151</span><span class="w-3 h-3 rounded bg-[#374151]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Text Primary</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#F9FAFB</span><span class="w-3 h-3 rounded bg-[#F9FAFB]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Text Secondary</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#9CA3AF</span><span class="w-3 h-3 rounded bg-[#9CA3AF]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Success State</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#22C55E</span><span class="w-3 h-3 rounded bg-[#22C55E]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Warning State</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#F59E0B</span><span class="w-3 h-3 rounded bg-[#F59E0B]"></span></div>
+                            </div>
+                            <div class="flex items-center justify-between p-2 bg-slate-900 rounded border border-slate-800">
+                                <span>Danger / Destructive State</span><div class="flex items-center gap-2"><span class="font-bold text-slate-100">#EF4444</span><span class="w-3 h-3 rounded bg-[#EF4444]"></span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <script>
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+    </script>
+</body>
+</html>

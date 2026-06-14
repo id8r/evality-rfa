@@ -19,7 +19,7 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
   --color-primary-foreground: var(--fx-primary-foreground);
   --color-muted: var(--fx-bg-soft);
   --color-muted-foreground: var(--fx-text-muted);
-  --color-accent: var(--fx-surface-raised);
+  --color-accent: var(--fx-surface-hover);
   --color-accent-foreground: var(--fx-text);
   --color-border: var(--fx-border);
   --color-input: var(--fx-border);
@@ -37,8 +37,11 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
   --fx-bg-soft: #f8fafc;
   --fx-surface: #ffffff;
   --fx-surface-raised: #f8fafc;
+  --fx-surface-hover: #f1f5f9;
+  --fx-surface-selected: #e0ecff;
   --fx-text: #0f172a;
   --fx-text-muted: #64748b;
+  --fx-text-disabled: #94a3b8;
   --fx-border: #e2e8f0;
   --fx-primary: #2563eb;
   --fx-primary-foreground: #ffffff;
@@ -49,13 +52,16 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
 }
 
 .dark {
-  --fx-bg: #0b0f19;
-  --fx-bg-soft: #111827;
-  --fx-surface: #111827;
-  --fx-surface-raised: #1f2937;
-  --fx-text: #f9fafb;
-  --fx-text-muted: #9ca3af;
-  --fx-border: #374151;
+  --fx-bg: #1e2430;
+  --fx-bg-soft: #262d3a;
+  --fx-surface: #262d3a;
+  --fx-surface-raised: #313948;
+  --fx-surface-hover: #394354;
+  --fx-surface-selected: #445066;
+  --fx-text: #f3f4f6;
+  --fx-text-muted: #a8b0bf;
+  --fx-text-disabled: #6b7280;
+  --fx-border: #434c5e;
   --fx-primary: #3b82f6;
   --fx-primary-foreground: #ffffff;
   --fx-success: #22c55e;

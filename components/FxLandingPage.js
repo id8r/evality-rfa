@@ -211,7 +211,7 @@ export function FxLandingPage() {
             <p className={`${FX_TYPOGRAPHY.bodyLg} max-w-[56ch] ${FX_SURFACE.mutedText}`}>{LANDING_COPY.hero.tagline}</p>
 
             <div className="flex flex-wrap items-center gap-[16px] pt-[8px]">
-              <FxButton className="h-[44px] rounded-full px-[28px]" size="lg" onClick={() => handleAuthOpen("signup")}>
+              <FxButton className="h-[40px] rounded-full px-[28px]" size="lg" onClick={() => handleAuthOpen("signup")}>
                 {LANDING_COPY.hero.cta}
               </FxButton>
             </div>

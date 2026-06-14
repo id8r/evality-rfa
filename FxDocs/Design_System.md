@@ -1,140 +1,125 @@
+<!-- FxDocs/Design_System.md | Design system source of truth | 14 Jun 2026 -->
+
 # Evality AI - Design System
 
-Version: 1.0
-Status: Approved Baseline
-Owner: Product Team
+**Version:** 1.1 | **Date:** 14 Jun 2026 | **Status:** Approved Baseline | **Owner:** Product Team
 
----
 
-# Design Philosophy
-
-Evality is a recruiting workspace built for recruiters, agencies, and talent acquisition teams.
-
-The interface should prioritize:
-
-* Speed
-* Clarity
-* Density
-* Actionability
-
-Modernize recruiter workflows without fighting recruiter behavior.
-
----
-
-## Inspiration
-
-* ChatGPT
-* Linear
-* Vercel
-
----
-
-## Keywords
+# Principles
 
 * Calm
 * Minimal
-* Professional
-* Focused
-* Fast
+* Dense
+* Actionable
+* Consistent
 * High Signal
 
----
 
-## Avoid
-
-* Heavy enterprise styling
-* Decorative shadows
-* Excessive gradients
-* Glow effects
-* Dashboard overload
-* ATS-style clutter
-
----
-
-# Theme Architecture
-
-Theme implementation is centralized.
-
-## Core Files
-
-```text
-app/globals.css
-lib/FxTheme.js
-lib/FxConstants.js
-lib/FxUtils.js
-lib/FxCopy.js
-lib/FxStore.js
-
-components/FxThemeToggle.js
-components/FxThemeController.js
-```
-
-## Rules
+# Token Rules
 
 * No hardcoded colors
 * No hardcoded typography
 * No hardcoded spacing
 * No hardcoded radius values
 * No hardcoded layout dimensions
+* All values must come from centralized theme tokens
 
-All values should originate from centralized theme tokens.
 
----
+# Color System
+
+## Light Theme
+
+| Token            | Value     | Usage                            |
+| ---------------- | --------- | -------------------------------- |
+| Primary          | `#2563EB` | Primary actions, active links    |
+| Background       | `#FFFFFF` | App shell, page background       |
+| Surface          | `#FFFFFF` | Cards, tables, panels            |
+| Surface Raised   | `#F8FAFC` | Sheets, dialogs, dropdowns       |
+| Surface Hover    | `#F1F5F9` | Hover states                     |
+| Surface Selected | `#E0ECFF` | Selected rows, active navigation |
+| Border           | `#E2E8F0` | Dividers, outlines               |
+| Text Primary     | `#0F172A` | Main text                        |
+| Text Secondary   | `#64748B` | Secondary text                   |
+| Text Disabled    | `#94A3B8` | Disabled controls and text       |
+| Success          | `#16A34A` | Success states                   |
+| Warning          | `#D97706` | Warning states                   |
+| Danger           | `#DC2626` | Error/destructive states         |
+
+## Dark Theme
+
+| Token            | Value     | Usage                            |
+| ---------------- | --------- | -------------------------------- |
+| Primary          | `#3B82F6` | Primary actions, active links    |
+| Background       | `#1E2430` | App shell, page background       |
+| Surface          | `#262D3A` | Cards, tables, panels            |
+| Surface Raised   | `#313948` | Sheets, dialogs, dropdowns       |
+| Surface Hover    | `#394354` | Hover states                     |
+| Surface Selected | `#445066` | Selected rows, active navigation |
+| Border           | `#434C5E` | Dividers, outlines               |
+| Text Primary     | `#F3F4F6` | Main text                        |
+| Text Secondary   | `#A8B0BF` | Secondary text                   |
+| Text Disabled    | `#6B7280` | Disabled controls and text       |
+| Success          | `#22C55E` | Success states                   |
+| Warning          | `#F59E0B` | Warning states                   |
+| Danger           | `#EF4444` | Error/destructive states         |
+
+## Dark Mode Rules
+
+* Avoid pure black
+* Avoid high-contrast borders
+* Avoid glow effects
+* Prefer layered surfaces over shadows
+* Keep tables readable and dense
+* Use accent colors only for actions and statuses
+
 
 # Typography
 
 ## Font Family
 
-Inter
-
-Fallback Stack:
-
-```text
-Inter,
-ui-sans-serif,
-system-ui,
--apple-system,
-BlinkMacSystemFont,
-Segoe UI,
-Roboto,
-Helvetica,
-Arial,
-sans-serif
-```
-
----
+font-family:
+  Inter,
+  ui-sans-serif,
+  system-ui,
+  -apple-system,
+  BlinkMacSystemFont,
+  "Segoe UI",
+  Roboto,
+  Helvetica,
+  Arial,
+  sans-serif;
 
 ## Type Scale
 
-| Style              | Size | Line Height | Weight |
-| ------------------ | ---- | ----------- | ------ |
-| Hero               | 56   | 64          | 700    |
-| Display            | 36   | 40          | 600    |
-| H1 / Page Title    | 28   | 36          | 600    |
-| H2                 | 24   | 32          | 500    |
-| H3 / Section Title | 20   | 28          | 600    |
-| Card Title         | 16   | 24          | 600    |
-| Body               | 14   | 22          | 400    |
-| Clickable Data     | 14   | 22          | 500    |
-| Button Label       | 14   | 22          | 500    |
-| Helper Text        | 13   | 20          | 400    |
-| Meta Label         | 12   | 18          | 500    |
-| Table Header       | 12   | 18          | 500    |
-| Caption            | 12   | 18          | 400    |
+| Token       | Size | Line Height | Weight | Usage                                |
+| ----------- | ---- | ----------- | ------ | ------------------------------------ |
+| Display     | 36px | 44px        | 600    | Landing sections, major headers      |
+| H1          | 28px | 36px        | 600    | Page titles                          |
+| H2          | 24px | 32px        | 600    | Section titles                       |
+| H3          | 20px | 28px        | 600    | Subsections                          |
+| Title       | 16px | 24px        | 600    | Card titles, dialog titles           |
+| Body        | 14px | 22px        | 400    | Default text                         |
+| Body Medium | 14px | 22px        | 500    | Clickable data, emphasized body text |
+| Label       | 13px | 20px        | 500    | Form labels                          |
+| Helper      | 12px | 18px        | 400    | Helper text, validation text         |
+| Meta        | 12px | 18px        | 500    | Table headers, metadata, chips       |
+| Caption     | 11px | 16px        | 400    | Tiny metadata, timestamps            |
 
----
+## Typography Rules
 
-# Spacing System
+* Use Body as the default application text
+* Use Label for form labels
+* Use Helper for field help and validation text
+* Use Meta for table headers and compact metadata
+* Do not use text below 11px
 
-Base Unit
 
-8px
+# Spacing
 
----
+**Base Unit:** 8px
 
 ## Approved Scale
 
-```text
 8
 16
 24
@@ -144,352 +129,309 @@ Base Unit
 64
 80
 96
-```
 
-Rule:
+## Rules
 
-Use 8px multiples.
+* Use 8px multiples
+* Avoid arbitrary spacing values
+* Use tighter spacing for dense recruiter workflows
+* Use larger spacing for landing pages and empty states
 
-Avoid arbitrary spacing values.
 
----
+# Layout
 
-# Layout Standards
+| Token                 | Value  |
+| --------------------- | ------ |
+| Maximum Content Width | 1440px |
+| Default Content Width | 1200px |
+| Expanded Sidebar      | 256px  |
+| Collapsed Sidebar     | 72px   |
+| Global Header Height  | 64px   |
 
-Maximum Content Width
 
-```text
-1440px
-```
+# Radius
 
-Default Content Width
+| Token       | Value | Usage                           |
+| ----------- | ----- | ------------------------------- |
+| Interactive | 6px   | Buttons, inputs, selects, chips |
+| Small       | 8px   | Small cards, table containers   |
+| Medium      | 12px  | Cards, panels                   |
+| Large       | 16px  | Large sections, modals          |
 
-```text
-1200px
-```
-
-Expanded Sidebar
-
-```text
-256px
-```
-
-Collapsed Sidebar
-
-```text
-72px
-```
-
-Global Header Height
-
-```text
-64px
-```
-
----
-
-# Sheet System
-
-Default Sheet Width
-
-```text
-480px
-```
-
-Sizes
-
-```text
-Small  = 360px
-Medium = 480px
-Large  = 640px
-```
-
-All sheets use:
-
-* Fixed Header
-* Scrollable Body
-* Fixed Action Footer
-
----
-
-# Border Radius
-
-## Interactive Elements
-
-```text
-rounded-ev-interactive = 6px
-```
-
-Used for:
-
-* Buttons
-* Inputs
-* Selects
-* Chips
-* Small controls
-
----
-
-## Structural Radius
-
-```text
-rounded-ev-s = 8px
-rounded-ev-m = 12px
-rounded-ev-l = 16px
-```
-
----
-
-# Color System
-
-## Light Theme
-
-| Token          | Value   |
-| -------------- | ------- |
-| Primary        | #2563EB |
-| Background     | #FFFFFF |
-| Surface        | #FFFFFF |
-| Surface Raised | #F8FAFC |
-| Border         | #E2E8F0 |
-| Text Primary   | #0F172A |
-| Text Secondary | #64748B |
-| Success        | #16A34A |
-| Warning        | #D97706 |
-| Danger         | #DC2626 |
-
----
-
-## Dark Theme
-
-| Token          | Value   |
-| -------------- | ------- |
-| Primary        | #3B82F6 |
-| Background     | #0B0F19 |
-| Surface        | #111827 |
-| Surface Raised | #1F2937 |
-| Border         | #374151 |
-| Text Primary   | #F9FAFB |
-| Text Secondary | #9CA3AF |
-| Success        | #22C55E |
-| Warning        | #F59E0B |
-| Danger         | #EF4444 |
-
----
-
-# Buttons
-
-## Primary
-
-* Primary background
-* White text
-* 6px radius
-
-## Secondary
-
-* Surface background
-* Border visible
-* Text Primary
-
-## Ghost
-
-* Transparent background
-
-## Destructive
-
-* Danger background
-* White text
-
----
-
-# Inputs
-
-Typography
-
-```text
-14 / 22
-```
-
-Radius
-
-```text
-6px
-```
-
-Behavior
-
-* Border token by default
-* Primary token on focus
-
----
-
-# Tables
-
-Recruiters spend most of their time in tables.
-
-Tables should optimize for:
-
-* Fast scanning
-* Density
-* Clarity
-* Low visual noise
-
----
-
-## Standards
-
-Header Height
-
-```text
-48px
-```
-
-Row Height
-
-```text
-56px
-```
-
----
-
-## Visual Style
-
-* Clean borders
-* Zebra striping enabled
-* Minimal decoration
-* No heavy shadows
-
----
-
-## Links Inside Tables
-
-Interactive links should:
-
-* Use Primary color
-* Transition to a darker shade on hover
-* Show pointer cursor
-
-Avoid excessive hover decoration.
-
----
 
 # Shadows
 
-Default Shadow
+box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 
-```text
-0 1px 2px rgba(0,0,0,0.04)
-```
+## Rules
 
-Rule
+* Use shadows sparingly
+* Prefer borders and surface contrast
+* Avoid decorative elevation
+* Avoid glow effects
 
-Use shadows sparingly.
-
-Prefer:
-
-* Borders
-* Contrast
-* Structure
-
-Over elevation.
-
----
 
 # Icons
 
-Library
+**Library:** lucide-react
 
-```text
-lucide-react
-```
+| Size | Usage                              |
+| ---- | ---------------------------------- |
+| 16px | Tables, buttons, compact actions   |
+| 20px | Navigation, menus, common controls |
+| 24px | Empty states, large actions        |
 
-Sizes
 
-```text
-16px
-20px
-24px
-```
+# Components
 
-Use consistently.
+## Navigation
 
----
+### Sidebar
 
-# Dark Mode
+| Property     | Value            |
+| ------------ | ---------------- |
+| Item Height  | 36px             |
+| Hover State  | Surface Hover    |
+| Active State | Surface Selected |
 
-Status
+### Navbar
 
-Implemented
+| Property   | Value              |
+| ---------- | ------------------ |
+| Height     | 64px               |
+| Background | Surface            |
+| Border     | Bottom Border Only |
 
-Architecture
 
-```text
-CSS Variables
-Tailwind Mapping
-html.dark
-LocalStorage Persistence
-```
+# Route Manifest
 
-Coverage Required
+Navigation and page metadata must be centralized.
 
-* Landing
-* Authentication
-* App Shell
-* Sidebar
-* Navbar
-* Jobs
-* Candidates
-* Clients
-* Sheets
-* Dialogs
-* Dropdowns
-* Toasts
+Each route definition should support:
 
-All future components must support both themes.
+* id
+* route
+* navLabel
+* pageTitle
+* icon
+* showInSidebar
+* sortOrder
 
----
+## Rules
+
+* Route paths are not page titles.
+* Sidebar labels are not identifiers.
+* AppShell titles must come from the manifest.
+* Navigation should consume the manifest.
+* Use stable IDs throughout the application.
+
+Example IDs:
+
+* actionCenter
+* jobs
+* candidates
+* clients
+* jobWorkspace
+* settings
+
+
+## Buttons
+
+| Type        | Background  | Text         | Border |
+| ----------- | ----------- | ------------ | ------ |
+| Primary     | Primary     | White        | None   |
+| Secondary   | Surface     | Text Primary | Border |
+| Ghost       | Transparent | Text Primary | None   |
+| Destructive | Danger      | White        | None   |
+
+**Specs**
+
+* Height: 36px or 40px
+* Radius: 6px
+* Typography: Body Medium
+* Icon Size: 16px
+
+### States
+
+#### Hover
+
+* Primary: darker primary shade
+* Secondary: Surface Hover
+* Ghost: Surface Hover
+* Destructive: darker danger shade
+
+#### Disabled
+
+* Use Text Disabled
+* Reduce emphasis
+* No hover interaction
+* Cursor: not-allowed
+
+
+## Status Chips
+
+| Property   | Value  |
+| ---------- | ------ |
+| Height     | 24px   |
+| Radius     | 9999px |
+| Typography | Meta   |
+
+**States**
+
+* Success
+* Warning
+* Danger
+* Neutral
+
+
+## Inputs
+
+| Property | Value  |
+| -------- | ------ |
+| Height   | 36px   |
+| Radius   | 6px    |
+| Text     | Body   |
+| Label    | Label  |
+| Helper   | Helper |
+
+**States**
+
+* Border token by default
+* Primary token on focus
+* Danger token for errors
+* Helper text uses Text Secondary
+
+
+## Selectable Cards
+
+Used For
+
+* Onboarding
+* Persona Selection
+* Workflow Selection
+* Option Selection
+
+### Specs
+
+| Property | Value |
+|----------|-------|
+| Radius | 6px |
+| Border | Border Token |
+| Background | Surface |
+| Hover | Surface Hover |
+| Selected | Surface Selected + Primary Border |
+
+### Rules
+
+* Selected state must be visually obvious.
+* Support keyboard navigation.
+* Keep descriptions concise.
+* Do not rely on color alone to indicate selection.
+* Support light and dark themes.
+
+
+## Tables
+
+| Property       | Value       |
+| -------------- | ----------- |
+| Header Height  | 48px        |
+| Row Height     | 56px        |
+| Header Text    | Meta        |
+| Cell Text      | Body        |
+| Clickable Data | Body Medium |
+
+**Rules**
+
+* Optimize for scanning
+* Clean borders
+* Zebra striping enabled for dense recruiter tables
+* Hover uses Surface Hover
+* Selected uses Surface Selected
+
+### Links Inside Tables
+
+* Use Primary color
+* Use pointer cursor
+* Use subtle hover feedback
+* Use darker shade on hover
+* Avoid excessive underlines
+* Underline on hover is optional.
+* Prefer color change before decoration.
+
+
+## Sheets
+
+| Size   | Width |
+| ------ | ----- |
+| Small  | 360px |
+| Medium | 480px |
+| Large  | 640px |
+
+**Rules**
+
+* Fixed header
+* Scrollable body
+* Fixed action footer
+* Surface Raised background
+* Visible border
+
+
+## Dialogs
+
+* Surface Raised background
+* Medium or Large radius
+* Minimal shadow
+* Clear primary and secondary actions
+* Avoid oversized dialogs
+
+
+## Dropdowns
+
+* Surface Raised background
+* Border token
+* 6px radius
+* Hover uses Surface Hover
+* Selected uses Surface Selected
+
+
+## Toasts
+
+* Surface Raised background
+* Border token
+* Status color only for icon/accent
+* Keep copy short
+
+
+# Theme Coverage
+
+All screens and components must support:
+
+* Light Theme
+* Dark Theme
+* Responsive Layouts
+* Keyboard Navigation
+* Token-Based Styling
+
 
 # Known Exceptions
 
-Allowed Brand Colors
+Allowed brand colors:
 
 * Google
 * LinkedIn
 
-These may retain official brand colors.
 
----
+# Design Review Checklist
 
-# Design Freeze
-
-Approved
-
-* Typography System
-* Spacing System
-* Layout System
-* Radius System
-* Light Theme
-* Dark Theme
-* Color System
-* Sheet System
-
-Future Revisit
-
-* Brand refresh
-* Additional themes
-* Alternative accent colors
-
----
-
-# Development Rule
-
-Before creating any new component:
-
-1. Use existing typography tokens.
-2. Use existing spacing tokens.
-3. Use existing color tokens.
-4. Use existing radius tokens.
-5. Support light mode.
-6. Support dark mode.
-7. Follow established interaction patterns.
-
-Consistency is preferred over local optimization.
+```text
+[ ] Supports Light Theme
+[ ] Supports Dark Theme
+[ ] Uses Theme Tokens
+[ ] Uses Typography Tokens
+[ ] Uses Spacing Tokens
+[ ] Uses Radius Tokens
+[ ] No Hardcoded Colors
+[ ] No Hardcoded Layout Dimensions
+[ ] Keyboard Accessible
+[ ] Responsive
+[ ] Consistent With Existing Patterns

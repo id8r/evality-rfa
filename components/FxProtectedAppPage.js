@@ -6,14 +6,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/AppShell";
-import { ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
+import { getPageMeta, ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_SURFACE } from "@/lib/FxTheme";
 import { readStoredValue } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
 
-export function FxProtectedAppPage({ children, title = "Jobs", navbarLeading = null, navbarActions = null }) {
+export function FxProtectedAppPage({ children, pageId = "jobs", title = null, navbarLeading = null, navbarActions = null }) {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
+  const pageMeta = getPageMeta(pageId);
+  const pageTitle = title === false ? null : title ?? pageMeta?.pageTitle ?? "Evality";
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -36,7 +38,7 @@ export function FxProtectedAppPage({ children, title = "Jobs", navbarLeading = n
   }
 
   return (
-    <AppShell title={title} navbarLeading={navbarLeading} navbarActions={navbarActions}>
+    <AppShell title={pageTitle} navbarLeading={navbarLeading} navbarActions={navbarActions}>
       {children}
     </AppShell>
   );
