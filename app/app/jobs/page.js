@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   ArrowRight,
@@ -73,6 +73,7 @@ const DEFAULT_PAGE_STATE = {
 };
 
 const DEFAULT_JOBS_VIEW_MODE = "table";
+const SHOW_DEMO_CONTROLS = process.env.NEXT_PUBLIC_SHOW_DEMO_CONTROLS !== "false";
 
 const JOB_SHEET_STEPS = [
   { value: "basic", label: "Basic Details" },
@@ -349,7 +350,6 @@ function subscribeToWorkspaceTypeChange(onStoreChange) {
 
 export default function JobsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const initialPageState = readStoredJobsPageState() ?? DEFAULT_PAGE_STATE;
   const [jobsViewMode, setJobsViewMode] = useState(() => {
     const storedViewMode = readStoredJobsViewMode();
@@ -399,7 +399,11 @@ export default function JobsPage() {
   }, [jobsViewMode]);
 
   useEffect(() => {
-    const editJobId = searchParams?.get("edit");
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const editJobId = new URLSearchParams(window.location.search).get("edit");
 
     if (!editJobId || handledEditJobIdRef.current === editJobId) {
       return;
@@ -410,7 +414,7 @@ export default function JobsPage() {
       handledEditJobIdRef.current = editJobId;
       handleEditJob(jobToEdit);
     }
-  }, [jobs, searchParams]);
+  }, [jobs]);
 
   useEffect(() => {
     writeStoredJobsPageState({ searchTerm, selectedTab, sortConfig });
@@ -1204,7 +1208,7 @@ export default function JobsPage() {
       </TooltipProvider>
 
       <div className="fixed bottom-[16px] right-[16px] z-20 flex items-center gap-[8px]">
-        {process.env.NODE_ENV === "development" ? (
+        {SHOW_DEMO_CONTROLS ? (
           <button
             type="button"
             aria-label="Reset demo data"
@@ -1215,7 +1219,7 @@ export default function JobsPage() {
             <RefreshCcw className="size-[12px]" />
           </button>
         ) : null}
-        {process.env.NODE_ENV === "development" ? (
+        {SHOW_DEMO_CONTROLS ? (
           <button
             type="button"
             aria-label={jobsViewMode === "empty" ? "Show table view" : "Show empty view"}
