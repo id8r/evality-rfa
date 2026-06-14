@@ -1,8 +1,6 @@
-<!-- FxDocs/Design_System.md | Design system source of truth | 14 Jun 2026 -->
-
 # Evality AI - Design System
 
-**Version:** 1.1 | **Date:** 14 Jun 2026 | **Status:** Approved Baseline | **Owner:** Product Team
+**Version:** 1.1 | **Date:** 14 Jun 2026 | **Status:** Approved Baseline | **Path:** FxDocs/Design_System.md | **Need:** Source of Truth for Dev | **Last Updated:** 14 Jun 2026
 
 
 # Principles

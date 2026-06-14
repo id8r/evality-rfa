@@ -15,7 +15,7 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
               <th
                 key={column.key}
                 className={cn(
-                  "border-b border-[var(--fx-border)] px-[16px] py-[8px] text-left text-[var(--fx-text-muted)]",
+                  "border-b border-[var(--fx-border)] px-[16px] py-[16px] text-left text-[var(--fx-text-muted)]",
                   stickyHeader ? "sticky top-0 z-[1] bg-[var(--fx-bg-soft)]" : "",
                   column.align === "right" ? "text-right" : "",
                   column.align === "center" ? "text-center" : "",

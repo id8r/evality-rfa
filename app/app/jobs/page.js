@@ -3,14 +3,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Archive, ArrowUpDown, BriefcaseBusiness, MoreHorizontal, RefreshCcw, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { ArrowUpDown, MoreHorizontal, RefreshCcw } from "lucide-react";
 
 import { FxButton } from "@/components/FxButton";
-import { FxEmptyState } from "@/components/FxEmptyState";
 import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxTable } from "@/components/FxTable";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Sheet,
   SheetBody,
@@ -25,17 +35,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ROUTES } from "@/lib/FxConstants";
+import { WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
+import { fxButtonClassName } from "@/components/FxButton";
 import {
   createJobId,
+  clearAllStoredState,
   ensureJobsStore,
+  readStoredWorkspaceType,
   readStoredJobsPageState,
-  readStoredJobsViewMode,
-  resetDemoStore,
   upsertStoredJob,
   writeStoredJobs,
   writeStoredJobsPageState,
-  writeStoredJobsViewMode,
 } from "@/lib/FxStore";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
@@ -112,19 +123,38 @@ function fieldButtonClassName(isInteractive = false) {
   }`;
 }
 
+function subscribeToWorkspaceTypeChange(onStoreChange) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("fx-auth-change", onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("fx-auth-change", onStoreChange);
+  };
+}
+
 export default function JobsPage() {
+  const router = useRouter();
   const initialPageState = readStoredJobsPageState() ?? DEFAULT_PAGE_STATE;
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [jobForm, setJobForm] = useState(EMPTY_JOB_FORM);
   const [formError, setFormError] = useState("");
-  const [showDemoData, setShowDemoData] = useState(() => readStoredJobsViewMode() === "table");
+  const [pendingAction, setPendingAction] = useState(null);
   const [searchTerm, setSearchTerm] = useState(initialPageState.searchTerm ?? DEFAULT_PAGE_STATE.searchTerm);
   const [selectedTab, setSelectedTab] = useState(initialPageState.selectedTab ?? DEFAULT_PAGE_STATE.selectedTab);
   const [sortConfig, setSortConfig] = useState(initialPageState.sortConfig ?? DEFAULT_PAGE_STATE.sortConfig);
   const [jobs, setJobs] = useState(() => ensureJobsStore().map(normalizeJob));
   const searchInputRef = useRef(null);
   const tableSurfaceRef = useRef(null);
+  const baselineJobForm = editingJob ? createFormFromJob(editingJob) : EMPTY_JOB_FORM;
+  const isJobFormDirty = JSON.stringify(jobForm) !== JSON.stringify(baselineJobForm);
+  const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
+  const showClientInfo = workspaceType === WORKSPACE_TYPES.CLIENTS || workspaceType === WORKSPACE_TYPES.BOTH;
 
   useEffect(() => {
     writeStoredJobsPageState({ searchTerm, selectedTab, sortConfig });
@@ -134,8 +164,11 @@ export default function JobsPage() {
     function handleGlobalKeyDown(event) {
       const target = event.target;
       const isSearchFocused = target === searchInputRef.current;
+      const isTypingField =
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
 
-      if (!showDemoData) {
+      if (isTypingField && !isSearchFocused) {
         return;
       }
 
@@ -163,7 +196,7 @@ export default function JobsPage() {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [searchTerm, showDemoData]);
+  }, [searchTerm]);
 
   function persistJobs(nextJobs) {
     setJobs(nextJobs);
@@ -202,6 +235,56 @@ export default function JobsPage() {
     persistJobs(jobs.filter((job) => job.id !== jobId));
   }
 
+  function resetJobSheetState() {
+    setIsSheetOpen(false);
+    setEditingJob(null);
+    setJobForm(EMPTY_JOB_FORM);
+    setFormError("");
+    setPendingAction(null);
+  }
+
+  function requestSheetClose() {
+    if (isJobFormDirty) {
+      setPendingAction({ type: "discard-sheet" });
+      return;
+    }
+
+    resetJobSheetState();
+  }
+
+  function handleSheetOpenChange(nextOpen) {
+    if (nextOpen) {
+      setIsSheetOpen(true);
+      return;
+    }
+
+    requestSheetClose();
+  }
+
+  function requestDeleteJob(job) {
+    setPendingAction({
+      type: "delete-job",
+      jobId: job.id,
+      title: job.title,
+    });
+  }
+
+  function handleConfirmPendingAction() {
+    if (!pendingAction) {
+      return;
+    }
+
+    if (pendingAction.type === "delete-job") {
+      handleDeleteJob(pendingAction.jobId);
+    }
+
+    if (pendingAction.type === "discard-sheet") {
+      resetJobSheetState();
+    } else {
+      setPendingAction(null);
+    }
+  }
+
   function handleSort(key) {
     setSortConfig((current) => {
       if (current.key === key) {
@@ -227,8 +310,8 @@ export default function JobsPage() {
     const title = jobForm.title.trim();
     const company = jobForm.company.trim();
 
-    if (!title || !company) {
-      setFormError("Job title and client are required.");
+    if (!title || (showClientInfo && !company)) {
+      setFormError(showClientInfo ? "Job title and client are required." : "Job title is required.");
       return;
     }
 
@@ -236,7 +319,7 @@ export default function JobsPage() {
       upsertStoredJob({
         id: editingJob?.id ?? createJobId(),
         title,
-        company,
+        company: showClientInfo ? company : editingJob?.company ?? "",
         positions: Math.max(1, Number(jobForm.positions) || 1),
         location: jobForm.location.trim(),
         experience: jobForm.experience.trim(),
@@ -261,13 +344,7 @@ export default function JobsPage() {
         ? currentJobs.map((job) => (job.id === nextJob.id ? nextJob : job))
         : [nextJob, ...currentJobs];
     });
-
-    setIsSheetOpen(false);
-    setEditingJob(null);
-    setJobForm(EMPTY_JOB_FORM);
-    setFormError("");
-    setShowDemoData(true);
-    writeStoredJobsViewMode("table");
+    resetJobSheetState();
   }
 
   const filteredJobs = useMemo(() => {
@@ -305,61 +382,39 @@ export default function JobsPage() {
   const activeCount = useMemo(() => jobs.filter((job) => !job.isArchived).length, [jobs]);
   const archivedCount = useMemo(() => jobs.filter((job) => job.isArchived).length, [jobs]);
 
-  function handleToggleJobsView() {
-    setShowDemoData((current) => {
-      const next = !current;
-      writeStoredJobsViewMode(next ? "table" : "empty");
-      return next;
-    });
-  }
-
   function handleResetDemoData() {
-    resetDemoStore();
-    const nextJobs = ensureJobsStore().map(normalizeJob);
-
-    setJobs(nextJobs);
-    setJobForm(EMPTY_JOB_FORM);
-    setEditingJob(null);
-    setFormError("");
-    setIsSheetOpen(false);
-    setShowDemoData(false);
-    setSearchTerm(DEFAULT_PAGE_STATE.searchTerm);
-    setSelectedTab(DEFAULT_PAGE_STATE.selectedTab);
-    setSortConfig(DEFAULT_PAGE_STATE.sortConfig);
-
-    writeStoredJobsPageState(DEFAULT_PAGE_STATE);
+    clearAllStoredState();
+    window.dispatchEvent(new Event("fx-auth-change"));
+    router.replace(ROUTES.LANDING);
+    router.refresh();
   }
 
   const columns = [
     {
       key: "title",
       label: (
-        <button
-          type="button"
-          className={fieldButtonClassName(true)}
-          onClick={() => handleSort("title")}
-        >
+        <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("title")}>
           <span>Job Title</span>
           <ArrowUpDown className="size-[14px]" />
         </button>
       ),
-      width: "24%",
+      width: showClientInfo ? "24%" : "28%",
       cellClassName: FX_TYPOGRAPHY.clickableData,
     },
-    {
-      key: "company",
-      label: (
-        <button
-          type="button"
-          className={fieldButtonClassName(true)}
-          onClick={() => handleSort("company")}
-        >
-          <span>Client</span>
-          <ArrowUpDown className="size-[14px]" />
-        </button>
-      ),
-      width: "14%",
-    },
+    ...(showClientInfo
+      ? [
+          {
+            key: "company",
+            label: (
+              <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("company")}>
+                <span>Client</span>
+                <ArrowUpDown className="size-[14px]" />
+              </button>
+            ),
+            width: "14%",
+          },
+        ]
+      : []),
     {
       key: "positions",
       label: <button type="button" className={fieldButtonClassName()} disabled><span>Positions</span></button>,
@@ -368,7 +423,7 @@ export default function JobsPage() {
     {
       key: "location",
       label: <button type="button" className={fieldButtonClassName()} disabled><span>Location</span></button>,
-      width: "15%",
+      width: showClientInfo ? "15%" : "18%",
     },
     {
       key: "unscreenedCount",
@@ -397,11 +452,7 @@ export default function JobsPage() {
     {
       key: "lastActivity",
       label: (
-        <button
-          type="button"
-          className={fieldButtonClassName(true)}
-          onClick={() => handleSort("updatedAt")}
-        >
+        <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("updatedAt")}>
           <span>Last Activity</span>
           <ArrowUpDown className="size-[14px]" />
         </button>
@@ -420,7 +471,7 @@ export default function JobsPage() {
     return (
       <button
         type="button"
-        className={`block w-full rounded-[8px] px-[4px] py-[4px] text-center ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]`}
+        className={`block w-full rounded-[8px] px-[4px] py-[4px] text-center ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)] hover:bg-[var(--fx-surface-selected)] hover:text-[var(--fx-primary)]`}
         title={`${label}: ${value}`}
       >
         {value}
@@ -433,10 +484,9 @@ export default function JobsPage() {
 
     return (
       <span
-        className={`inline-flex size-[8px] shrink-0 rounded-full ${isDraft ? "bg-[var(--fx-warning)]" : "bg-[var(--fx-success)]"}`}
+        className={`inline-flex size-[8px] shrink-0 cursor-help rounded-full ${isDraft ? "bg-[var(--fx-warning)]" : "bg-[var(--fx-success)]"}`}
         title={isDraft ? "Draft" : "Published"}
         aria-label={isDraft ? "Draft" : "Published"}
-        aria-hidden="true"
       />
     );
   }
@@ -494,7 +544,7 @@ export default function JobsPage() {
             {job.status === "Draft" ? (
               <>
                 <DropdownMenuItem onClick={() => handleEditJob(job)}>Edit Job</DropdownMenuItem>
-                <DropdownMenuItem className="text-[var(--fx-danger)]" onClick={() => handleDeleteJob(job.id)}>
+                <DropdownMenuItem className="text-[var(--fx-danger)]" onClick={() => requestDeleteJob(job)}>
                   Delete Job
                 </DropdownMenuItem>
               </>
@@ -505,7 +555,7 @@ export default function JobsPage() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleEditJob(job)}>Edit Job</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleRestoreJob(job.id)}>Restore Job</DropdownMenuItem>
-                <DropdownMenuItem className="text-[var(--fx-danger)]" onClick={() => handleDeleteJob(job.id)}>
+                <DropdownMenuItem className="text-[var(--fx-danger)]" onClick={() => requestDeleteJob(job)}>
                   Delete Job
                 </DropdownMenuItem>
               </>
@@ -516,7 +566,7 @@ export default function JobsPage() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleEditJob(job)}>Edit Job</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleArchiveJob(job.id)}>Archive Job</DropdownMenuItem>
-                <DropdownMenuItem className="text-[var(--fx-danger)]" onClick={() => handleDeleteJob(job.id)}>
+                <DropdownMenuItem className="text-[var(--fx-danger)]" onClick={() => requestDeleteJob(job)}>
                   Delete Job
                 </DropdownMenuItem>
               </>
@@ -529,72 +579,54 @@ export default function JobsPage() {
 
   return (
     <FxProtectedAppPage pageId="jobs">
-      <section className={`${FX_LAYOUT.contentWidthWide} space-y-[24px]`}>
-        {showDemoData ? (
-          <div className="space-y-[16px]">
-            <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-              <div className="flex flex-col gap-[16px] lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-wrap items-end gap-[24px]">
-                  <button
-                    type="button"
-                    className={`relative cursor-pointer pb-[8px] ${selectedTab === "active" ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"} ${FX_TYPOGRAPHY.button}`}
-                    onClick={() => setSelectedTab("active")}
-                  >
-                    {PAGE_COPY.jobs.activeTab} ({activeCount})
-                    {selectedTab === "active" ? <span className="absolute bottom-0 left-[4px] right-[4px] h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
-                  </button>
-                  <button
-                    type="button"
-                    className={`relative cursor-pointer pb-[8px] ${selectedTab === "archived" ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"} ${FX_TYPOGRAPHY.button}`}
-                    onClick={() => setSelectedTab("archived")}
-                  >
-                    {PAGE_COPY.jobs.archivedTab} ({archivedCount})
-                    {selectedTab === "archived" ? <span className="absolute bottom-0 left-[4px] right-[4px] h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-[12px] lg:justify-end">
-                  <div className="relative w-full max-w-[320px]">
-                    <Search className="pointer-events-none absolute left-[12px] top-1/2 size-[16px] -translate-y-1/2 text-[var(--fx-text-muted)]" />
-                    <FxInput
-                      ref={searchInputRef}
-                      aria-label="Search jobs"
-                      className="pl-[40px]"
-                      placeholder={PAGE_COPY.jobs.searchPlaceholder}
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
-                      rightElement={(
-                        <span className="inline-flex h-[24px] min-w-[24px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[8px] text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">
-                          /
-                        </span>
-                      )}
-                    />
-                  </div>
-                  <FxButton onClick={handleCreateJob}>Create Job</FxButton>
-                </div>
-              </div>
+      <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 flex-1 flex-col`}>
+        <div className="flex min-h-0 flex-1 flex-col gap-[24px]">
+          <div className="flex shrink-0 items-center justify-between gap-[24px]">
+            <div className="flex min-w-0 items-end gap-[24px]">
+              <button
+                type="button"
+                className={`relative cursor-pointer pb-[8px] ${selectedTab === "active" ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"} ${FX_TYPOGRAPHY.button}`}
+                onClick={() => setSelectedTab("active")}
+              >
+                {PAGE_COPY.jobs.activeTab} ({activeCount})
+                {selectedTab === "active" ? <span className="absolute bottom-0 left-[2px] right-[2px] h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
+              </button>
+              <button
+                type="button"
+                className={`relative cursor-pointer pb-[8px] ${selectedTab === "archived" ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"} ${FX_TYPOGRAPHY.button}`}
+                onClick={() => setSelectedTab("archived")}
+              >
+                {PAGE_COPY.jobs.archivedTab} ({archivedCount})
+                {selectedTab === "archived" ? <span className="absolute bottom-0 left-[2px] right-[2px] h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
+              </button>
             </div>
 
-            {selectedTab === "archived" && !filteredJobs.length ? (
-              <FxEmptyState
-                icon={Archive}
-                title={PAGE_COPY.jobs.archivedEmptyTitle}
-                body={PAGE_COPY.jobs.archivedEmptyBody}
-              />
-            ) : (
-              <div ref={tableSurfaceRef} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-[var(--fx-primary)]/20">
-                <FxTable columns={columns} rows={rows} stickyHeader emptyMessage={PAGE_COPY.jobs.tableEmpty} />
+            <div className="flex shrink-0 items-center gap-[12px]">
+              <div className="w-[320px] min-w-[256px]">
+                <FxInput
+                  ref={searchInputRef}
+                  aria-label="Search jobs"
+                  className="border-[color:color-mix(in_srgb,var(--fx-border)_72%,var(--fx-text)_28%)]"
+                  placeholder={PAGE_COPY.jobs.searchPlaceholder}
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  rightElement={(
+                    <span className="inline-flex h-[24px] min-w-[24px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[8px] text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">
+                      /
+                    </span>
+                  )}
+                />
               </div>
-            )}
+              <FxButton className="shrink-0" onClick={handleCreateJob}>
+                Create Job
+              </FxButton>
+            </div>
           </div>
-        ) : (
-          <FxEmptyState
-            icon={BriefcaseBusiness}
-            title={PAGE_COPY.jobs.empty}
-            body={PAGE_COPY.jobs.emptyBody}
-            action={<FxButton onClick={handleCreateJob}>{PAGE_COPY.jobs.createCta}</FxButton>}
-          />
-        )}
+
+          <div ref={tableSurfaceRef} tabIndex={0} className="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-[var(--fx-primary)]/20">
+            <FxTable columns={columns} rows={rows} stickyHeader emptyMessage={PAGE_COPY.jobs.tableEmpty} />
+          </div>
+        </div>
       </section>
 
       <div className="fixed bottom-[16px] right-[16px] z-20 flex items-center gap-[8px]">
@@ -603,24 +635,15 @@ export default function JobsPage() {
             type="button"
             aria-label="Reset demo data"
             title="Reset demo data"
-            className={`flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-full border ${FX_COLORS.border} bg-[var(--fx-surface)] ${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)] opacity-0 transition-opacity hover:opacity-100`}
+            className={`flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-full border ${FX_COLORS.border} bg-[var(--fx-surface)] ${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)] opacity-25 transition-opacity hover:opacity-100`}
             onClick={handleResetDemoData}
           >
             <RefreshCcw className="size-[12px]" />
           </button>
         ) : null}
-
-        <button
-          type="button"
-          aria-label="Toggle demo jobs state"
-          className={`flex h-[28px] w-[28px] cursor-pointer items-center justify-center rounded-full border ${FX_COLORS.border} bg-[var(--fx-surface)] ${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)] opacity-25 hover:opacity-100`}
-          onClick={handleToggleJobsView}
-        >
-          J
-        </button>
       </div>
 
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent size="lg">
           <SheetHeader
             title={editingJob ? PAGE_COPY.jobs.editCta : PAGE_COPY.jobs.createCta}
@@ -630,10 +653,10 @@ export default function JobsPage() {
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmitJob}>
             <SheetBody className="space-y-[24px]">
               <section className="space-y-[8px]">
-                  <h2 className={FX_TYPOGRAPHY.sectionTitle}>{editingJob ? editingJob.id : "New Job"}</h2>
-                  <p className={`${FX_TYPOGRAPHY.body} text-muted-foreground`}>
-                    Core job details now persist through `FxStore` so the list view and the workspace share one local source of truth.
-                  </p>
+                <h2 className={FX_TYPOGRAPHY.sectionTitle}>{editingJob ? editingJob.id : "New Job"}</h2>
+                <p className={`${FX_TYPOGRAPHY.body} text-muted-foreground`}>
+                  Core job details stay aligned across the Jobs table and Job Workspace.
+                </p>
               </section>
 
               <div className="grid gap-[16px] md:grid-cols-2">
@@ -644,13 +667,15 @@ export default function JobsPage() {
                   value={jobForm.title}
                   onChange={handleJobFormChange}
                 />
-                <FxInput
-                  name="company"
-                  label="Client"
-                  placeholder="ThinkJS"
-                  value={jobForm.company}
-                  onChange={handleJobFormChange}
-                />
+                {showClientInfo ? (
+                  <FxInput
+                    name="company"
+                    label="Client"
+                    placeholder="ThinkJS"
+                    value={jobForm.company}
+                    onChange={handleJobFormChange}
+                  />
+                ) : null}
                 <FxInput
                   name="positions"
                   label="Positions"
@@ -692,10 +717,10 @@ export default function JobsPage() {
             </SheetBody>
 
             <SheetFooter
-              left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-muted-foreground`}>Local-first Jobs CRUD</span>}
+              left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-muted-foreground`}>Changes update across Jobs and Workspace</span>}
               right={
                 <>
-                  <FxButton variant="secondary" onClick={() => setIsSheetOpen(false)}>
+                  <FxButton variant="secondary" onClick={requestSheetClose}>
                     Cancel
                   </FxButton>
                   <FxButton type="submit">{editingJob ? "Save Changes" : "Create Job"}</FxButton>
@@ -705,6 +730,30 @@ export default function JobsPage() {
           </form>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={Boolean(pendingAction)} onOpenChange={(open) => { if (!open) setPendingAction(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingAction?.type === "delete-job" ? "Delete job?" : "Discard changes?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingAction?.type === "delete-job"
+                ? `This will permanently delete "${pendingAction?.title ?? "this job"}".`
+                : "You have unsaved changes in the sheet. Closing now will discard them."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className={fxButtonClassName({ variant: "outline" })}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={fxButtonClassName({ variant: "destructive" })}
+              onClick={handleConfirmPendingAction}
+            >
+              {pendingAction?.type === "delete-job" ? "Delete Job" : "Discard Changes"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </FxProtectedAppPage>
   );
 }

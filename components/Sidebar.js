@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, CircleHelp, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleHelp, LogOut, Settings2 } from "lucide-react";
 
 import { useFxTheme } from "@/components/FxThemeToggle";
 import {
@@ -20,7 +20,7 @@ import {
   getSidebarNavItems,
   ROUTES,
 } from "@/lib/FxConstants";
-import { FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_LAYOUT, FX_NAVIGATION, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { clearAuthAndOnboardingState } from "@/lib/FxStore";
 
 function Avatar({ name }) {
@@ -101,19 +101,15 @@ export function Sidebar({ isCollapsed, onToggle }) {
             pathname === ROUTES.JOBS ||
             pathname.startsWith(`${ROUTES.JOBS}/`);
           const isActive = item.id === "jobs" ? isJobsRoute : pathname === item.href;
-          const sharedClasses = `group relative flex h-[40px] items-center overflow-hidden rounded-[8px] px-[8px] ${FX_TYPOGRAPHY.button} transition-colors`;
 
           return (
             <Link
               key={item.id}
               href={item.href}
               title={isCollapsed ? item.label : undefined}
-              className={`${sharedClasses} ${isActive
-                ? "bg-primary/10 text-primary"
-                : "text-foreground hover:bg-accent"
-                }`}
+              className={`${FX_NAVIGATION.itemBase} ${FX_TYPOGRAPHY.button} ${isActive ? FX_NAVIGATION.itemActive : FX_NAVIGATION.itemInactive}`}
             >
-              <span className="flex w-[32px] shrink-0 items-center justify-center">
+              <span className={FX_NAVIGATION.iconSlot}>
                 <Icon className="size-[24px] shrink-0" />
               </span>
               <span
@@ -136,46 +132,65 @@ export function Sidebar({ isCollapsed, onToggle }) {
 
       <div className="flex-1" />
 
-      <div className={`border-t border-border pt-[16px] ${isCollapsed ? "flex justify-center" : ""}`}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-            className={`flex w-full cursor-pointer items-center overflow-hidden rounded-[12px] px-[8px] py-[8px] text-left hover:bg-accent ${isCollapsed ? "justify-center" : "gap-[12px]"
-                }`}
-            >
-              <Avatar name={DEMO_USER.name} />
-              <div
-                className={`min-w-0 flex-1 transition-[opacity,transform] duration-200 ${isCollapsed
-                  ? "pointer-events-none translate-x-[-8px] opacity-0"
-                  : "translate-x-0 opacity-100"
-                  }`}
+      <div className="space-y-[8px]">
+        <Link
+          href={ROUTES.SETTINGS}
+          title={isCollapsed ? "Settings" : undefined}
+          className={`${FX_NAVIGATION.footerButton} ${isCollapsed ? FX_NAVIGATION.footerButtonCollapsed : FX_NAVIGATION.footerButtonExpanded} ${pathname === ROUTES.SETTINGS ? FX_NAVIGATION.itemActive : FX_NAVIGATION.itemInactive}`}
+        >
+          <span className={FX_NAVIGATION.iconSlot}>
+            <Settings2 className="size-[16px]" />
+          </span>
+          <span
+            className={`whitespace-nowrap transition-[opacity,transform] duration-200 ${isCollapsed
+              ? "pointer-events-none translate-x-[-8px] opacity-0"
+              : "translate-x-0 opacity-100"
+              }`}
+          >
+            Settings
+          </span>
+        </Link>
+
+        <div className={`${FX_NAVIGATION.footerSeparator} pt-[16px] ${isCollapsed ? "flex justify-center" : ""}`}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={`${FX_NAVIGATION.footerButton} ${isCollapsed ? FX_NAVIGATION.footerButtonCollapsed : FX_NAVIGATION.footerButtonExpanded}`}
               >
-                <p className={`truncate ${FX_TYPOGRAPHY.sidebarName} text-foreground`}>{DEMO_USER.name}</p>
-                <p className={`truncate ${FX_TYPOGRAPHY.sidebarEmail} text-muted-foreground`}>{DEMO_USER.email}</p>
-              </div>
-            </button>
-          </DropdownMenuTrigger>
+                <Avatar name={DEMO_USER.name} />
+                <div
+                  className={`min-w-0 flex-1 transition-[opacity,transform] duration-200 ${isCollapsed
+                    ? "pointer-events-none translate-x-[-8px] opacity-0"
+                    : "translate-x-0 opacity-100"
+                    }`}
+                >
+                  <p className={`truncate ${FX_TYPOGRAPHY.sidebarName} text-[var(--fx-text)]`}>{DEMO_USER.name}</p>
+                  <p className={`truncate ${FX_TYPOGRAPHY.sidebarEmail} text-[var(--fx-text-muted)]`}>{DEMO_USER.email}</p>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
 
-          <DropdownMenuContent align={isCollapsed ? "start" : "end"} side="top" className={FX_LAYOUT.accountMenuWidth}>
-            <DropdownMenuItem onClick={handleToggleTheme}>
-              <span>Theme</span>
-              <span className={`ml-auto ${FX_TYPOGRAPHY.metaLabel} text-muted-foreground`}>
-                {theme === "dark" ? "Dark" : "Light"}
-              </span>
-            </DropdownMenuItem>
+            <DropdownMenuContent align={isCollapsed ? "start" : "end"} side="top" className={FX_LAYOUT.accountMenuWidth}>
+              <DropdownMenuItem onClick={handleToggleTheme}>
+                <span>Theme</span>
+                <span className={`ml-auto ${FX_TYPOGRAPHY.metaLabel} text-muted-foreground`}>
+                  {theme === "dark" ? "Dark" : "Light"}
+                </span>
+              </DropdownMenuItem>
 
-            <DropdownMenuItem disabled className="cursor-default opacity-60">
-              <CircleHelp className="size-[16px]" />Help
-            </DropdownMenuItem>
+              <DropdownMenuItem disabled className="cursor-default opacity-60">
+                <CircleHelp className="size-[16px]" />Help
+              </DropdownMenuItem>
 
-            <DropdownMenuSeparator />
+              <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="size-[16px]" />Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="size-[16px]" />Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </aside>
   );

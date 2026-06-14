@@ -3,13 +3,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import React from "react";
 import { ArrowLeft, BriefcaseBusiness } from "lucide-react";
 
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
-import { ROUTES } from "@/lib/FxConstants";
+import { ROUTES, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
-import { findStoredJob } from "@/lib/FxStore";
+import { findStoredJob, readStoredWorkspaceType } from "@/lib/FxStore";
 import { FX_COLORS, FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
 function normalizeJob(job) {
@@ -54,11 +54,25 @@ function PlaceholderCard({ title, body }) {
   );
 }
 
-export default function JobDetailsPage({ params }) {
-  const jobId = params?.jobId;
-  const job = useMemo(() => normalizeJob(findStoredJob(jobId)), [jobId]);
+function subscribeToWorkspaceTypeChange(onStoreChange) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
 
-  const createdDate = formatDate(job?.createdAt);
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("fx-auth-change", onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("fx-auth-change", onStoreChange);
+  };
+}
+
+export default function JobDetailsPage({ params }) {
+  const { jobId } = React.use(params);
+  const job = normalizeJob(findStoredJob(jobId));
+  const workspaceType = React.useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
+  const showClientInfo = workspaceType === WORKSPACE_TYPES.CLIENTS || workspaceType === WORKSPACE_TYPES.BOTH;
   const updatedDate = formatDate(job?.updatedAt);
   const lastUpdated = updatedDate ? `${updatedDate}` : "Not set";
 
@@ -86,8 +100,8 @@ export default function JobDetailsPage({ params }) {
           </div>
 
           {job ? (
-            <div className="grid gap-[16px] sm:grid-cols-2 lg:grid-cols-5">
-              <Field label="Client" value={job.company || "Not set"} />
+            <div className={`grid gap-[16px] sm:grid-cols-2 ${showClientInfo ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+              {showClientInfo ? <Field label="Client" value={job.company || "Not set"} /> : null}
               <Field label="Location" value={job.location || "Not set"} />
               <Field label="Status" value={job.status} />
               <Field label="Positions" value={String(job.positions || 1)} />
