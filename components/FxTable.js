@@ -9,14 +9,14 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
   return (
     <div className={cn(`overflow-hidden border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)]`, className)}>
       <table className="w-full table-fixed border-collapse">
-        <thead className={`bg-[var(--fx-bg)] ${FX_TYPOGRAPHY.tableHeader}`}>
+        <thead className={`bg-[var(--fx-bg-soft)] ${FX_TYPOGRAPHY.tableHeader}`}>
           <tr className={FX_COLORS.border}>
             {columns.map((column) => (
               <th
                 key={column.key}
                 className={cn(
-                  "border-b border-[var(--fx-border)] px-[16px] py-[12px] text-left text-[var(--fx-text-muted)]",
-                  stickyHeader ? "sticky top-0 z-[1] bg-[var(--fx-bg)]" : "",
+                  "border-b border-[var(--fx-border)] px-[16px] py-[8px] text-left text-[var(--fx-text-muted)]",
+                  stickyHeader ? "sticky top-0 z-[1] bg-[var(--fx-bg-soft)]" : "",
                   column.align === "right" ? "text-right" : "",
                   column.align === "center" ? "text-center" : "",
                 )}
@@ -30,12 +30,15 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
         <tbody className="divide-y divide-[var(--fx-border)]">
           {rows.length ? (
             rows.map((row, rowIndex) => (
-              <tr key={row.id ?? rowIndex} className="hover:bg-[var(--fx-bg-soft)]/70">
+              <tr
+                key={row.id ?? rowIndex}
+                className="odd:bg-[var(--fx-surface)] even:bg-[var(--fx-bg-soft)]/70 hover:bg-[var(--fx-surface-hover)]"
+              >
                 {columns.map((column) => (
                   <td
                     key={column.key}
                     className={cn(
-                      "px-[16px] py-[12px] align-middle text-[var(--fx-text)]",
+                      "px-[16px] py-[8px] align-middle text-[var(--fx-text)]",
                       column.align === "right" ? "text-right" : "",
                       column.align === "center" ? "text-center" : "",
                       column.cellClassName,
@@ -48,7 +51,7 @@ export function FxTable({ columns, rows, className, stickyHeader = false, emptyM
             ))
           ) : (
             <tr>
-              <td className="px-[16px] py-[20px] text-[var(--fx-text-muted)]" colSpan={columns.length}>
+              <td className="px-[16px] py-[16px] text-[var(--fx-text-muted)]" colSpan={columns.length}>
                 {emptyMessage}
               </td>
             </tr>

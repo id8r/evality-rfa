@@ -10,7 +10,7 @@ import { FX_COLORS, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 export const FxInput = forwardRef(function FxInput(
-  { className, label, helperText, id, textarea = false, ...props },
+  { className, label, helperText, id, textarea = false, rightElement = null, ...props },
   ref,
 ) {
   const fieldId = id ?? props.name;
@@ -19,18 +19,25 @@ export const FxInput = forwardRef(function FxInput(
   return (
     <label className="flex w-full flex-col gap-[8px]" htmlFor={fieldId}>
       {label ? <span className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>{label}</span> : null}
-      <Field
-        ref={ref}
-        id={fieldId}
-        className={cn(
-          `min-h-[40px] w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-[8px] ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`,
-          textarea ? "min-h-[120px] resize-y" : "",
-          className,
-        )}
-        {...props}
-      />
+      <div className="relative w-full">
+        <Field
+          ref={ref}
+          id={fieldId}
+          className={cn(
+            `min-h-[40px] w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-[8px] ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`,
+            rightElement ? "pr-[56px]" : "",
+            textarea ? "min-h-[120px] resize-y" : "",
+            className,
+          )}
+          {...props}
+        />
+        {rightElement ? (
+          <div className="pointer-events-none absolute inset-y-0 right-[12px] flex items-center">
+            {rightElement}
+          </div>
+        ) : null}
+      </div>
       {helperText ? <span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{helperText}</span> : null}
     </label>
   );
 });
-

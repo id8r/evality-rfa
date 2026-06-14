@@ -2,38 +2,34 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/AppShell";
 import { getPageMeta, ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_SURFACE } from "@/lib/FxTheme";
+import { ensureDemoStore } from "@/lib/FxStore";
 import { readStoredValue } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
 
 export function FxProtectedAppPage({ children, pageId = "jobs", title = null, navbarLeading = null, navbarActions = null }) {
   const router = useRouter();
-  const [isReady, setIsReady] = useState(false);
   const pageMeta = getPageMeta(pageId);
   const pageTitle = title === false ? null : title ?? pageMeta?.pageTitle ?? "Evality";
+  const isAuthenticated = typeof window !== "undefined" && Boolean(readStoredValue(STORAGE_KEYS.AUTH_COMPLETE));
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const authFlag = readStoredValue(STORAGE_KEYS.AUTH_COMPLETE);
-
-    if (!authFlag) {
+    if (!isAuthenticated) {
       router.replace(ROUTES.LANDING);
       router.refresh();
-      return;
     }
+  }, [isAuthenticated, router]);
 
-    setIsReady(true);
-  }, [router]);
+  if (isAuthenticated) {
+    ensureDemoStore();
+  }
 
-  if (!isReady) {
+  if (!isAuthenticated) {
     return <div className={`min-h-screen ${FX_SURFACE.page}`} />;
   }
 

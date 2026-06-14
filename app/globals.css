@@ -82,6 +82,23 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
     @apply bg-background font-sans text-foreground antialiased;
   }
 
+  a {
+    @apply cursor-pointer no-underline;
+  }
+
+  a:hover {
+    color: var(--fx-text);
+    text-decoration: none;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+
+  button:disabled {
+    @apply cursor-not-allowed;
+  }
+
   a,
   button,
   input {
