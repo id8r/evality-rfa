@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, CircleHelp, LogOut, Settings2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleHelp, LogOut, Settings, Settings2 } from "lucide-react";
 
 import { useFxTheme } from "@/components/FxThemeToggle";
 import {
@@ -148,7 +148,7 @@ export function Sidebar({ isCollapsed, onToggle }) {
         >
           <span className={getNavItemContentClassName()}>
             <span className={FX_NAVIGATION.iconSlot}>
-              <Settings2 className="size-[20px]" strokeWidth={1.8} />
+              <Settings className="size-[20px]" strokeWidth={1.8} />
             </span>
             <span
               className={`min-w-0 whitespace-nowrap overflow-hidden transition-[max-width,opacity] duration-150 ease-out ${isCollapsed

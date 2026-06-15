@@ -1,4 +1,5 @@
 /* jsconfig.json | JavaScript path alias configuration | Sree | 2026-06-10 */
+
 {
   "compilerOptions": {
     "paths": {
@@ -7,4 +8,5 @@
   },
   "exclude": ["node_modules"]
 }
+
 /* - - - - - - - - - - - - - - - - */

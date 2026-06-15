@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarDays,
   CircleDot,
+  Cog,
   CreditCard,
   ListChecks,
   Mail,
@@ -67,6 +68,8 @@ const PRESCREEN_OPTIONS = [
     description: "Keep the flow shorter when the goal is quick qualification.",
   },
 ];
+
+const SETTINGS_SAVE_BUTTON_CLASSNAME = "bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]";
 
 function SectionButton({ section, active, onClick }) {
   const Icon = section.icon;
@@ -253,7 +256,7 @@ function SectionContent({
       <SettingsCard
         title="Organization"
         description="This represents the Hiring for My Company settings context."
-        action={<FxButton variant="secondary" size="md">Save</FxButton>}
+        action={<FxButton variant="secondary" size="md" className={SETTINGS_SAVE_BUTTON_CLASSNAME}>Save</FxButton>}
       >
         <div className="grid gap-[16px] md:grid-cols-2">
           <FxInput label="Company Name" defaultValue="Evality" />
@@ -289,7 +292,7 @@ function SectionContent({
       <SettingsCard
         title="Recruiting Status"
         description="Controls default recruiting workflows and available settings."
-        action={<FxButton variant="secondary" size="md">Save</FxButton>}
+        action={<FxButton variant="secondary" size="md" className={SETTINGS_SAVE_BUTTON_CLASSNAME}>Save</FxButton>}
       >
         <RecruitingStatusGroup
           options={RECRUITING_STATUS_OPTIONS}
@@ -305,7 +308,7 @@ function SectionContent({
       <SettingsCard
         title="Screening Method"
         description="Set the default screening flow used when new roles are created."
-        action={<FxButton variant="secondary" size="md">Save</FxButton>}
+        action={<FxButton variant="secondary" size="md" className={SETTINGS_SAVE_BUTTON_CLASSNAME}>Save</FxButton>}
       >
         <div className="space-y-[8px]">
           <h3 className={FX_TYPOGRAPHY.button}>Default Screening Channel</h3>
@@ -402,7 +405,7 @@ function SectionContent({
     <SettingsCard
       title="Profile"
       description="Personal details used across recruiting workflows."
-      action={<FxButton variant="secondary" size="md">Save</FxButton>}
+      action={<FxButton variant="secondary" size="md" className={SETTINGS_SAVE_BUTTON_CLASSNAME}>Save</FxButton>}
     >
       <div className="grid gap-[16px] md:grid-cols-2">
         <FxInput label="Name" defaultValue={DEMO_USER.name} />
