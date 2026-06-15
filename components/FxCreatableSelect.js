@@ -101,6 +101,7 @@ function normalizeCreatedOption(createdValue, fallbackValue) {
 /* - - - - - - - - - - - - - - - - */
 
 export function FxCreatableSelect({
+  id,
   options = [],
   value,
   defaultValue,
@@ -140,7 +141,9 @@ export function FxCreatableSelect({
   const [createdOptions, setCreatedOptions] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
   const rootRef = useRef(null);
-  const inputId = useId();
+  const generatedId = useId();
+  const fieldId = id ?? generatedId;
+  const inputId = `${fieldId}-input`;
   const message = validationMessage ?? helperText;
   const messageState = messageType ?? state;
   const selectedValues = normalizeSelectedValues(currentValue, multiple);
@@ -438,6 +441,7 @@ export function FxCreatableSelect({
       ) : null}
       <div ref={rootRef} className={cn("relative w-full", className)}>
         <div
+          id={fieldId}
           role="button"
           tabIndex={disabled ? -1 : 0}
           onClick={handleTriggerClick}

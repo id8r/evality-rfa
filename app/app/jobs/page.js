@@ -8,15 +8,38 @@ import {
   ArrowRight,
   ArrowUpDown,
   Archive,
+  Baby,
+  Banknote,
+  BadgeCheck,
+  Brain,
+  BusFront,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Coffee,
+  Dumbbell,
+  Gift,
+  GraduationCap,
+  HeartPulse,
+  House,
+  Laptop,
   ListChecks,
   Mail,
   MoreHorizontal,
+  PiggyBank,
   Plus,
+  Plane,
   RefreshCcw,
   Sparkles,
   Trash2,
   Upload,
+  UtensilsCrossed,
+  Users,
   WandSparkles,
+  Clock3,
+  Globe,
+  ShieldPlus,
 } from "lucide-react";
 
 import { FxButton } from "@/components/FxButton";
@@ -178,6 +201,64 @@ const CURRENCY_OPTIONS = ["INR", "USD", "EUR"];
 const PRIORITY_OPTIONS = ["Low", "Medium", "High"];
 const BASIC_FORM_FIELD_STACK_CLASS = "gap-[8px]";
 const BASIC_FORM_CONTROL_CLASS = "min-h-[48px]";
+const DEFAULT_BENEFIT_SELECTIONS = [
+  "Cafeteria",
+  "Health Insurance",
+  "Performance Bonus",
+  "Reimbursement for Courses",
+  "Maternity & Paternity Leave",
+];
+
+const BENEFITS_GROUPS = [
+  {
+    title: "Office",
+    items: [
+      { label: "Cafeteria", icon: Coffee },
+      { label: "Free Meal", icon: UtensilsCrossed },
+      { label: "Office Transportation", icon: BusFront },
+      { label: "Office Gym", icon: Dumbbell },
+      { label: "Recreational Activities", icon: Users },
+      { label: "Work From Home", icon: House },
+    ],
+  },
+  {
+    title: "Health Benefits",
+    items: [
+      { label: "Health Insurance", icon: HeartPulse },
+      { label: "Life Insurance", icon: ShieldPlus },
+      { label: "Mental Health", icon: Brain },
+      { label: "Gym Membership", icon: Dumbbell },
+    ],
+  },
+  {
+    title: "Financial Benefits",
+    items: [
+      { label: "Performance Bonus", icon: Gift },
+      { label: "Joining Bonus", icon: PiggyBank },
+      { label: "Stock Options / Equity", icon: Banknote },
+      { label: "Relocation Expenses", icon: Plane },
+      { label: "Mobile Bill Reimbursement", icon: Laptop },
+    ],
+  },
+  {
+    title: "Professional Benefits",
+    items: [
+      { label: "Reimbursement for Courses", icon: GraduationCap },
+      { label: "Job Training", icon: GraduationCap },
+      { label: "Rewards and Recognition", icon: BadgeCheck },
+      { label: "Onsite / International Work", icon: Globe },
+    ],
+  },
+  {
+    title: "Leaves",
+    items: [
+      { label: "Maternity & Paternity Leave", icon: Baby },
+      { label: "Sick Leave", icon: CalendarDays },
+      { label: "Flexible Hours", icon: Clock3 },
+      { label: "Paid Time Off", icon: Plane },
+    ],
+  },
+];
 
 function toCreatableOptions(values) {
   return values.map((value) => ({ value, label: value }));
@@ -212,6 +293,15 @@ function fieldHeaderLabelClassName() {
   return `${FX_TYPOGRAPHY.metaLabel} font-normal text-[var(--fx-text-muted)]`;
 }
 
+function toggleListValue(list, value) {
+  const normalizedList = Array.isArray(list) ? list : [];
+  if (normalizedList.includes(value)) {
+    return normalizedList.filter((item) => item !== value);
+  }
+
+  return [...normalizedList, value];
+}
+
 function subscribeToWorkspaceTypeChange(onStoreChange) {
   if (typeof window === "undefined") {
     return () => {};
@@ -244,6 +334,7 @@ export default function JobsPage() {
   const [pendingEvaluationNextStep, setPendingEvaluationNextStep] = useState(null);
   const [evaluationContextStep, setEvaluationContextStep] = useState(0);
   const [evaluationContextAnswers, setEvaluationContextAnswers] = useState({});
+  const [isBenefitsBriefOpen, setIsBenefitsBriefOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState(initialPageState.searchTerm ?? DEFAULT_PAGE_STATE.searchTerm);
   const [selectedTab, setSelectedTab] = useState(initialPageState.selectedTab ?? DEFAULT_PAGE_STATE.selectedTab);
   const [sortConfig, setSortConfig] = useState(initialPageState.sortConfig ?? DEFAULT_PAGE_STATE.sortConfig);
@@ -275,6 +366,7 @@ export default function JobsPage() {
       .replace(/&nbsp;/gi, " ")
       .trim(),
   );
+  const selectedBenefitLabels = useMemo(() => new Set(jobForm.benefitSelections ?? []), [jobForm.benefitSelections]);
   const fieldState = (fieldName) => (validationErrors[fieldName] ? FX_FIELD_STATES.ERROR : FX_FIELD_STATES.DEFAULT);
   const clearValidationErrors = (...fieldNames) => {
     setValidationErrors((current) => {
@@ -291,6 +383,22 @@ export default function JobsPage() {
       return nextErrors;
     });
   };
+
+  function focusField(fieldName) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const field = document.querySelector(`[name="${fieldName}"]`) || document.getElementById(fieldName);
+
+    if (field && typeof field.focus === "function") {
+      field.focus();
+
+      if (typeof field.select === "function") {
+        field.select();
+      }
+    }
+  }
 
   useEffect(() => {
     const syncJobsViewMode = () => {
@@ -575,11 +683,11 @@ export default function JobsPage() {
   }
 
   function applyEvaluationContextDraft() {
-    const selectedAnswers = EVALUATION_CONTEXT_PROMPTS.map((prompt) => evaluationContextAnswers[prompt.id]).filter(Boolean);
+    const selectedAnswers = EVALUATION_CONTEXT_PROMPTS.flatMap((prompt) => evaluationContextAnswers[prompt.id] ?? []);
     const title = jobForm.title.trim() || "the role";
     const client = showClientInfo ? jobForm.client.trim() : "";
     const summary = selectedAnswers.length
-      ? selectedAnswers.join(". ")
+      ? selectedAnswers.join("; ")
       : "Role fit, communication, and readiness to move quickly.";
 
     setJobForm((current) => ({
@@ -624,9 +732,10 @@ export default function JobsPage() {
 
     setJobForm((current) => ({
       ...current,
-      benefitsSummary:
-        current.benefitsSummary ||
-        `Candidates for ${title} can expect a clear process, responsive feedback, and practical conversations focused on fit.`,
+      companyBrief:
+        current.companyBrief ||
+        `At ${title}, candidates can expect a clear process, responsive feedback, and a practical conversation focused on fit.`,
+      benefitSelections: current.benefitSelections?.length ? current.benefitSelections : DEFAULT_BENEFIT_SELECTIONS,
     }));
   }
 
@@ -705,11 +814,15 @@ export default function JobsPage() {
       return true;
     }
 
+    const firstMissingField = relevantFields.find((fieldName) => nextErrors[fieldName]);
     setValidationErrors((current) => ({
       ...current,
       ...nextErrors,
     }));
     showWarning("Complete basic details", "Fill the required fields before moving to the next step.");
+    if (firstMissingField) {
+      requestAnimationFrame(() => focusField(firstMissingField));
+    }
     return false;
   }
 
@@ -762,6 +875,39 @@ export default function JobsPage() {
     );
   }
 
+  function renderBenefitItem(groupTitle, item) {
+    const Icon = item.icon;
+    const isActive = selectedBenefitLabels.has(item.label);
+
+    return (
+      <button
+        key={`${groupTitle}-${item.label}`}
+        type="button"
+        onClick={() =>
+          setJobForm((current) => ({
+            ...current,
+            benefitSelections: toggleListValue(current.benefitSelections, item.label),
+          }))
+        }
+        className={`flex w-full items-center gap-[10px] rounded-[10px] border px-[12px] py-[10px] text-left transition-colors ${
+          isActive
+            ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+            : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
+        }`}
+      >
+        <span
+          className={`inline-flex size-[16px] shrink-0 items-center justify-center rounded-[4px] border ${
+            isActive ? "border-[var(--fx-primary)] bg-[var(--fx-primary)] text-white" : "border-[var(--fx-border)] text-transparent"
+          }`}
+        >
+          <Check className="size-[12px]" />
+        </span>
+        {Icon ? <Icon className="size-[16px] shrink-0 text-[var(--fx-primary)]" /> : null}
+        <span className={`${FX_TYPOGRAPHY.body} font-medium text-[var(--fx-text)]`}>{item.label}</span>
+      </button>
+    );
+  }
+
   function renderSectionHeader(title, description, action) {
     return (
       <div className="flex items-start justify-between gap-[16px]">
@@ -776,17 +922,19 @@ export default function JobsPage() {
 
   function renderEvaluationContextPromptCard() {
     const prompt = EVALUATION_CONTEXT_PROMPTS[evaluationContextStep];
-    const selectedValue = evaluationContextAnswers[prompt.id] ?? "";
+    const selectedValues = evaluationContextAnswers[prompt.id] ?? [];
 
     return (
       <div className="space-y-[16px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-bg-soft)] p-[20px]">
         <div className="space-y-[4px]">
           <h3 className="text-[16px] leading-[24px] font-medium text-[var(--fx-text)]">{prompt.title}</h3>
-          <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Pick one answer. This only seeds the evaluation draft.</p>
+          <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+            Select all that apply. Evality will use these answers to generate the evaluation context.
+          </p>
         </div>
         <div className="space-y-[8px]">
           {prompt.options.map((option) => {
-            const isSelected = selectedValue === option;
+            const isSelected = selectedValues.includes(option);
 
             return (
               <button
@@ -800,15 +948,17 @@ export default function JobsPage() {
                 onClick={() =>
                   setEvaluationContextAnswers((current) => ({
                     ...current,
-                    [prompt.id]: option,
+                    [prompt.id]: isSelected
+                      ? selectedValues.filter((value) => value !== option)
+                      : [...selectedValues, option],
                   }))
                 }
               >
                 <span
-                  className={`mt-[2px] inline-flex size-[16px] shrink-0 rounded-full border ${
+                  className={`mt-[2px] inline-flex size-[16px] shrink-0 items-center justify-center rounded-[4px] border ${
                     isSelected
-                      ? "border-[var(--fx-primary)] bg-[var(--fx-primary)]"
-                      : "border-[var(--fx-border)] bg-[var(--fx-surface)]"
+                      ? "border-[var(--fx-primary)] bg-[var(--fx-primary)] text-white"
+                      : "border-[var(--fx-border)] bg-[var(--fx-surface)] text-transparent"
                   }`}
                 />
                 <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{option}</span>
@@ -1460,6 +1610,7 @@ export default function JobsPage() {
                           {showClientInfo ? (
                             <div className="xl:col-span-3">
                               <FxCreatableSelect
+                                id="client"
                                 options={clientOptions}
                                 value={jobForm.client}
                                 onChange={(value) => handleSelectFieldChange("client", value)}
@@ -1653,6 +1804,9 @@ export default function JobsPage() {
                     className="min-h-[152px]"
                     stackClassName="gap-[4px]"
                   />
+                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                    Evality.ai will try to generate questions based on the Context provided for evaluation and the resume being uploaded by the candidate.
+                  </p>
                   <div className="space-y-[12px]">
                     <div className="flex items-center justify-between gap-[16px]">
                       <div className="space-y-[4px]">
@@ -1774,11 +1928,6 @@ export default function JobsPage() {
                           Keep these broad and recruiter-facing. The AI will collect answers for them.
                         </p>
                       </div>
-                      <div className="flex items-center gap-[8px]">
-                        <FxAiButton onClick={() => addQuestion(DEFAULT_JOB_QUESTION_SUGGESTIONS[0])}>
-                          Add Suggested
-                        </FxAiButton>
-                      </div>
                     </div>
 
                     <div className="space-y-[12px]">
@@ -1829,24 +1978,63 @@ export default function JobsPage() {
               ) : null}
 
               {activeSheetStep === "benefits" ? (
-                <section className="space-y-[16px]">
+                <section className="space-y-[24px]">
                   {renderSectionHeader(
                     "Benefits",
-                    "Keep this concise and candidate-facing.",
+                    null,
                     <FxAiButton icon={WandSparkles} onClick={autofillBenefits}>
                       Suggest Benefits
                     </FxAiButton>,
                   )}
-                  <FxInput
-                    textarea
-                    name="benefitsSummary"
-                    label="Benefits for Candidates"
-                    placeholder="Hybrid flexibility, health cover, and quick feedback loops."
-                    value={jobForm.benefitsSummary}
-                    onChange={handleJobFormChange}
-                    className="min-h-[160px]"
-                    helperText="Use a simple summary instead of a heavy ATS benefits matrix."
-                  />
+
+                  <div className={`rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-bg-soft)]`}>
+                    <button
+                      type="button"
+                      onClick={() => setIsBenefitsBriefOpen((current) => !current)}
+                      className="flex w-full items-center justify-between gap-[16px] px-[16px] py-[14px] text-left"
+                    >
+                      <div className="space-y-[2px]">
+                        <h4 className={FX_TYPOGRAPHY.cardTitle}>Company Information in Brief</h4>
+                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                          Keep the recruiter-facing message short and candidate-friendly.
+                        </p>
+                      </div>
+                      {isBenefitsBriefOpen ? (
+                        <ChevronUp className="size-[16px] shrink-0 text-[var(--fx-text-muted)]" />
+                      ) : (
+                        <ChevronDown className="size-[16px] shrink-0 text-[var(--fx-text-muted)]" />
+                      )}
+                    </button>
+                    {isBenefitsBriefOpen ? (
+                      <div className="border-t border-[var(--fx-border)] px-[16px] py-[16px]">
+                        <FxInput
+                          textarea
+                          name="companyBrief"
+                          label="Brief"
+                          placeholder="At Jobhotspot, we keep hiring practical, responsive, and focused on fit."
+                          value={jobForm.companyBrief}
+                          onChange={handleJobFormChange}
+                          className="min-h-[120px]"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-[12px]">
+                    <div className="flex items-center justify-between gap-[16px]">
+                      <h4 className={FX_TYPOGRAPHY.cardTitle}>Benefits</h4>
+                    </div>
+                    <div className="grid gap-[16px] lg:grid-cols-2 xl:grid-cols-3">
+                      {BENEFITS_GROUPS.map((group) => (
+                        <div key={group.title} className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+                          <h5 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{group.title}</h5>
+                          <div className="space-y-[8px]">
+                            {group.items.map((item) => renderBenefitItem(group.title, item))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </section>
               ) : null}
 
@@ -2021,8 +2209,10 @@ export default function JobsPage() {
       <Dialog open={isEvaluationContextOpen} onOpenChange={setIsEvaluationContextOpen}>
         <DialogContent className="sm:max-w-[720px]">
           <DialogHeader>
-            <DialogTitle>Generate Context</DialogTitle>
-            <DialogDescription>Answer one question at a time to seed the evaluation draft.</DialogDescription>
+            <DialogTitle>Auto Generate Context</DialogTitle>
+            <DialogDescription>
+              Select applicable questions and provide answers. Evality will generate the evaluation context from them.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-[16px]">
             {renderEvaluationContextPromptCard()}
