@@ -300,6 +300,78 @@ function CandidateMatchDrawer({ candidate, open, onOpenChange }) {
   );
 }
 
+function CandidateActionDrawer({ open, onOpenChange, candidate, action }) {
+  const titleMap = {
+    resume: "View Resume",
+    questions: "Generate Interview Questions",
+    edit: "Edit Candidate Details",
+    notInterested: "Mark as Not Interested",
+    reject: "Reject Candidate",
+  };
+
+  const bodyMap = {
+    resume: "Resume preview for recruiter review.",
+    questions: "AI-generated interview questions for this candidate.",
+    edit: "Candidate details can be tuned here later.",
+    notInterested: "Capture this recruiter action for the demo flow.",
+    reject: "Capture this recruiter action for the demo flow.",
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="lg">
+        <SheetHeader title={titleMap[action] ?? "Candidate Action"} description={bodyMap[action] ?? ""} />
+        <SheetBody>
+          {candidate ? (
+            <div className="space-y-[16px]">
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[16px]`}>
+                <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Candidate</p>
+                <p className={FX_TYPOGRAPHY.sectionTitle}>{candidate.name}</p>
+                <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{candidate.email}</p>
+                <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{candidate.phone}</p>
+              </div>
+
+              {action === "resume" ? (
+                <div className={`space-y-[12px] rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Resume preview</p>
+                  <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                    Senior recruiting teams will see a compact resume summary here, including skills, experience, and role fit.
+                  </p>
+                </div>
+              ) : null}
+
+              {action === "questions" ? (
+                <div className="space-y-[12px]">
+                  {["Tell me about your recent role.", "What makes you a fit for this job?", "How soon can you join?"].map(
+                    (question) => (
+                      <div key={question} className={`rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[14px]`}>
+                        <p className={FX_TYPOGRAPHY.body}>{question}</p>
+                      </div>
+                    ),
+                  )}
+                </div>
+              ) : null}
+
+              {(action === "edit" || action === "notInterested" || action === "reject") ? (
+                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Demo action</p>
+                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
+                    This action will be wired to state updates later. For now it keeps the recruiter menu complete.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </SheetBody>
+        <SheetFooter
+          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Recruiter action surface.</span>}
+          right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function RecommendedCandidatesDrawer({ open, onOpenChange, candidates }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -405,6 +477,8 @@ export default function JobDetailsPage({ params }) {
   const [recommendedOpen, setRecommendedOpen] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [callPreviewOpen, setCallPreviewOpen] = useState(false);
+  const [candidateActionOpen, setCandidateActionOpen] = useState(false);
+  const [candidateAction, setCandidateAction] = useState(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const searchRef = useRef(null);
 
@@ -460,6 +534,29 @@ export default function JobDetailsPage({ params }) {
     setAnalysisOpen(true);
   }
 
+  function handleOpenCandidateAction(candidate, action) {
+    setSelectedCandidateId(candidate.id);
+    setCandidateAction(action);
+    setCandidateActionOpen(true);
+  }
+
+  function handleDownloadResume(candidate) {
+    const resumeText = [
+      candidate.name,
+      candidate.email,
+      candidate.phone,
+      `JD Match Score: ${candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}`,
+      `Trust Score: ${candidate.trustScore || "—"}`,
+    ].join("\n");
+    const blob = new Blob([resumeText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${candidate.name.replace(/\s+/g, "-").toLowerCase()}-resume.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function handleShareJob() {
     const shareUrl = `${window.location.origin}${ROUTES.JOB(jobId)}`;
 
@@ -491,7 +588,7 @@ export default function JobDetailsPage({ params }) {
     {
       key: "name",
       label: "Candidate Name",
-      width: "30%",
+      width: "33%",
       cellClassName: "text-[13px] leading-[20px] font-medium",
     },
     {
@@ -521,21 +618,21 @@ export default function JobDetailsPage({ params }) {
     {
       key: "currentSalary",
       label: "Current Salary",
-      width: "12%",
+      width: "12.5%",
       align: "right",
     },
     {
       key: "expectedSalary",
       label: "Expectation",
-      width: "12%",
+      width: "12.5%",
       align: "right",
     },
     {
       key: "actions",
       label: null,
-      width: "52px",
+      width: "44px",
       align: "center",
-      cellClassName: "px-0 pr-[2px]",
+      cellClassName: "px-0 pr-0",
     },
   ];
 
@@ -603,9 +700,14 @@ export default function JobDetailsPage({ params }) {
               <MoreHorizontal className="size-[16px]" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[220px]">
-            <DropdownMenuItem asChild>
-              <Link href={ROUTES.CANDIDATE(candidate.id)}>Open Candidate Workspace</Link>
+          <DropdownMenuContent align="end" className="w-[280px]">
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                handleOpenCandidateAction(candidate, "resume");
+              }}
+            >
+              View Resume
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={(event) => {
@@ -613,19 +715,47 @@ export default function JobDetailsPage({ params }) {
                 handleOpenMatchAnalysis(candidate);
               }}
             >
-              Open Match Analysis
+              View Screening Results / View Match Analysis
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                handleOpenCandidateAction(candidate, "questions");
+              }}
+            >
+              Generate Interview Questions
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                handleOpenCandidateAction(candidate, "edit");
+              }}
+            >
+              Edit Candidate Details
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                handleOpenCandidateAction(candidate, "notInterested");
+              }}
+            >
+              Mark as Not Interested
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                handleOpenCandidateAction(candidate, "reject");
+              }}
+            >
+              Reject Candidate
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={async (event) => {
                 event.preventDefault();
-                try {
-                  await navigator.clipboard.writeText(candidate.email || "");
-                } catch {
-                  window.prompt("Copy email", candidate.email || "");
-                }
+                handleDownloadResume(candidate);
               }}
             >
-              Copy Email
+              Download Resume
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -797,6 +927,12 @@ export default function JobDetailsPage({ params }) {
         candidates={recommendedCandidates}
       />
       <CandidateMatchDrawer open={analysisOpen} onOpenChange={setAnalysisOpen} candidate={selectedCandidate} />
+      <CandidateActionDrawer
+        open={candidateActionOpen}
+        onOpenChange={setCandidateActionOpen}
+        candidate={selectedCandidate}
+        action={candidateAction}
+      />
       <CallPreviewDrawer open={callPreviewOpen} onOpenChange={setCallPreviewOpen} job={job} />
     </FxProtectedAppPage>
   );

@@ -25,6 +25,20 @@ function normalizeEditorValue(value) {
 
 /* - - - - - - - - - - - - - - - - */
 
+function normalizeEditorHtmlValue(value) {
+  const html = normalizeEditorValue(value);
+  const text = html
+    .replace(/<br\s*\/?>/gi, "")
+    .replace(/<\/(p|div|li|h1|h2|h3|h4|h5|h6)>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+
+  return text ? html : "";
+}
+
+/* - - - - - - - - - - - - - - - - */
+
 function execEditorCommand(command, commandValue = null) {
   if (typeof document === "undefined" || typeof document.execCommand !== "function") {
     return false;
@@ -97,7 +111,7 @@ export function FxRichTextEditor({
   }
 
   function handleInput() {
-    updateValue(editorRef.current?.innerHTML ?? "");
+    updateValue(normalizeEditorHtmlValue(editorRef.current?.innerHTML ?? ""));
   }
 
   function focusEditor() {

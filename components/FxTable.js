@@ -156,7 +156,7 @@ export function FxTable({
       )}
     >
       <table
-        className={cn("min-w-full table-fixed border-collapse", stickyHeader ? "relative" : "")}
+        className={cn("w-full min-w-full table-fixed border-collapse", stickyHeader ? "relative" : "")}
         style={minTableWidth ? { minWidth: minTableWidth } : undefined}
       >
         {renderColGroup()}

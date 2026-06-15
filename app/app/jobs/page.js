@@ -9,6 +9,7 @@ import {
   ArrowUpDown,
   Archive,
   ListChecks,
+  Mail,
   MoreHorizontal,
   Plus,
   RefreshCcw,
@@ -39,6 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Sheet,
   SheetBody,
@@ -100,6 +102,29 @@ const JOB_SHEET_STEPS = [
   { value: "settings", label: "Settings" },
 ];
 
+const EVALUATION_CONTEXT_PROMPTS = [
+  {
+    id: "evaluation_focus",
+    title: "What matters most when evaluating this role?",
+    options: [
+      "Hands-on role fit and practical problem solving",
+      "Communication, clarity, and stakeholder handling",
+      "Ownership, pace, and execution under pressure",
+      "Systematic thinking and structured decision-making",
+    ],
+  },
+  {
+    id: "evaluation_signal",
+    title: "Which signals should the AI prioritize?",
+    options: [
+      "Relevant experience and domain alignment",
+      "Confidence in the candidate's screening answers",
+      "Consistency between profile and conversation",
+      "Evidence of impact, ownership, and follow-through",
+    ],
+  },
+];
+
 function toCommaList(value) {
   if (Array.isArray(value)) {
     return value.filter(Boolean).join(", ");
@@ -150,6 +175,7 @@ function createFormFromJob(job) {
 const EMPLOYMENT_TYPE_OPTIONS = ["Full-time", "Part-time", "Contract", "Internship"];
 const WORKPLACE_TYPE_OPTIONS = ["Remote", "Hybrid", "On-site"];
 const CURRENCY_OPTIONS = ["INR", "USD", "EUR"];
+const PRIORITY_OPTIONS = ["Low", "Medium", "High"];
 const BASIC_FORM_FIELD_STACK_CLASS = "gap-[8px]";
 const BASIC_FORM_CONTROL_CLASS = "min-h-[48px]";
 
@@ -212,6 +238,12 @@ export default function JobsPage() {
   const [activeSheetStep, setActiveSheetStep] = useState("basic");
   const [validationErrors, setValidationErrors] = useState({});
   const [pendingAction, setPendingAction] = useState(null);
+  const [isUploadJdOpen, setIsUploadJdOpen] = useState(false);
+  const [isEvaluationContextOpen, setIsEvaluationContextOpen] = useState(false);
+  const [isEvaluationLeaveGuardOpen, setIsEvaluationLeaveGuardOpen] = useState(false);
+  const [pendingEvaluationNextStep, setPendingEvaluationNextStep] = useState(null);
+  const [evaluationContextStep, setEvaluationContextStep] = useState(0);
+  const [evaluationContextAnswers, setEvaluationContextAnswers] = useState({});
   const [searchTerm, setSearchTerm] = useState(initialPageState.searchTerm ?? DEFAULT_PAGE_STATE.searchTerm);
   const [selectedTab, setSelectedTab] = useState(initialPageState.selectedTab ?? DEFAULT_PAGE_STATE.selectedTab);
   const [sortConfig, setSortConfig] = useState(initialPageState.sortConfig ?? DEFAULT_PAGE_STATE.sortConfig);
@@ -235,6 +267,14 @@ export default function JobsPage() {
   const jobLocationType = String(jobForm.workplaceType || "").toLowerCase();
   const isRemote = jobLocationType === "remote";
   const isCityRequired = !isRemote;
+  const hasJobDescription = Boolean(
+    String(jobForm.jobDescription || "")
+      .replace(/<br\s*\/?>/gi, "")
+      .replace(/<\/(p|div|li|h1|h2|h3|h4|h5|h6)>/gi, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/gi, " ")
+      .trim(),
+  );
   const fieldState = (fieldName) => (validationErrors[fieldName] ? FX_FIELD_STATES.ERROR : FX_FIELD_STATES.DEFAULT);
   const clearValidationErrors = (...fieldNames) => {
     setValidationErrors((current) => {
@@ -505,12 +545,12 @@ export default function JobsPage() {
       ...current,
       jobDescription:
         current.jobDescription ||
-        `Join us as ${title}${client ? ` for ${client}` : ""}. The role will work closely with the hiring team to keep the candidate flow focused, contextual, and easy to evaluate.`,
+        `<h1>About the Role</h1><p>Join us as ${title}${client ? ` for ${client}` : ""}. This role keeps the candidate flow focused, contextual, and easy to evaluate.</p><h2>Overview</h2><ul><li>Shape screening context for the hiring team</li><li>Keep recruiter conversations tight and useful</li><li>Surface strong-fit candidates faster</li></ul>`,
       primarySkills: current.primarySkills || "Communication, Role Fit, Candidate Screening",
       secondarySkills: current.secondarySkills || "AI Collaboration, Reporting, Team Coordination",
       responsibilities:
         current.responsibilities ||
-        "Turn hiring intent into clear screening context, keep candidate conversations aligned, and surface the best-fit people faster.",
+        `<ul><li>Turn hiring intent into clear screening context.</li><li>Keep candidate conversations aligned.</li><li>Surface the best-fit people faster.</li></ul>`,
     }));
   }
 
@@ -530,8 +570,35 @@ export default function JobsPage() {
               createRoundItem("Round 1", "Screening", "Short AI-assisted review of baseline fit."),
               createRoundItem("Round 2", "Hiring manager", "Check role depth, communication, and ownership."),
               createRoundItem("Round 3", "Final decision", "Confirm readiness for next step."),
+        ],
+    }));
+  }
+
+  function applyEvaluationContextDraft() {
+    const selectedAnswers = EVALUATION_CONTEXT_PROMPTS.map((prompt) => evaluationContextAnswers[prompt.id]).filter(Boolean);
+    const title = jobForm.title.trim() || "the role";
+    const client = showClientInfo ? jobForm.client.trim() : "";
+    const summary = selectedAnswers.length
+      ? selectedAnswers.join(". ")
+      : "Role fit, communication, and readiness to move quickly.";
+
+    setJobForm((current) => ({
+      ...current,
+      evaluationContext:
+        current.evaluationContext ||
+        `Evaluate ${title}${client ? ` for ${client}` : ""} with focus on ${summary}. Keep the screening context practical, compact, and easy for recruiters to run.`,
+      evaluationRounds:
+        current.evaluationRounds.length > 0
+          ? current.evaluationRounds
+          : [
+              createRoundItem("Round 1", "Screening", "AI-assisted baseline fit"),
+              createRoundItem("Round 2", "Hiring Manager", "Ownership and communication"),
+              createRoundItem("Round 3", "Final Discussion", "Decision readiness"),
             ],
     }));
+
+    setIsEvaluationContextOpen(false);
+    setEvaluationContextStep(0);
   }
 
   function autofillQuestions() {
@@ -539,7 +606,7 @@ export default function JobsPage() {
       ...current,
       questions: (() => {
         const existingQuestions = current.questions.map((question) => question.question.trim().toLowerCase());
-        const nextSuggestion = DEFAULT_QUESTION_SUGGESTIONS.find(
+        const nextSuggestion = DEFAULT_JOB_QUESTION_SUGGESTIONS.find(
           (question) => !existingQuestions.includes(question.question.trim().toLowerCase()),
         );
 
@@ -655,6 +722,14 @@ export default function JobsPage() {
       return validateBasicDetailsStep();
     }
 
+    if (activeSheetStep === "evaluation" && nextStep === "questionnaire") {
+      if (!String(jobForm.evaluationContext || "").trim()) {
+        setPendingEvaluationNextStep(nextStep);
+        setIsEvaluationLeaveGuardOpen(true);
+        return false;
+      }
+    }
+
     return true;
   }
 
@@ -695,6 +770,52 @@ export default function JobsPage() {
           {description ? <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{description}</p> : null}
         </div>
         {action ? <div className="flex shrink-0 items-center gap-[8px]">{action}</div> : null}
+      </div>
+    );
+  }
+
+  function renderEvaluationContextPromptCard() {
+    const prompt = EVALUATION_CONTEXT_PROMPTS[evaluationContextStep];
+    const selectedValue = evaluationContextAnswers[prompt.id] ?? "";
+
+    return (
+      <div className="space-y-[16px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-bg-soft)] p-[20px]">
+        <div className="space-y-[4px]">
+          <h3 className="text-[16px] leading-[24px] font-medium text-[var(--fx-text)]">{prompt.title}</h3>
+          <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Pick one answer. This only seeds the evaluation draft.</p>
+        </div>
+        <div className="space-y-[8px]">
+          {prompt.options.map((option) => {
+            const isSelected = selectedValue === option;
+
+            return (
+              <button
+                key={option}
+                type="button"
+                className={`flex w-full items-start gap-[12px] rounded-[12px] border px-[14px] py-[12px] text-left transition-colors ${
+                  isSelected
+                    ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                    : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
+                }`}
+                onClick={() =>
+                  setEvaluationContextAnswers((current) => ({
+                    ...current,
+                    [prompt.id]: option,
+                  }))
+                }
+              >
+                <span
+                  className={`mt-[2px] inline-flex size-[16px] shrink-0 rounded-full border ${
+                    isSelected
+                      ? "border-[var(--fx-primary)] bg-[var(--fx-primary)]"
+                      : "border-[var(--fx-border)] bg-[var(--fx-surface)]"
+                  }`}
+                />
+                <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{option}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -1198,9 +1319,9 @@ export default function JobsPage() {
 
               {activeSheetStep === "basic" ? (
                 <section className="space-y-[16px]">
-                  <div className="rounded-[20px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[20px]">
+                  <div className="rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[20px]">
                     <div className="space-y-[24px]">
-                      <div className="grid gap-[16px] xl:grid-cols-[minmax(0,1fr)_220px] xl:items-center">
+                      <div className="grid gap-[16px] xl:grid-cols-[minmax(0,1fr)_176px] xl:items-center">
                         <div>
                           <FxInput
                             name="aiPrompt"
@@ -1211,8 +1332,13 @@ export default function JobsPage() {
                           />
                         </div>
 
-                        <div>
-                          <FxAiButton type="button" onClick={handleGenerateBasicDetails} className="w-full justify-center">
+                        <div className="xl:justify-self-end">
+                          <FxAiButton
+                            type="button"
+                            onClick={handleGenerateBasicDetails}
+                            disabled={!jobForm.aiPrompt?.trim()}
+                            className="w-full justify-center xl:w-[176px]"
+                          >
                             Auto Generate
                           </FxAiButton>
                         </div>
@@ -1298,114 +1424,134 @@ export default function JobsPage() {
                         </div>
                       </div>
 
-                      <div className="grid gap-[24px] xl:grid-cols-12">
-                        <div className="xl:col-span-3">
-                          <FxInput
-                            name="city"
-                            label="City"
-                            placeholder="Bengaluru"
-                            value={jobForm.city}
-                            onChange={handleJobFormChange}
-                            required={isCityRequired}
-                            optional={!isCityRequired}
-                            state={fieldState("city")}
-                            validationMessage={validationErrors.city}
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
-                        </div>
-
-                        <div className="xl:col-span-3">
-                          <FxInput
-                            name="locality"
-                            label="Locality"
-                            placeholder={isRemote ? "Optional for remote roles" : "HSR Layout"}
-                            value={jobForm.locality}
-                            onChange={handleJobFormChange}
-                            optional
-                            disabled={isRemote}
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
-                        </div>
-
-                        {showClientInfo ? (
+                      <div className="space-y-[16px]">
+                        <h3 className="text-[16px] leading-[24px] font-normal text-[var(--fx-text-muted)]">Location & Assignment</h3>
+                        <div className="grid gap-[24px] xl:grid-cols-12">
                           <div className="xl:col-span-3">
-                            <FxCreatableSelect
-                              options={clientOptions}
-                              value={jobForm.client}
-                              onChange={(value) => handleSelectFieldChange("client", value)}
-                              onCreate={(value) => handleSelectFieldChange("client", value)}
-                              allowCreate
-                              createLabel="Create new client"
-                              label="Client"
-                              placeholder="Select or create client"
-                              searchPlaceholder="Search clients"
-                              required
-                              state={fieldState("client")}
-                              validationMessage={validationErrors.client}
-                              triggerClassName={BASIC_FORM_CONTROL_CLASS}
+                            <FxInput
+                              name="city"
+                              label="City"
+                              placeholder="Bengaluru"
+                              value={jobForm.city}
+                              onChange={handleJobFormChange}
+                              required={isCityRequired}
+                              optional={!isCityRequired}
+                              state={fieldState("city")}
+                              validationMessage={validationErrors.city}
+                              className={BASIC_FORM_CONTROL_CLASS}
                               stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                             />
                           </div>
-                        ) : null}
 
-                        <div className={showClientInfo ? "xl:col-span-3" : "xl:col-span-6"}>
-                          <FxSelect
-                            name="assignee"
-                            options={assigneeOptions}
-                            value={jobForm.assignee}
-                            onChange={(event) => handleSelectFieldChange("assignee", event.target.value)}
-                            label="Job Assignee"
-                            placeholder="Assign to recruiter"
-                            optional
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
+                          <div className="xl:col-span-3">
+                            <FxInput
+                              name="locality"
+                              label="Locality"
+                              placeholder={isRemote ? "Optional for remote roles" : "HSR Layout"}
+                              value={jobForm.locality}
+                              onChange={handleJobFormChange}
+                              optional
+                              disabled={isRemote}
+                              className={BASIC_FORM_CONTROL_CLASS}
+                              stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                            />
+                          </div>
+
+                          {showClientInfo ? (
+                            <div className="xl:col-span-3">
+                              <FxCreatableSelect
+                                options={clientOptions}
+                                value={jobForm.client}
+                                onChange={(value) => handleSelectFieldChange("client", value)}
+                                onCreate={(value) => handleSelectFieldChange("client", value)}
+                                allowCreate
+                                createLabel="Create new client"
+                                label="Client"
+                                placeholder="Select or create client"
+                                searchPlaceholder="Search clients"
+                                required
+                                state={fieldState("client")}
+                                validationMessage={validationErrors.client}
+                                triggerClassName={BASIC_FORM_CONTROL_CLASS}
+                                stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                              />
+                            </div>
+                          ) : null}
+
+                          <div className={showClientInfo ? "xl:col-span-3" : "xl:col-span-6"}>
+                            <FxSelect
+                              name="assignee"
+                              options={assigneeOptions}
+                              value={jobForm.assignee}
+                              onChange={(event) => handleSelectFieldChange("assignee", event.target.value)}
+                              label="Job Assignee"
+                              placeholder="Assign to recruiter"
+                              optional
+                              className={BASIC_FORM_CONTROL_CLASS}
+                              stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                            />
+                          </div>
                         </div>
                       </div>
 
-                      <div className="grid gap-[24px] xl:grid-cols-12">
-                        <div className="xl:col-span-4">
-                          <FxInput
-                            name="salaryMin"
-                            label="Salary Min"
-                            type="number"
-                            placeholder="1000000"
-                            value={jobForm.salaryMin}
-                            onChange={handleJobFormChange}
-                            optional
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
-                        </div>
+                      <div className="space-y-[16px]">
+                        <h3 className="text-[16px] leading-[24px] font-normal text-[var(--fx-text-muted)]">Compensation</h3>
+                        <div className="grid gap-[24px] xl:grid-cols-12">
+                          <div className="xl:col-span-3">
+                            <FxInput
+                              name="salaryMin"
+                              label="Salary Min"
+                              type="number"
+                              placeholder="1000000"
+                              value={jobForm.salaryMin}
+                              onChange={handleJobFormChange}
+                              optional
+                              className={BASIC_FORM_CONTROL_CLASS}
+                              stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                            />
+                          </div>
 
-                        <div className="xl:col-span-4">
-                          <FxInput
-                            name="salaryMax"
-                            label="Salary Max"
-                            type="number"
-                            placeholder="1500000"
-                            value={jobForm.salaryMax}
-                            onChange={handleJobFormChange}
-                            optional
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
-                        </div>
+                          <div className="xl:col-span-3">
+                            <FxInput
+                              name="salaryMax"
+                              label="Salary Max"
+                              type="number"
+                              placeholder="1500000"
+                              value={jobForm.salaryMax}
+                              onChange={handleJobFormChange}
+                              optional
+                              className={BASIC_FORM_CONTROL_CLASS}
+                              stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                            />
+                          </div>
 
-                        <div className="xl:col-span-4">
-                          <FxSelect
-                            name="currency"
-                            options={CURRENCY_OPTIONS}
-                            value={jobForm.currency}
-                            onChange={(event) => handleSelectFieldChange("currency", event.target.value)}
-                            label="Currency"
-                            placeholder="Select currency"
-                            optional
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
+                          <div className="xl:col-span-3">
+                            <FxSelect
+                              name="currency"
+                              options={CURRENCY_OPTIONS}
+                              value={jobForm.currency}
+                              onChange={(event) => handleSelectFieldChange("currency", event.target.value)}
+                              label="Currency"
+                              placeholder="Currency"
+                              optional
+                              className={BASIC_FORM_CONTROL_CLASS}
+                              stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                            />
+                          </div>
+
+                          <div className="xl:col-span-3">
+                            <FxSelect
+                              name="priority"
+                              options={PRIORITY_OPTIONS}
+                              value={jobForm.priority}
+                              onChange={(event) => handleSelectFieldChange("priority", event.target.value)}
+                              label="Priority"
+                              placeholder="Priority"
+                              optional
+                              className={BASIC_FORM_CONTROL_CLASS}
+                              stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1415,19 +1561,24 @@ export default function JobsPage() {
 
               {activeSheetStep === "description" ? (
                 <section className="space-y-[32px]">
-                  <div className="space-y-[12px]">
-                    <div className="flex flex-wrap items-center justify-between gap-[12px]">
-                      <h3 className={FX_TYPOGRAPHY.cardTitle}>Job Description</h3>
-                      <div className="flex flex-wrap items-center gap-[10px]">
-                        <FxButton type="button" variant="outline" className="gap-[8px]">
-                          <Upload className="size-[16px]" />
-                          Upload JD
-                        </FxButton>
-                        <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
-                          Write JD with AI
-                        </FxAiButton>
-                      </div>
+                  <div className="flex items-start justify-between gap-[16px]">
+                    <div className="space-y-[4px]">
+                      <h3 className="text-[16px] leading-[24px] font-normal text-[var(--fx-text)]">Job Description</h3>
+                      <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                        Upload an existing JD or write one with AI.
+                      </p>
                     </div>
+                    <div className="flex flex-wrap items-center justify-end gap-[10px]">
+                      <FxButton type="button" variant="outline" className="gap-[8px]" onClick={() => setIsUploadJdOpen(true)}>
+                        <Upload className="size-[16px]" />
+                        Upload JD
+                      </FxButton>
+                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
+                        Write JD with AI
+                      </FxAiButton>
+                    </div>
+                  </div>
+                  <div className="space-y-[12px]">
                     <FxRichTextEditor
                       value={jobForm.jobDescription}
                       onChange={(nextValue) => handleSelectFieldChange("jobDescription", nextValue)}
@@ -1437,9 +1588,8 @@ export default function JobsPage() {
                   </div>
 
                   <div className="space-y-[12px]">
-                    <div className="flex flex-wrap items-center justify-between gap-[12px]">
-                      <h3 className={FX_TYPOGRAPHY.cardTitle}>Primary Skills</h3>
-                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
+                    <div className="flex flex-wrap items-center justify-end gap-[12px]">
+                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription} disabled={!hasJobDescription}>
                         Retrieve Primary Skills from JD
                       </FxAiButton>
                     </div>
@@ -1451,9 +1601,8 @@ export default function JobsPage() {
                   </div>
 
                   <div className="space-y-[12px]">
-                    <div className="flex flex-wrap items-center justify-between gap-[12px]">
-                      <h3 className={FX_TYPOGRAPHY.cardTitle}>Secondary Skills</h3>
-                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
+                    <div className="flex flex-wrap items-center justify-end gap-[12px]">
+                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription} disabled={!hasJobDescription}>
                         Retrieve Secondary Skills from JD
                       </FxAiButton>
                     </div>
@@ -1465,9 +1614,8 @@ export default function JobsPage() {
                   </div>
 
                   <div className="space-y-[12px]">
-                    <div className="flex flex-wrap items-center justify-between gap-[12px]">
-                      <h3 className={FX_TYPOGRAPHY.cardTitle}>Roles & Responsibilities</h3>
-                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
+                    <div className="flex flex-wrap items-center justify-end gap-[12px]">
+                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription} disabled={!hasJobDescription}>
                         Write Responsibilities with AI
                       </FxAiButton>
                     </div>
@@ -1484,70 +1632,100 @@ export default function JobsPage() {
               {activeSheetStep === "evaluation" ? (
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
-                    "Evaluation",
-                    "Give the AI enough context to screen well.",
-                    <FxAiButton icon={WandSparkles} onClick={autofillEvaluation}>
+                    "Evaluation Context",
+                    "Define what matters most when evaluating candidates for this role.",
+                    <FxAiButton
+                      icon={WandSparkles}
+                      onClick={() => {
+                        setEvaluationContextStep(0);
+                        setIsEvaluationContextOpen(true);
+                      }}
+                    >
                       Generate Context
                     </FxAiButton>,
                   )}
                   <FxInput
                     textarea
                     name="evaluationContext"
-                    label="Context for Evaluation"
                     placeholder="What should the AI pay attention to when screening candidates?"
                     value={jobForm.evaluationContext}
                     onChange={handleJobFormChange}
-                    className="min-h-[160px]"
+                    className="min-h-[152px]"
+                    stackClassName="gap-[4px]"
                   />
                   <div className="space-y-[12px]">
                     <div className="flex items-center justify-between gap-[16px]">
                       <div className="space-y-[4px]">
-                        <h4 className={FX_TYPOGRAPHY.button}>Interview Rounds / Evaluation Setup</h4>
-                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                          Keep the setup lightweight and actionable.
-                        </p>
+                        <h4 className="text-[16px] leading-[24px] font-normal text-[var(--fx-text-muted)]">
+                          Interview Rounds / Evaluation Setup
+                        </h4>
                       </div>
                       <FxButton type="button" variant="outline" size="sm" onClick={addRound}>
                         <Plus className="size-[16px]" />
                         Add Round
                       </FxButton>
                     </div>
-                    <div className="space-y-[12px]">
-                      {jobForm.evaluationRounds.map((round) => (
-                        <div key={round.id} className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
-                          <div className="grid gap-[12px] md:grid-cols-[160px_minmax(0,1fr)_auto]">
-                            <FxInput
-                              label="Round"
-                              value={round.title}
-                              onChange={(event) => updateRound(round.id, "title", event.target.value)}
-                              placeholder="Round 1"
-                            />
-                            <FxInput
-                              label="Stage"
-                              value={round.details}
-                              onChange={(event) => updateRound(round.id, "details", event.target.value)}
-                              placeholder="Technical screen"
+                    <FxTable
+                      density="compact"
+                      stickyHeader={false}
+                      scrollX={false}
+                      columns={[
+                        {
+                          key: "round",
+                          label: "Round",
+                          width: "18%",
+                          cellClassName: "align-top",
+                        },
+                        {
+                          key: "stage",
+                          label: "Stage",
+                          width: "26%",
+                          cellClassName: "align-top",
+                        },
+                        {
+                          key: "info",
+                          label: "Additional Information",
+                          cellClassName: "align-top",
+                        },
+                      ]}
+                      rows={jobForm.evaluationRounds.map((round, index) => ({
+                        id: round.id,
+                        round: (
+                          <input
+                            value={round.title}
+                            onChange={(event) => updateRound(round.id, "title", event.target.value)}
+                            placeholder={`Round ${index + 1}`}
+                            className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
+                          />
+                        ),
+                        stage: (
+                          <input
+                            value={round.details}
+                            onChange={(event) => updateRound(round.id, "details", event.target.value)}
+                            placeholder="Screening"
+                            className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
+                          />
+                        ),
+                        info: (
+                          <div className="flex items-center gap-[12px]">
+                            <input
+                              value={round.note}
+                              onChange={(event) => updateRound(round.id, "note", event.target.value)}
+                              placeholder="AI-assisted baseline fit"
+                              className="h-[40px] min-w-0 flex-1 rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
                             />
                             <button
                               type="button"
-                              className={`mt-[24px] inline-flex h-[40px] w-[40px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]`}
+                              className="inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[6px] border border-[var(--fx-border)] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
                               onClick={() => removeRound(round.id)}
                               aria-label="Remove round"
                             >
                               <Trash2 className="size-[16px]" />
                             </button>
                           </div>
-                          <FxInput
-                            textarea
-                            label="Additional Information"
-                            value={round.note}
-                            onChange={(event) => updateRound(round.id, "note", event.target.value)}
-                            placeholder="What should this round check?"
-                            className="mt-[12px] min-h-[96px]"
-                          />
-                        </div>
-                      ))}
-                    </div>
+                        ),
+                      }))}
+                    />
                   </div>
                 </section>
               ) : null}
@@ -1556,7 +1734,7 @@ export default function JobsPage() {
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
                     "Questionnaire",
-                    "Define the screening flow and questions.",
+                    "Our AI Agent will collect answers for these questions.",
                     <FxAiButton icon={WandSparkles} onClick={autofillQuestions}>
                       Suggest Questions
                     </FxAiButton>,
@@ -1593,11 +1771,11 @@ export default function JobsPage() {
                       <div className="space-y-[4px]">
                         <h4 className={FX_TYPOGRAPHY.button}>Pre-Screening Questions</h4>
                         <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                          Add, remove, and tune the questions the AI should ask.
+                          Keep these broad and recruiter-facing. The AI will collect answers for them.
                         </p>
                       </div>
                       <div className="flex items-center gap-[8px]">
-                        <FxAiButton onClick={() => addQuestion(DEFAULT_QUESTION_SUGGESTIONS[0])}>
+                        <FxAiButton onClick={() => addQuestion(DEFAULT_JOB_QUESTION_SUGGESTIONS[0])}>
                           Add Suggested
                         </FxAiButton>
                       </div>
@@ -1619,18 +1797,13 @@ export default function JobsPage() {
                               <Trash2 className="size-[16px]" />
                             </button>
                           </div>
-                          <div className="mt-[12px] grid gap-[12px] md:grid-cols-2">
+                          <div className="mt-[12px] grid gap-[12px]">
                             <FxInput
                               label="Question"
+                              className="min-h-[40px]"
                               value={question.question}
                               onChange={(event) => updateQuestion(question.id, "question", event.target.value)}
-                              placeholder="What is your current salary?"
-                            />
-                            <FxInput
-                              label="AI Note"
-                              value={question.note}
-                              onChange={(event) => updateQuestion(question.id, "note", event.target.value)}
-                              placeholder="Why the AI should ask this."
+                              placeholder="How soon can you join?"
                             />
                           </div>
                         </div>
@@ -1638,7 +1811,7 @@ export default function JobsPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-[8px]">
-                      {DEFAULT_QUESTION_SUGGESTIONS.map((question) => (
+                      {DEFAULT_JOB_QUESTION_SUGGESTIONS.map((question) => (
                         <FxButton
                           key={question.id}
                           type="button"
@@ -1719,7 +1892,7 @@ export default function JobsPage() {
                       <select
                         id="callingBackup"
                         name="callingBackup"
-                        className={`min-h-[40px] w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-[8px] ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
+                        className={`h-[40px] w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-0 ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
                         value={jobForm.callingBackup}
                         onChange={handleJobFormChange}
                       >
@@ -1789,6 +1962,104 @@ export default function JobsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={isEvaluationLeaveGuardOpen} onOpenChange={setIsEvaluationLeaveGuardOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Evaluation context is empty</AlertDialogTitle>
+            <AlertDialogDescription>
+              Candidates&apos; AI scoring and the questionnaire flow may be impacted if you continue without
+              defining evaluation context.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className={fxButtonClassName({ variant: "outline" })}
+              onClick={() => setIsEvaluationLeaveGuardOpen(false)}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={fxButtonClassName({ variant: "primary" })}
+              onClick={() => {
+                setIsEvaluationLeaveGuardOpen(false);
+                if (pendingEvaluationNextStep) {
+                  setActiveSheetStep(pendingEvaluationNextStep);
+                }
+                setPendingEvaluationNextStep(null);
+              }}
+            >
+              Continue anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={isUploadJdOpen} onOpenChange={setIsUploadJdOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Upload Job Description</DialogTitle>
+            <DialogDescription>Drop a JD file here or upload one to extract role content.</DialogDescription>
+          </DialogHeader>
+          <div className="rounded-[20px] border border-dashed border-[var(--fx-border)] bg-[var(--fx-bg-soft)] p-[24px] text-center">
+            <div className="mx-auto flex size-[56px] items-center justify-center rounded-full bg-[color:color-mix(in_srgb,var(--fx-primary)_10%,white_90%)] text-[var(--fx-primary)]">
+              <Upload className="size-[24px]" />
+            </div>
+            <div className="mt-[16px] text-[16px] leading-[24px] font-medium text-[var(--fx-text)]">
+              Drag and drop PDF or DOCX here
+            </div>
+            <div className="mt-[8px] text-[14px] leading-[22px] text-[var(--fx-text-muted)]">or</div>
+            <div className="mt-[16px] flex justify-center">
+              <FxButton type="button" variant="primary" onClick={() => setIsUploadJdOpen(false)}>
+                Upload JD
+              </FxButton>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEvaluationContextOpen} onOpenChange={setIsEvaluationContextOpen}>
+        <DialogContent className="sm:max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>Generate Context</DialogTitle>
+            <DialogDescription>Answer one question at a time to seed the evaluation draft.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-[16px]">
+            {renderEvaluationContextPromptCard()}
+            <div className="flex items-center justify-between gap-[12px]">
+              <FxButton
+                type="button"
+                variant="outline"
+                disabled={evaluationContextStep === 0}
+                onClick={() => setEvaluationContextStep((current) => Math.max(0, current - 1))}
+              >
+                Back
+              </FxButton>
+              <div className="flex items-center gap-[8px]">
+                <span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                  {evaluationContextStep + 1} / {EVALUATION_CONTEXT_PROMPTS.length}
+                </span>
+                {evaluationContextStep < EVALUATION_CONTEXT_PROMPTS.length - 1 ? (
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      setEvaluationContextStep((current) => Math.min(EVALUATION_CONTEXT_PROMPTS.length - 1, current + 1))
+                    }
+                  >
+                    Next
+                  </FxButton>
+                ) : (
+                  <FxButton type="button" onClick={applyEvaluationContextDraft}>
+                    Save & Generate Context
+                  </FxButton>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </FxProtectedAppPage>
   );
 }
+/* - - - - - - - - - - - - - - - - */

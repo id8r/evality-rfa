@@ -456,7 +456,7 @@ export function FxCreatableSelect({
             onFocus?.(event);
           }}
           className={cn(
-            `flex min-h-[40px] w-full items-center justify-between gap-[12px] border ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[14px] ${FX_TYPOGRAPHY.input} text-left outline-none transition-colors focus:ring-2`,
+            `flex h-[40px] w-full items-center justify-between gap-[12px] border ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[14px] py-0 ${FX_TYPOGRAPHY.input} text-left outline-none transition-colors focus:ring-2`,
             getFieldFrameToneClassName(state),
             disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
             triggerClassName,

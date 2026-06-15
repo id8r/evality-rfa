@@ -94,7 +94,7 @@ export function FxSelect({
             type="button"
             disabled={disabled}
             className={cn(
-              `flex min-h-[40px] w-full items-center justify-between gap-[12px] border ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-[8px] text-left outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-[var(--fx-bg-soft)] disabled:text-[var(--fx-text-disabled)]`,
+              `flex h-[40px] w-full items-center justify-between gap-[12px] border ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-0 text-left outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-[var(--fx-bg-soft)] disabled:text-[var(--fx-text-disabled)]`,
               getFieldFrameToneClassName(state),
               className,
             )}
