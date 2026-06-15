@@ -6,7 +6,7 @@
 
 import { forwardRef } from "react";
 
-import { FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_CONTROL_HEIGHT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 import {
   FX_FIELD_STATES,
@@ -53,7 +53,7 @@ export const FxInput = forwardRef(function FxInput(
           ref={ref}
           id={fieldId}
           className={cn(
-            `h-[40px] w-full border ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-0 ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:ring-2`,
+            `${FX_CONTROL_HEIGHT.md} w-full border ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-0 ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:ring-2`,
             getFieldFrameToneClassName(state),
             rightElement ? "pr-[56px]" : "",
             textarea ? "h-auto min-h-[120px] py-[10px] resize-y" : "",

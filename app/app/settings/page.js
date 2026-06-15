@@ -14,7 +14,6 @@ import {
   Mail,
   Plug,
   Settings2,
-  ShieldCheck,
   Upload,
   User,
   Users,
@@ -23,8 +22,9 @@ import {
 import { FxButton } from "@/components/FxButton";
 import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DEMO_USER, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
-import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_COLORS, FX_CONTROL_HEIGHT, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn, readStoredValue, writeStoredValue } from "@/lib/FxUtils";
 
 const SETTINGS_SECTIONS = [
@@ -127,7 +127,7 @@ function SelectField({ label, defaultValue, options }) {
     <label className="flex w-full flex-col gap-[8px]">
       <FieldLabel>{label}</FieldLabel>
       <select
-        className={`min-h-[40px] w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-[8px] ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
+        className={`${FX_CONTROL_HEIGHT.md} w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-0 ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
         defaultValue={defaultValue}
       >
         {options.map((option) => (
@@ -177,6 +177,44 @@ function OptionGrid({ options, selectedValue, onSelect, columns = "md:grid-cols-
   );
 }
 
+function RecruitingStatusGroup({ options, selectedValue, onSelect }) {
+  return (
+    <RadioGroup
+      value={selectedValue}
+      onValueChange={onSelect}
+      className="w-full max-w-[560px] gap-[10px]"
+    >
+      {options.map((option) => {
+        const active = selectedValue === option.value;
+        const optionId = `recruiting-status-${option.value}`;
+
+        return (
+          <label
+            key={option.value}
+            htmlFor={optionId}
+            className={cn(
+              "flex cursor-pointer items-start gap-[12px] rounded-[10px] border px-[14px] py-[11px] text-left transition-colors",
+              active
+                ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]/60",
+            )}
+          >
+            <RadioGroupItem
+              id={optionId}
+              value={option.value}
+              className="mt-[1px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+            />
+            <span className="space-y-[2px]">
+              <span className="block text-[14px] font-medium leading-[20px] text-[var(--fx-text)]">{option.title}</span>
+              <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{option.description}</span>
+            </span>
+          </label>
+        );
+      })}
+    </RadioGroup>
+  );
+}
+
 function PlaceholderSection({ title, description }) {
   return (
     <SettingsCard title={title} description={description}>
@@ -187,6 +225,17 @@ function PlaceholderSection({ title, description }) {
         </p>
       </div>
     </SettingsCard>
+  );
+}
+
+function LinkedInIcon() {
+  return (
+    <svg aria-hidden="true" className="size-[16px]" viewBox="0 0 24 24">
+      <path
+        fill="currentColor"
+        d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.95v5.66H9.34V8.98h3.42v1.57h.05c.48-.9 1.64-1.85 3.37-1.85 3.61 0 4.27 2.38 4.27 5.47v6.28zM5.32 7.41a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.1 20.45H3.54V8.98H7.1v11.47zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.21 0 22.23 0z"
+      />
+    </svg>
   );
 }
 
@@ -204,7 +253,7 @@ function SectionContent({
       <SettingsCard
         title="Organization"
         description="This represents the Hiring for My Company settings context."
-        action={<FxButton variant="secondary" size="sm">Save</FxButton>}
+        action={<FxButton variant="secondary" size="md">Save</FxButton>}
       >
         <div className="grid gap-[16px] md:grid-cols-2">
           <FxInput label="Company Name" defaultValue="Evality" />
@@ -240,13 +289,12 @@ function SectionContent({
       <SettingsCard
         title="Recruiting Status"
         description="Controls default recruiting workflows and available settings."
-        action={<FxButton variant="secondary" size="sm">Save</FxButton>}
+        action={<FxButton variant="secondary" size="md">Save</FxButton>}
       >
-        <OptionGrid
+        <RecruitingStatusGroup
           options={RECRUITING_STATUS_OPTIONS}
           selectedValue={recruitingStatus}
           onSelect={onRecruitingStatusChange}
-          columns="grid-cols-1"
         />
       </SettingsCard>
     );
@@ -257,7 +305,7 @@ function SectionContent({
       <SettingsCard
         title="Screening Method"
         description="Set the default screening flow used when new roles are created."
-        action={<FxButton variant="secondary" size="sm">Save</FxButton>}
+        action={<FxButton variant="secondary" size="md">Save</FxButton>}
       >
         <div className="space-y-[8px]">
           <h3 className={FX_TYPOGRAPHY.button}>Default Screening Channel</h3>
@@ -354,7 +402,7 @@ function SectionContent({
     <SettingsCard
       title="Profile"
       description="Personal details used across recruiting workflows."
-      action={<FxButton variant="secondary" size="sm">Save</FxButton>}
+      action={<FxButton variant="secondary" size="md">Save</FxButton>}
     >
       <div className="grid gap-[16px] md:grid-cols-2">
         <FxInput label="Name" defaultValue={DEMO_USER.name} />
@@ -365,8 +413,12 @@ function SectionContent({
         <div className="flex flex-col gap-[8px]">
           <FieldLabel>LinkedIn</FieldLabel>
           <div className="flex min-h-[40px] items-center gap-[12px]">
-            <FxButton variant="secondary" size="sm">
-              <ShieldCheck className="size-[16px]" />
+            <FxButton
+              variant="secondary"
+              size="md"
+              className="border-[#0A66C2] bg-[#0A66C2] text-white hover:bg-[#0958A8] hover:text-white"
+            >
+              <LinkedInIcon />
               Connect LinkedIn
             </FxButton>
             <span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Authenticate to pull your public profile.</span>

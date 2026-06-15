@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
-import { FX_SURFACE, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_CONTROL_HEIGHT, FX_SURFACE, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { AUTH_COPY, LANDING_COPY } from "@/lib/FxCopy";
 import { writeStoredValue } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
@@ -145,11 +145,15 @@ export function FxAuthDialog({
               <button
                 key={option.id}
                 type="button"
-              className={`flex h-[48px] w-full cursor-pointer items-center justify-center gap-[16px] rounded-[6px] border ${FX_TYPOGRAPHY.button} ${
-                  option.id === "linkedin"
-                    ? "border-[#0A66C2] bg-[#0A66C2] text-white hover:bg-[#0958A8]"
-                    : "border-border bg-background text-foreground hover:bg-muted"
-                }`}
+                className={fxButtonClassName({
+                  size: "lg",
+                  variant: "outline",
+                  className: `w-full rounded-[6px] ${
+                    option.id === "linkedin"
+                      ? "border-[#0A66C2] bg-[#0A66C2] text-white hover:bg-[#0958A8]"
+                      : "border-border bg-background text-foreground hover:bg-muted"
+                  }`,
+                })}
                 onClick={() => handleSocialAuth(option.id)}
               >
                 {AUTH_ICONS[option.id]}
@@ -170,12 +174,15 @@ export function FxAuthDialog({
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-            className={`h-[48px] w-full rounded-[6px] border border-border bg-background px-[16px] ${FX_TYPOGRAPHY.input} text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring`}
+              className={`${FX_CONTROL_HEIGHT.md} w-full rounded-[6px] border border-border bg-background px-[16px] ${FX_TYPOGRAPHY.input} text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring`}
               placeholder={AUTH_COPY.email}
             />
             <button
               type="submit"
-              className={`h-[48px] w-full cursor-pointer rounded-[6px] bg-foreground ${FX_TYPOGRAPHY.button} text-background hover:bg-foreground/90`}
+              className={fxButtonClassName({
+                size: "lg",
+                className: "w-full rounded-[6px] bg-foreground text-background hover:bg-foreground/90",
+              })}
             >
               {AUTH_COPY.continue}
             </button>

@@ -13,7 +13,7 @@ import {
   FxFieldMessage,
   getFieldFrameToneClassName,
 } from "@/components/FxFieldState";
-import { FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_CONTROL_HEIGHT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 /* - - - - - - - - - - - - - - - - */
@@ -460,7 +460,7 @@ export function FxCreatableSelect({
             onFocus?.(event);
           }}
           className={cn(
-            `flex h-[40px] w-full items-center justify-between gap-[12px] border ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[14px] py-0 ${FX_TYPOGRAPHY.input} text-left outline-none transition-colors focus:ring-2`,
+            `flex ${FX_CONTROL_HEIGHT.md} w-full items-center justify-between gap-[12px] border ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[14px] py-0 ${FX_TYPOGRAPHY.input} text-left outline-none transition-colors focus:ring-2`,
             getFieldFrameToneClassName(state),
             disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
             triggerClassName,

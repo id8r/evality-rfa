@@ -104,7 +104,7 @@ export const FxTagInput = forwardRef(function FxTagInput(
       ) : null}
       <div
         className={cn(
-          `flex min-h-[40px] w-full flex-wrap items-start gap-[8px] border ${FX_RADIUS.xs} bg-[var(--fx-surface)] px-[12px] py-[10px] ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus-within:ring-2`,
+          `flex min-h-[34px] w-full flex-wrap items-start gap-[8px] border ${FX_RADIUS.xs} bg-[var(--fx-surface)] px-[12px] py-[7px] ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus-within:ring-2`,
           getFieldFrameToneClassName(state),
           disabled ? "cursor-not-allowed opacity-60" : "",
           className,

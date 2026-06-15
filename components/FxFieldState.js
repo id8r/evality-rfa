@@ -13,7 +13,8 @@ export const FX_FIELD_STATES = {
 };
 
 const FIELD_FRAME_TONES = {
-  default: "border-[var(--fx-border)] focus:border-[var(--fx-primary)] focus:ring-[var(--fx-primary)]/20",
+  default:
+    "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] focus:border-[var(--fx-primary)] focus:ring-[var(--fx-primary)]/20",
   error: "border-[var(--fx-danger)] focus:border-[var(--fx-danger)] focus:ring-[var(--fx-danger)]/20",
   warning: "border-[var(--fx-warning)] focus:border-[var(--fx-warning)] focus:ring-[var(--fx-warning)]/20",
   success: "border-[var(--fx-success)] focus:border-[var(--fx-success)] focus:ring-[var(--fx-success)]/20",

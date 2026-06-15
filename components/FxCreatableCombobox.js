@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Plus, Search } from "lucide-react";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FX_COLORS, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_COLORS, FX_CONTROL_HEIGHT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 function normalizeOption(option) {
@@ -136,7 +136,7 @@ export function FxCreatableCombobox({
         <button
           type="button"
           className={cn(
-            `flex h-[40px] w-full items-center justify-between gap-[12px] border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[14px] ${FX_TYPOGRAPHY.input} text-left text-[var(--fx-text)] outline-none transition-colors hover:bg-[var(--fx-bg-soft)] focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`,
+            `flex ${FX_CONTROL_HEIGHT.md} w-full items-center justify-between gap-[12px] border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[14px] ${FX_TYPOGRAPHY.input} text-left text-[var(--fx-text)] outline-none transition-colors hover:bg-[var(--fx-bg-soft)] focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`,
             !selectedOption ? "text-[var(--fx-text-muted)]" : "",
             className,
           )}
@@ -162,7 +162,7 @@ export function FxCreatableCombobox({
         className={cn(`w-[320px] overflow-hidden p-[8px]`, contentClassName)}
       >
         <div className="space-y-[8px]">
-          <div className={`flex h-[40px] items-center gap-[10px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px]`}>
+          <div className={`flex ${FX_CONTROL_HEIGHT.md} items-center gap-[10px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px]`}>
             <Search className="size-[16px] shrink-0 text-[var(--fx-text-muted)]" />
               <input
               ref={inputRef}
