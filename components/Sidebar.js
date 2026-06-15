@@ -50,9 +50,17 @@ export function Sidebar({ isCollapsed, onToggle }) {
     window.location.replace(ROUTES.LANDING);
   }
 
+  function getNavItemClassName(isActive) {
+    return `${FX_NAVIGATION.itemBase} ${FX_NAVIGATION.itemLabel} ${isActive ? FX_NAVIGATION.itemActive : FX_NAVIGATION.itemInactive}`;
+  }
+
+  function getNavItemContentClassName() {
+    return `flex h-full items-center overflow-hidden transition-[width,padding,justify-content] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${isCollapsed ? "mx-auto w-[40px] justify-center px-0" : "w-full gap-[12px] px-[12px]"}`;
+  }
+
   return (
     <aside
-      className={`fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[16px] py-[16px] transition-[width] duration-200 ${isCollapsed ? FX_LAYOUT.sidebarCollapsedWidth : FX_LAYOUT.sidebarExpandedWidth
+      className={`fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[16px] py-[16px] transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${isCollapsed ? FX_LAYOUT.sidebarCollapsedWidth : FX_LAYOUT.sidebarExpandedWidth
         }`}
     >
       <div className="mb-[24px] flex items-center justify-between gap-[8px] overflow-hidden">
@@ -104,21 +112,24 @@ export function Sidebar({ isCollapsed, onToggle }) {
               key={item.id}
               href={item.href}
               title={isCollapsed ? item.label : undefined}
-              className={`${FX_NAVIGATION.itemBase} ${FX_TYPOGRAPHY.button} ${isActive ? FX_NAVIGATION.itemActive : FX_NAVIGATION.itemInactive}`}
+              className={getNavItemClassName(isActive)}
             >
-              <span className={FX_NAVIGATION.iconSlot}>
-                <Icon className="size-[24px] shrink-0" />
-              </span>
-              <span
-                className={`whitespace-nowrap transition-[opacity,transform] duration-200 ${isCollapsed
-                  ? "pointer-events-none translate-x-[-8px] opacity-0"
-                  : "translate-x-0 opacity-100"
-                  }`}
-              >
-                {item.label}
+              <span className={getNavItemContentClassName()}>
+                <span className={FX_NAVIGATION.iconSlot}>
+                  <Icon className="size-[20px] shrink-0" strokeWidth={1.8} />
+                </span>
+                <span
+                  className={`min-w-0 whitespace-nowrap overflow-hidden transition-[max-width,opacity] duration-150 ease-out ${isCollapsed
+                    ? "pointer-events-none max-w-0 opacity-0"
+                    : "max-w-[120px] opacity-100"
+                    }`}
+                  aria-hidden={isCollapsed}
+                >
+                  {item.label}
+                </span>
               </span>
               {isCollapsed ? (
-                <span className={`pointer-events-none absolute left-[52px] top-1/2 hidden -translate-y-1/2 rounded-[8px] border border-border bg-background px-[8px] py-[8px] ${FX_TYPOGRAPHY.metaLabel} text-foreground shadow-sm group-hover:block`}>
+                <span className={`pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-[8px] border border-border bg-background px-[8px] py-[8px] opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 ${FX_TYPOGRAPHY.metaLabel} text-foreground`}>
                   {item.label}
                 </span>
               ) : null}
@@ -133,19 +144,27 @@ export function Sidebar({ isCollapsed, onToggle }) {
         <Link
           href={ROUTES.SETTINGS}
           title={isCollapsed ? "Settings" : undefined}
-          className={`${FX_NAVIGATION.footerButton} ${isCollapsed ? FX_NAVIGATION.footerButtonCollapsed : FX_NAVIGATION.footerButtonExpanded} ${pathname === ROUTES.SETTINGS ? FX_NAVIGATION.itemActive : FX_NAVIGATION.itemInactive}`}
+          className={`${FX_NAVIGATION.footerButton} ${getNavItemClassName(pathname === ROUTES.SETTINGS)}`}
         >
-          <span className={FX_NAVIGATION.iconSlot}>
-            <Settings2 className="size-[16px]" />
+          <span className={getNavItemContentClassName()}>
+            <span className={FX_NAVIGATION.iconSlot}>
+              <Settings2 className="size-[20px]" strokeWidth={1.8} />
+            </span>
+            <span
+              className={`min-w-0 whitespace-nowrap overflow-hidden transition-[max-width,opacity] duration-150 ease-out ${isCollapsed
+                ? "pointer-events-none max-w-0 opacity-0"
+                : "max-w-[120px] opacity-100"
+                }`}
+              aria-hidden={isCollapsed}
+            >
+              Settings
+            </span>
           </span>
-          <span
-            className={`whitespace-nowrap transition-[opacity,transform] duration-200 ${isCollapsed
-              ? "pointer-events-none translate-x-[-8px] opacity-0"
-              : "translate-x-0 opacity-100"
-              }`}
-          >
-            Settings
-          </span>
+          {isCollapsed ? (
+            <span className={`pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-[8px] border border-border bg-background px-[8px] py-[8px] opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 ${FX_TYPOGRAPHY.metaLabel} text-foreground`}>
+              Settings
+            </span>
+          ) : null}
         </Link>
 
         <div className={`${FX_NAVIGATION.footerSeparator} pt-[16px] ${isCollapsed ? "flex justify-center" : ""}`}>

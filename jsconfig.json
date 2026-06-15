@@ -1,13 +1,10 @@
-/*
-jsconfig.json | JavaScript path alias configuration | Sree | 2026-06-10
-*/
-/* - - - - - - - - - - - - - - - - */
+/* jsconfig.json | JavaScript path alias configuration | Sree | 2026-06-10 */
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
     }
   },
   "exclude": ["node_modules"]
 }
+/* - - - - - - - - - - - - - - - - */

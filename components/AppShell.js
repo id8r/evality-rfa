@@ -28,7 +28,7 @@ export function AppShell({ children, title, navbarLeading = null, navbarActions 
       <Sidebar isCollapsed={isCollapsed} onToggle={handleToggleSidebar} />
 
       <div
-        className={`flex min-w-0 flex-1 flex-col overflow-hidden transition-[padding-left] duration-200 ${
+        className={`flex min-w-0 flex-1 flex-col overflow-hidden transition-[padding-left] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isCollapsed ? FX_LAYOUT.sidebarCollapsedOffset : FX_LAYOUT.sidebarExpandedOffset
         }`}
       >
