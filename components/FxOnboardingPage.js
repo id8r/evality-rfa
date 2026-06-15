@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 
 import { FxButton } from "@/components/FxButton";
 import { FxCreatableCombobox } from "@/components/FxCreatableCombobox";
-import { PERSONAS, ROUTES, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
+import { PERSONAS, ROUTES, STORAGE_KEYS, WORKSPACE_TYPES, DEMO_USER } from "@/lib/FxConstants";
 import { ONBOARDING_COPY } from "@/lib/FxCopy";
 import {
   hasStoredPersona,
@@ -43,6 +43,7 @@ export function FxOnboardingPage() {
   const router = useRouter();
   const [role, setRole] = useState("");
   const [purpose, setPurpose] = useState("internal");
+  const firstName = DEMO_USER.name.split(" ")[0] || "there";
 
   useEffect(() => {
     const authFlag = readStoredValue(STORAGE_KEYS.AUTH_COMPLETE);
@@ -99,7 +100,7 @@ export function FxOnboardingPage() {
                 <BriefcaseBusiness className="size-[24px]" />
               </div>
               <div className="space-y-[8px]">
-                <h1 className={`${FX_TYPOGRAPHY.h1} text-[var(--fx-text)]`}>{ONBOARDING_COPY.title}</h1>
+                <h1 className={`${FX_TYPOGRAPHY.h1} text-[var(--fx-text)]`}>{ONBOARDING_COPY.title.replace("{firstName}", firstName)}</h1>
                 <p className={`${FX_TYPOGRAPHY.body} ${FX_SURFACE.mutedText}`}>{ONBOARDING_COPY.subtitle}</p>
               </div>
             </div>

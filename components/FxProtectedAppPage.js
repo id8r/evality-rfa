@@ -3,12 +3,10 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/AppShell";
 import { getPageMeta, ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_SURFACE } from "@/lib/FxTheme";
-import { ensureDemoStore } from "@/lib/FxStore";
 import { readStoredValue } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
 
@@ -31,32 +29,24 @@ function readStoredAuthStatus() {
 }
 
 export function FxProtectedAppPage({ children, pageId = "jobs", title = null, navbarLeading = null, navbarActions = null }) {
-  const router = useRouter();
   const pageMeta = getPageMeta(pageId);
   const pageTitle = title === false ? null : title ?? pageMeta?.pageTitle ?? "Evality";
   const isAuthenticated = useSyncExternalStore(subscribeToAuthChange, readStoredAuthStatus, () => false);
+  const isHydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      ensureDemoStore();
-      return undefined;
+    if (!isHydrated) {
+      return;
     }
 
-    const redirectTimer = window.setTimeout(() => {
-      if (!readStoredValue(STORAGE_KEYS.AUTH_COMPLETE)) {
-        router.replace(ROUTES.LANDING);
-        router.refresh();
-      }
-    }, 0);
+    if (!isAuthenticated) {
+      window.location.replace(ROUTES.LANDING);
+    }
+  }, [isAuthenticated, isHydrated]);
 
-    return () => window.clearTimeout(redirectTimer);
-  }, [isAuthenticated, router]);
-
-  if (!isAuthenticated) {
+  if (!isHydrated || !isAuthenticated) {
     return <div className={`min-h-screen ${FX_SURFACE.page}`} />;
   }
-
-  ensureDemoStore();
 
   return (
     <AppShell title={pageTitle} navbarLeading={navbarLeading} navbarActions={navbarActions}>

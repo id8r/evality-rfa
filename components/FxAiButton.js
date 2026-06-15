@@ -12,20 +12,20 @@ export function FxAiButton({ className, icon: Icon = Sparkles, children, ...prop
     <button
       type="button"
       className={cn(
-        "group inline-flex items-center gap-[10px] rounded-full border border-transparent bg-[linear-gradient(135deg,color-mix(in_srgb,var(--fx-primary)_14%,var(--fx-surface)_86%),color-mix(in_srgb,var(--fx-success)_10%,var(--fx-surface)_90%))] p-[1px] text-[var(--fx-primary)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--fx-primary)_34%,transparent)] transition-[transform,box-shadow,border-color,background-color] hover:-translate-y-[1px] hover:border-[color:color-mix(in_srgb,var(--fx-primary)_46%,var(--fx-success)_28%)] hover:shadow-[0_0_0_1px_color-mix(in_srgb,var(--fx-primary)_50%,transparent),0_6px_18px_rgba(37,99,235,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--fx-primary)]/20 disabled:cursor-not-allowed disabled:opacity-50",
+        "group inline-flex items-center gap-[10px] rounded-full border border-transparent bg-[linear-gradient(135deg,color-mix(in_srgb,var(--fx-ai)_78%,white_22%),color-mix(in_srgb,var(--fx-primary)_82%,white_18%))] p-[2px] text-[var(--fx-ai)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--fx-ai)_42%,var(--fx-primary)_24%)] transition-[transform,box-shadow,border-color,background-color] hover:-translate-y-[1px] hover:shadow-[0_0_0_1px_color-mix(in_srgb,var(--fx-ai)_54%,var(--fx-primary)_32%),0_10px_24px_rgba(99,102,241,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_srgb,var(--fx-ai)_28%,transparent)] disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}
     >
       <span
         className={cn(
-          "inline-flex items-center gap-[8px] rounded-full border border-[color:color-mix(in_srgb,var(--fx-primary)_22%,var(--fx-border)_78%)] bg-[var(--fx-surface)] px-[12px] py-[6px] text-[var(--fx-text)] transition-colors group-hover:bg-[var(--fx-surface-hover)]",
+          "inline-flex items-center gap-[8px] rounded-full border border-[color:color-mix(in_srgb,var(--fx-ai)_34%,var(--fx-primary)_28%)] bg-[linear-gradient(180deg,white,color-mix(in_srgb,var(--fx-surface)_88%,var(--fx-ai)_12%))] px-[12px] py-[6px] text-[var(--fx-ai)] transition-colors group-hover:bg-[linear-gradient(180deg,white,color-mix(in_srgb,var(--fx-surface-hover)_82%,var(--fx-ai)_18%))]",
         )}
       >
-        <span className="inline-flex size-[20px] items-center justify-center rounded-full bg-[var(--fx-primary)]/10 text-[var(--fx-primary)] ring-1 ring-[color:color-mix(in_srgb,var(--fx-primary)_28%,transparent)]">
+        <span className="inline-flex size-[20px] items-center justify-center rounded-full bg-[color:color-mix(in_srgb,var(--fx-ai)_14%,white_86%)] text-[var(--fx-ai)] ring-1 ring-[color:color-mix(in_srgb,var(--fx-ai)_30%,transparent)]">
           <Icon className="size-[14px]" />
         </span>
-        <span className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{children}</span>
+        <span className={`${FX_TYPOGRAPHY.button} text-[var(--fx-ai)]`}>{children}</span>
       </span>
     </button>
   );

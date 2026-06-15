@@ -1,6 +1,4 @@
-/*
-components/ui/toast.js | shadcn Toast primitive | Sree | 2026-06-11
-*/
+/* components/ui/toast.js | shadcn Toast primitive | Sree | 2026-06-11 */
 
 /* - - - - - - - - - - - - - - - - */
 
@@ -13,9 +11,13 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/FxUtils";
 import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
+/* - - - - - - - - - - - - - - - - */
+
 function ToastProvider(props) {
   return <ToastPrimitives.Provider data-slot="toast-provider" {...props} />;
 }
+
+/* - - - - - - - - - - - - - - - - */
 
 function ToastViewport({ className, ...props }) {
   return (
@@ -30,6 +32,8 @@ function ToastViewport({ className, ...props }) {
   );
 }
 
+/* - - - - - - - - - - - - - - - - */
+
 function Toast({ className, ...props }) {
   return (
     <ToastPrimitives.Root
@@ -43,6 +47,8 @@ function Toast({ className, ...props }) {
   );
 }
 
+/* - - - - - - - - - - - - - - - - */
+
 function ToastTitle({ className, ...props }) {
   return (
     <ToastPrimitives.Title
@@ -53,6 +59,8 @@ function ToastTitle({ className, ...props }) {
   );
 }
 
+/* - - - - - - - - - - - - - - - - */
+
 function ToastDescription({ className, ...props }) {
   return (
     <ToastPrimitives.Description
@@ -62,6 +70,8 @@ function ToastDescription({ className, ...props }) {
     />
   );
 }
+
+/* - - - - - - - - - - - - - - - - */
 
 function ToastClose({ className, ...props }) {
   return (
@@ -79,6 +89,8 @@ function ToastClose({ className, ...props }) {
   );
 }
 
+/* - - - - - - - - - - - - - - - - */
+
 function ToastAction({ className, ...props }) {
   return (
     <ToastPrimitives.Action
@@ -92,6 +104,8 @@ function ToastAction({ className, ...props }) {
     />
   );
 }
+
+/* - - - - - - - - - - - - - - - - */
 
 export {
   ToastProvider,

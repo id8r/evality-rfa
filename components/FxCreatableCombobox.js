@@ -40,7 +40,22 @@ export function FxCreatableCombobox({
   contentClassName,
 }) {
   const normalizedOptions = useMemo(() => options.map(normalizeOption).filter((option) => option.value || option.label), [options]);
-  const selectedOption = normalizedOptions.find((option) => option.value === value) ?? null;
+  const [createdOptions, setCreatedOptions] = useState([]);
+  const allOptions = useMemo(() => {
+    const optionMap = new Map();
+
+    for (const option of normalizedOptions) {
+      optionMap.set(option.value, option);
+    }
+
+    for (const option of createdOptions) {
+      optionMap.set(option.value, option);
+    }
+
+    return Array.from(optionMap.values());
+  }, [createdOptions, normalizedOptions]);
+
+  const selectedOption = allOptions.find((option) => option.value === value) ?? null;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef(null);
@@ -50,14 +65,14 @@ export function FxCreatableCombobox({
     const trimmedQuery = query.trim().toLowerCase();
 
     if (!trimmedQuery) {
-      return normalizedOptions;
+      return allOptions;
     }
 
-    return normalizedOptions.filter((option) => {
+    return allOptions.filter((option) => {
       const haystack = `${option.label} ${option.value} ${option.description}`.toLowerCase();
       return haystack.includes(trimmedQuery);
     });
-  }, [normalizedOptions, query]);
+  }, [allOptions, query]);
 
   const trimmedQuery = query.trim();
   const exactMatch = trimmedQuery
@@ -65,7 +80,7 @@ export function FxCreatableCombobox({
         (option) =>
           option.value.toLowerCase() === trimmedQuery.toLowerCase() || option.label.toLowerCase() === trimmedQuery.toLowerCase(),
       )
-    : false;
+      : false;
   const canCreate = allowCreate && Boolean(trimmedQuery) && !exactMatch;
 
   useEffect(() => {
@@ -88,22 +103,30 @@ export function FxCreatableCombobox({
     closeMenu();
   }
 
-  function handleCreateValue() {
+  async function handleCreateValue() {
     if (!canCreate) {
       return;
     }
 
     const nextValue = trimmedQuery;
-    const createdValue = onCreate?.(nextValue);
+    const createdValue = await Promise.resolve(onCreate?.(nextValue));
     const normalizedCreatedValue =
       typeof createdValue === "string"
         ? createdValue
         : String(createdValue?.value ?? createdValue?.label ?? nextValue);
-
-    onChange?.(normalizedCreatedValue, {
+    const normalizedCreatedOption = {
       value: normalizedCreatedValue,
       label: createdValue?.label ?? nextValue,
+      description: String(createdValue?.description ?? ""),
+    };
+
+    setCreatedOptions((previousOptions) => {
+      const nextOptions = previousOptions.filter((option) => option.value !== normalizedCreatedOption.value);
+      nextOptions.unshift(normalizedCreatedOption);
+      return nextOptions;
     });
+
+    onChange?.(normalizedCreatedValue, normalizedCreatedOption);
     closeMenu();
   }
 
@@ -141,7 +164,7 @@ export function FxCreatableCombobox({
         <div className="space-y-[8px]">
           <div className={`flex h-[40px] items-center gap-[10px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px]`}>
             <Search className="size-[16px] shrink-0 text-[var(--fx-text-muted)]" />
-            <input
+              <input
               ref={inputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -182,7 +205,7 @@ export function FxCreatableCombobox({
               <DropdownMenuItem
                 onSelect={(event) => {
                   event.preventDefault();
-                  handleCreateValue();
+                  void handleCreateValue();
                 }}
                 className={`mb-[8px] flex items-center justify-between rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[12px] py-[10px] transition-colors hover:bg-[var(--fx-surface-hover)]`}
               >

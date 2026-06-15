@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight, CircleHelp, LogOut, Settings2 } from "lucide-react";
 
 import { useFxTheme } from "@/components/FxThemeToggle";
@@ -41,16 +41,13 @@ function Avatar({ name }) {
 
 export function Sidebar({ isCollapsed, onToggle }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { theme, handleToggleTheme } = useFxTheme();
   const navItems = getSidebarNavItems();
 
   function handleLogout() {
     clearAuthAndOnboardingState();
     window.dispatchEvent(new Event("fx-auth-change"));
-
-    router.replace(ROUTES.LANDING);
-    router.refresh();
+    window.location.replace(ROUTES.LANDING);
   }
 
   return (

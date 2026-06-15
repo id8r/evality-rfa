@@ -26,6 +26,7 @@ import {
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/sheet";
 import { ROUTES, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
+import { normalizeJobRecord } from "@/lib/FxJobSchema";
 import {
   findStoredCandidatesByJob,
   findStoredJob,
@@ -67,29 +68,7 @@ const EMPTY_STAGE_COPY = {
 };
 
 function normalizeJob(job) {
-  if (!job) {
-    return null;
-  }
-
-  const data = job.data ?? {};
-
-  return {
-    ...job,
-    status: job.status === "Published" ? "Published" : "Draft",
-    positions: Number(job.positions) || 1,
-    unscreenedCount: Number(job.unscreenedCount) || 0,
-    screenedCount: Number(job.preScreenedCount ?? job.screenedCount) || 0,
-    shortlistedCount: Number(job.shortlistedCount) || 0,
-    sharedCount: Number(job.sentToClientCount ?? job.sharedCount) || 0,
-    client: job.client ?? job.company ?? data.client ?? "",
-    domain: job.domain ?? data.domain ?? "Engineering",
-    department: job.department ?? data.department ?? "Engineering",
-    employmentType: job.employmentType ?? data.employmentType ?? "Full-time",
-    salaryRange: job.salaryRange ?? data.salaryRange ?? "—",
-    priority: job.priority ?? data.priority ?? "Medium",
-    questionFormat: job.questionFormat ?? data.questionFormat ?? "CV + AI pre-screening",
-    publishDate: job.publishDate ?? data.publishDate ?? null,
-  };
+  return normalizeJobRecord(job);
 }
 
 function normalizeCandidate(candidate, job) {
@@ -97,12 +76,25 @@ function normalizeCandidate(candidate, job) {
     return null;
   }
 
+  const trustScore =
+    candidate.trustScore ||
+    (candidate.status === "shared" || candidate.status === "shortlisted"
+      ? "High"
+      : candidate.status === "screened"
+        ? "Medium"
+        : candidate.status === "rejected"
+          ? "Low"
+          : job?.status === "Published"
+            ? "Medium"
+            : "Low");
+
   return {
     ...candidate,
     jobId: candidate.jobId ?? job?.id ?? null,
     jobTitle: candidate.jobTitle ?? job?.title ?? "",
-    client: candidate.client ?? job?.company ?? "",
+    client: candidate.client ?? job?.client ?? job?.company ?? "",
     status: candidate.status ?? "unscreened",
+    trustScore,
     matchScore: candidate.matchScore != null ? Number(candidate.matchScore) : null,
     availabilityDays: candidate.availabilityDays != null ? Number(candidate.availabilityDays) : null,
     currentSalary: candidate.currentSalary != null ? Number(candidate.currentSalary) : null,
@@ -499,12 +491,18 @@ export default function JobDetailsPage({ params }) {
     {
       key: "name",
       label: "Candidate Name",
-      width: "28%",
+      width: "30%",
       cellClassName: "text-[13px] leading-[20px] font-medium",
     },
     {
       key: "matchScore",
       label: "JD Match Score",
+      width: "11%",
+      align: "center",
+    },
+    {
+      key: "trustScore",
+      label: "Trust Score",
       width: "11%",
       align: "center",
     },
@@ -523,42 +521,33 @@ export default function JobDetailsPage({ params }) {
     {
       key: "currentSalary",
       label: "Current Salary",
-      width: "14%",
+      width: "12%",
       align: "right",
     },
     {
       key: "expectedSalary",
       label: "Expectation",
-      width: "14%",
+      width: "12%",
       align: "right",
     },
     {
-      key: "source",
-      label: "Source",
-      width: "11%",
-    },
-    {
       key: "actions",
-      label: "Actions",
-      width: "2%",
+      label: null,
+      width: "52px",
       align: "center",
+      cellClassName: "px-0 pr-[2px]",
     },
   ];
 
   const rows = filteredCandidates.map((candidate) => ({
     id: candidate.id,
     name: (
-      <div className="flex min-w-0 flex-col gap-[2px]">
-        <Link
-          href={ROUTES.CANDIDATE(candidate.id)}
-          className="block truncate text-[13px] leading-[20px] font-medium text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
-        >
-          {candidate.name}
-        </Link>
-        <span className="block truncate text-[12px] leading-[18px] text-[var(--fx-text-muted)]">
-          {candidate.jobTitle || job?.title || "Candidate profile"}
-        </span>
-      </div>
+      <Link
+        href={ROUTES.CANDIDATE(candidate.id)}
+        className="block truncate text-[13px] leading-[20px] font-medium text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
+      >
+        {candidate.name}
+      </Link>
     ),
     matchScore: (
       <button
@@ -569,13 +558,26 @@ export default function JobDetailsPage({ params }) {
         {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
       </button>
     ),
+    trustScore: (
+      <span
+        className={`inline-flex min-w-[64px] items-center justify-center rounded-full px-[8px] py-[3px] text-[12px] leading-[18px] font-medium ${
+          candidate.trustScore === "High"
+            ? "bg-[color-mix(in_srgb,var(--fx-success)_14%,var(--fx-surface)_86%)] text-[var(--fx-success)]"
+            : candidate.trustScore === "Low"
+              ? "bg-[color-mix(in_srgb,var(--fx-warning)_12%,var(--fx-surface)_88%)] text-[var(--fx-warning)]"
+              : "bg-[var(--fx-bg-soft)] text-[var(--fx-text)]"
+        }`}
+      >
+        {candidate.trustScore || "—"}
+      </span>
+    ),
     interested: (
-      <span className="inline-flex min-w-[56px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+      <span className="inline-flex min-w-[56px] items-center justify-center px-[4px] py-0 text-[13px] leading-[20px] font-normal text-[var(--fx-text)]">
         {candidate.interested ?? "—"}
       </span>
     ),
     availability: (
-      <span className="inline-flex min-w-[64px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+      <span className="inline-flex min-w-[64px] items-center justify-center px-[4px] py-0 text-[13px] leading-[20px] font-normal text-[var(--fx-text)]">
         {formatAvailability(candidate.availabilityDays)}
       </span>
     ),
@@ -589,48 +591,45 @@ export default function JobDetailsPage({ params }) {
         {formatCurrency(candidate.expectedSalary)}
       </span>
     ),
-    source: (
-      <span className="block truncate text-[13px] leading-[20px] font-normal text-[var(--fx-text)]">
-        {candidate.uploadedBy || "—"}
-      </span>
-    ),
     actions: (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex size-[32px] items-center justify-center rounded-[8px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
-            aria-label={`Open actions for ${candidate.name}`}
-          >
-            <MoreHorizontal className="size-[16px]" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[220px]">
-          <DropdownMenuItem asChild>
-            <Link href={ROUTES.CANDIDATE(candidate.id)}>Open Candidate Workspace</Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={(event) => {
-              event.preventDefault();
-              handleOpenMatchAnalysis(candidate);
-            }}
-          >
-            Open Match Analysis
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={async (event) => {
-              event.preventDefault();
-              try {
-                await navigator.clipboard.writeText(candidate.email || "");
-              } catch {
-                window.prompt("Copy email", candidate.email || "");
-              }
-            }}
-          >
-            Copy Email
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex justify-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex size-[32px] items-center justify-center rounded-[8px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+              aria-label={`Open actions for ${candidate.name}`}
+            >
+              <MoreHorizontal className="size-[16px]" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[220px]">
+            <DropdownMenuItem asChild>
+              <Link href={ROUTES.CANDIDATE(candidate.id)}>Open Candidate Workspace</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                handleOpenMatchAnalysis(candidate);
+              }}
+            >
+              Open Match Analysis
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={async (event) => {
+                event.preventDefault();
+                try {
+                  await navigator.clipboard.writeText(candidate.email || "");
+                } catch {
+                  window.prompt("Copy email", candidate.email || "");
+                }
+              }}
+            >
+              Copy Email
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     ),
   }));
 
@@ -724,10 +723,12 @@ export default function JobDetailsPage({ params }) {
                   }))}
                   active={activeStage}
                   onChange={handleStageChange}
-                  className="w-full justify-start"
+                  className="flex-1 justify-start"
+                  showUnderline
+                  showBorder={false}
                 />
 
-                <div className="w-full max-w-[360px]">
+                <div className="w-full max-w-[256px] shrink-0">
                   <div className={`flex h-[40px] items-center rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-text)_18%,var(--fx-border)_82%)] bg-[var(--fx-bg)] px-[16px]`}>
                     <input
                       ref={searchRef}
@@ -761,6 +762,11 @@ export default function JobDetailsPage({ params }) {
                     columns={tableColumns}
                     rows={rows}
                     stickyHeader
+                    stickyFirstColumn
+                    stickyLastColumn
+                    scrollX
+                    minTableWidth="980px"
+                    density="compact"
                     emptyMessage="No candidates in this stage yet."
                   />
                 ) : (

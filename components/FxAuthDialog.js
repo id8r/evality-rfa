@@ -1,8 +1,4 @@
-/*
-components/FxAuthDialog.js | Unified auth dialog with welcome flow | Sree | 2026-06-10
-*/
-
-/* - - - - - - - - - - - - - - - - */
+/* components/FxAuthDialog.js | Unified auth dialog with welcome flow | Sree | 2026-06-10 */
 
 "use client";
 
@@ -22,6 +18,7 @@ import { ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_SURFACE, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { AUTH_COPY, LANDING_COPY } from "@/lib/FxCopy";
 import { writeStoredValue } from "@/lib/FxUtils";
+/* - - - - - - - - - - - - - - - - */
 
 function GoogleIcon() {
   return (
@@ -45,6 +42,7 @@ function GoogleIcon() {
     </svg>
   );
 }
+/* - - - - - - - - - - - - - - - - */
 
 function LinkedInIcon() {
   return (
@@ -56,11 +54,13 @@ function LinkedInIcon() {
     </svg>
   );
 }
+/* - - - - - - - - - - - - - - - - */
 
 const AUTH_ICONS = {
   google: <GoogleIcon />,
   linkedin: <LinkedInIcon />,
 };
+/* - - - - - - - - - - - - - - - - */
 
 export function FxAuthDialog({
   defaultOpen = false,
@@ -185,5 +185,4 @@ export function FxAuthDialog({
     </>
   );
 }
-
 /* - - - - - - - - - - - - - - - - */

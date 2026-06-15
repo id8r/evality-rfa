@@ -3,27 +3,32 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   ArrowRight,
   ArrowUpDown,
   Archive,
   ListChecks,
-  Mail,
   MoreHorizontal,
   Plus,
   RefreshCcw,
   Sparkles,
   Trash2,
+  Upload,
   WandSparkles,
 } from "lucide-react";
 
 import { FxButton } from "@/components/FxButton";
 import { FxAiButton } from "@/components/FxAiButton";
+import { FxCreatableSelect } from "@/components/FxCreatableSelect";
+import { FX_FIELD_STATES } from "@/components/FxFieldState";
 import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
+import { FxRichTextEditor } from "@/components/FxRichTextEditor";
+import { FxSelect } from "@/components/FxSelect";
+import { FxTagInput } from "@/components/FxTagInput";
 import { FxTable } from "@/components/FxTable";
+import { showWarning } from "@/components/FxToast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,19 +56,30 @@ import {
 import { ROUTES } from "@/lib/FxConstants";
 import { WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
+import {
+  createEmptyJobForm as createJobEmptyForm,
+  createJobFormFromJob as createJobFormFromSchema,
+  DEFAULT_JOB_QUESTION_SUGGESTIONS,
+  DEFAULT_JOB_SHEET_ROUNDS,
+  normalizeJobRecord,
+  serializeJobFormToRecord,
+  validateJobForm,
+} from "@/lib/FxJobSchema";
 import { fxButtonClassName } from "@/components/FxButton";
 import {
   createJobId,
-  clearAllStoredState,
   ensureJobsStore,
+  readStoredCollection,
   readStoredWorkspaceType,
   readStoredJobsPageState,
   readStoredJobsViewMode,
+  resetDemoStore,
   upsertStoredJob,
   writeStoredJobs,
   writeStoredJobsPageState,
   writeStoredJobsViewMode,
 } from "@/lib/FxStore";
+import { STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
 const DEFAULT_PAGE_STATE = {
@@ -83,127 +99,6 @@ const JOB_SHEET_STEPS = [
   { value: "benefits", label: "Benefits" },
   { value: "settings", label: "Settings" },
 ];
-
-const DEFAULT_QUESTION_SUGGESTIONS = [
-  {
-    id: "availability",
-    label: "Availability",
-    question: "How soon can you join?",
-    note: "Capture near-term readiness quickly.",
-  },
-  {
-    id: "authorization",
-    label: "Work Authorization",
-    question: "Do you need visa sponsorship or work authorization support?",
-    note: "Keep this only when relevant for the role.",
-  },
-  {
-    id: "salary",
-    label: "Current Salary",
-    question: "What is your current salary range?",
-    note: "Use only when compensation alignment matters.",
-  },
-  {
-    id: "notice",
-    label: "Notice Period",
-    question: "What is your current notice period?",
-    note: "Useful for prioritizing candidates in motion.",
-  },
-];
-
-const DEFAULT_EVALUATION_ROUNDS = [
-  {
-    id: "round-1",
-    title: "Round 1",
-    details: "Technical screen",
-    note: "Confirm role-fit and baseline depth.",
-  },
-  {
-    id: "round-2",
-    title: "Round 2",
-    details: "Hiring manager review",
-    note: "Validate scope, collaboration, and pace.",
-  },
-  {
-    id: "round-3",
-    title: "Round 3",
-    details: "Final decision",
-    note: "Close the loop and decide next steps.",
-  },
-];
-
-function normalizeJob(job) {
-  const data = job.data ?? {};
-
-  return {
-    ...job,
-    status: job.status === "Published" ? "Published" : "Draft",
-    positions: Number(job.positions) || 1,
-    unscreenedCount: Number(job.unscreenedCount) || 0,
-    screenedCount: Number(job.preScreenedCount ?? job.screenedCount) || 0,
-    shortlistedCount: Number(job.shortlistedCount) || 0,
-    sharedCount: Number(job.sentToClientCount ?? job.sharedCount) || 0,
-    createdBy: job.createdBy ?? "John Doe",
-    updatedBy: job.updatedBy ?? "John Doe",
-    data: {
-      ...data,
-      jobTitle: data.jobTitle ?? job.title ?? "",
-      jobDescription: data.jobDescription ?? "",
-      primarySkills: data.primarySkills ?? [],
-      secondarySkills: data.secondarySkills ?? [],
-      responsibilities: data.responsibilities ?? "",
-      evaluationContext: data.evaluationContext ?? "",
-      evaluationRounds: data.evaluationRounds ?? [],
-      questionFormat: data.questionFormat ?? "cv_and_prescreen",
-      questions: data.questions ?? [],
-      benefits: data.benefits ?? [],
-      preScreeningMode: data.preScreeningMode ?? "call_with_email_backup",
-      callingBackup: data.callingBackup ?? "email",
-      backupNotes: data.backupNotes ?? "",
-      aiPrompt: data.aiPrompt ?? "",
-    },
-  };
-}
-
-function createQuestionSeed(question, fallbackId = "question") {
-  if (!question || typeof question === "string") {
-    return {
-      id: fallbackId,
-      label: "Question",
-      question: question ?? "",
-      note: "",
-    };
-  }
-
-  return {
-    ...question,
-    id: question.id ?? fallbackId,
-  };
-}
-
-function createRoundSeed(round, fallbackId = "round") {
-  if (!round || typeof round === "string") {
-    return {
-      id: fallbackId,
-      title: "Round",
-      details: round ?? "",
-      note: "",
-    };
-  }
-
-  return {
-    ...round,
-    id: round.id ?? fallbackId,
-  };
-}
-
-function createDefaultQuestions() {
-  return DEFAULT_QUESTION_SUGGESTIONS.map((question) => createQuestionSeed(question, question.id));
-}
-
-function createDefaultRounds() {
-  return DEFAULT_EVALUATION_ROUNDS.map((round) => createRoundSeed(round, round.id));
-}
 
 function toCommaList(value) {
   if (Array.isArray(value)) {
@@ -225,27 +120,7 @@ function fromCommaList(value) {
 }
 
 function createEmptyJobForm() {
-  return {
-    title: "",
-    company: "",
-    positions: "1",
-    location: "",
-    experience: "",
-    status: "Draft",
-    aiPrompt: "",
-    jobDescription: "",
-    primarySkills: "",
-    secondarySkills: "",
-    responsibilities: "",
-    evaluationContext: "",
-    evaluationRounds: createDefaultRounds(),
-    questionFormat: "cv_and_prescreen",
-    questions: createDefaultQuestions(),
-    benefitsSummary: "",
-    preScreeningMode: "call_with_email_backup",
-    callingBackup: "email",
-    backupNotes: "",
-  };
+  return createJobEmptyForm();
 }
 
 const EMPTY_JOB_FORM = createEmptyJobForm();
@@ -269,40 +144,17 @@ function createRoundItem(title, details, note) {
 }
 
 function createFormFromJob(job) {
-  if (!job) {
-    return createEmptyJobForm();
-  }
+  return createJobFormFromSchema(job);
+}
 
-  const data = job.data ?? {};
+const EMPLOYMENT_TYPE_OPTIONS = ["Full-time", "Part-time", "Contract", "Internship"];
+const WORKPLACE_TYPE_OPTIONS = ["Remote", "Hybrid", "On-site"];
+const CURRENCY_OPTIONS = ["INR", "USD", "EUR"];
+const BASIC_FORM_FIELD_STACK_CLASS = "gap-[8px]";
+const BASIC_FORM_CONTROL_CLASS = "min-h-[48px]";
 
-  return {
-    ...createEmptyJobForm(),
-    title: job.title ?? "",
-    company: job.company ?? "",
-    positions: String(job.positions ?? 1),
-    location: job.location ?? "",
-    experience: job.experience ?? "",
-    status: job.status === "Published" ? "Published" : "Draft",
-    aiPrompt: data.aiPrompt ?? "",
-    jobDescription: data.jobDescription ?? "",
-    primarySkills: toCommaList(data.primarySkills),
-    secondarySkills: toCommaList(data.secondarySkills),
-    responsibilities: data.responsibilities ?? "",
-    evaluationContext: data.evaluationContext ?? "",
-    evaluationRounds:
-      Array.isArray(data.evaluationRounds) && data.evaluationRounds.length
-        ? data.evaluationRounds.map((round, index) => createRoundSeed(round, round.id ?? `round-${index + 1}`))
-        : createDefaultRounds(),
-    questionFormat: data.questionFormat ?? "cv_and_prescreen",
-    questions:
-      Array.isArray(data.questions) && data.questions.length
-        ? data.questions.map((question, index) => createQuestionSeed(question, question.id ?? `question-${index + 1}`))
-        : createDefaultQuestions(),
-    benefitsSummary: toCommaList(data.benefits),
-    preScreeningMode: data.preScreeningMode ?? "call_with_email_backup",
-    callingBackup: data.callingBackup ?? "email",
-    backupNotes: data.backupNotes ?? "",
-  };
+function toCreatableOptions(values) {
+  return values.map((value) => ({ value, label: value }));
 }
 
 function formatRelativeTime(value) {
@@ -349,7 +201,6 @@ function subscribeToWorkspaceTypeChange(onStoreChange) {
 }
 
 export default function JobsPage() {
-  const router = useRouter();
   const initialPageState = readStoredJobsPageState() ?? DEFAULT_PAGE_STATE;
   const [jobsViewMode, setJobsViewMode] = useState(() => {
     const storedViewMode = readStoredJobsViewMode();
@@ -359,13 +210,12 @@ export default function JobsPage() {
   const [editingJob, setEditingJob] = useState(null);
   const [jobForm, setJobForm] = useState(EMPTY_JOB_FORM);
   const [activeSheetStep, setActiveSheetStep] = useState("basic");
-  const [isAiPromptExpanded, setIsAiPromptExpanded] = useState(false);
-  const [formError, setFormError] = useState("");
+  const [validationErrors, setValidationErrors] = useState({});
   const [pendingAction, setPendingAction] = useState(null);
   const [searchTerm, setSearchTerm] = useState(initialPageState.searchTerm ?? DEFAULT_PAGE_STATE.searchTerm);
   const [selectedTab, setSelectedTab] = useState(initialPageState.selectedTab ?? DEFAULT_PAGE_STATE.selectedTab);
   const [sortConfig, setSortConfig] = useState(initialPageState.sortConfig ?? DEFAULT_PAGE_STATE.sortConfig);
-  const [jobs, setJobs] = useState(() => ensureJobsStore().map(normalizeJob));
+  const [jobs, setJobs] = useState(() => ensureJobsStore().map(normalizeJobRecord).filter(Boolean));
   const searchInputRef = useRef(null);
   const tableSurfaceRef = useRef(null);
   const handledEditJobIdRef = useRef(null);
@@ -373,6 +223,34 @@ export default function JobsPage() {
   const isJobFormDirty = JSON.stringify(jobForm) !== JSON.stringify(baselineJobForm);
   const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
   const showClientInfo = workspaceType === WORKSPACE_TYPES.CLIENTS || workspaceType === WORKSPACE_TYPES.BOTH;
+  const clientOptions = useMemo(() => {
+    const storedClients = readStoredCollection(STORAGE_KEYS.CLIENTS) ?? [];
+    return storedClients.map((client) => ({ value: client.name ?? client.company ?? client.label ?? "", label: client.name ?? client.company ?? client.label ?? "" })).filter((option) => option.value);
+  }, []);
+  const assigneeOptions = useMemo(() => {
+    const storedRecruiters = readStoredCollection(STORAGE_KEYS.RECRUITERS) ?? [];
+    const normalized = storedRecruiters.map((recruiter) => ({ value: recruiter.name ?? recruiter.label ?? "", label: recruiter.name ?? recruiter.label ?? "" })).filter((option) => option.value);
+    return normalized.length ? normalized : toCreatableOptions(["John Doe", "Ayush Singh"]);
+  }, []);
+  const jobLocationType = String(jobForm.workplaceType || "").toLowerCase();
+  const isRemote = jobLocationType === "remote";
+  const isCityRequired = !isRemote;
+  const fieldState = (fieldName) => (validationErrors[fieldName] ? FX_FIELD_STATES.ERROR : FX_FIELD_STATES.DEFAULT);
+  const clearValidationErrors = (...fieldNames) => {
+    setValidationErrors((current) => {
+      const cleanedFields = fieldNames.filter(Boolean);
+
+      if (!cleanedFields.length) {
+        return current;
+      }
+
+      const nextErrors = { ...current };
+      cleanedFields.forEach((fieldName) => {
+        delete nextErrors[fieldName];
+      });
+      return nextErrors;
+    });
+  };
 
   useEffect(() => {
     const syncJobsViewMode = () => {
@@ -459,22 +337,17 @@ export default function JobsPage() {
   }, [searchTerm]);
 
   function persistJobs(nextJobs) {
-    setJobs(nextJobs);
-    writeStoredJobs(
-      nextJobs.map((job) => ({
-        ...job,
-        preScreenedCount: job.screenedCount,
-        sentToClientCount: job.sharedCount,
-      })),
-    );
+    const normalizedJobs = nextJobs.map((job) => normalizeJobRecord(job)).filter(Boolean);
+
+    setJobs(normalizedJobs);
+    writeStoredJobs(normalizedJobs);
   }
 
   function handleCreateJob() {
     setEditingJob(null);
     setJobForm(createEmptyJobForm());
     setActiveSheetStep("basic");
-    setIsAiPromptExpanded(false);
-    setFormError("");
+    setValidationErrors({});
     setIsSheetOpen(true);
   }
 
@@ -482,8 +355,7 @@ export default function JobsPage() {
     setEditingJob(job);
     setJobForm(createFormFromJob(job));
     setActiveSheetStep("basic");
-    setIsAiPromptExpanded(false);
-    setFormError("");
+    setValidationErrors({});
     setIsSheetOpen(true);
   }
 
@@ -504,8 +376,7 @@ export default function JobsPage() {
     setEditingJob(null);
     setJobForm(createEmptyJobForm());
     setActiveSheetStep("basic");
-    setIsAiPromptExpanded(false);
-    setFormError("");
+    setValidationErrors({});
     setPendingAction(null);
   }
 
@@ -568,6 +439,16 @@ export default function JobsPage() {
       ...current,
       [name]: value,
     }));
+    clearValidationErrors(name);
+  }
+
+  function handleSelectFieldChange(name, value) {
+    setJobForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+
+    clearValidationErrors(name, name === "workplaceType" ? "city" : null, name === "workplaceType" ? "locality" : null);
   }
 
   function updateQuestion(questionId, field, value) {
@@ -616,29 +497,9 @@ export default function JobsPage() {
     }));
   }
 
-  function autofillBasicDetails() {
-    const title = jobForm.title.trim() || "the role";
-    const client = showClientInfo ? jobForm.company.trim() : "";
-
-    setJobForm((current) => ({
-      ...current,
-      jobDescription:
-        current.jobDescription ||
-        `We are hiring for ${client ? `${title} at ${client}` : title}. The role should support a practical, AI-assisted recruiting flow without unnecessary ATS overhead.`,
-      primarySkills: current.primarySkills || "Communication, Collaboration, Structured Screening",
-      secondarySkills: current.secondarySkills || "Candidate Experience, Workflow Coordination, Hiring Ops",
-      responsibilities:
-        current.responsibilities ||
-        `Support ${client ? `${title} hiring for ${client}` : title} by keeping screening context current, coordinating evaluations, and helping the hiring team move quickly.`,
-      evaluationContext:
-        current.evaluationContext ||
-        `Use concise role context for ${client ? `${title} at ${client}` : title} so the AI can screen for practical fit and generate better candidate follow-ups.`,
-    }));
-  }
-
   function autofillJobDescription() {
     const title = jobForm.title.trim() || "the role";
-    const client = showClientInfo ? jobForm.company.trim() : "";
+    const client = showClientInfo ? jobForm.client.trim() : "";
 
     setJobForm((current) => ({
       ...current,
@@ -655,7 +516,7 @@ export default function JobsPage() {
 
   function autofillEvaluation() {
     const title = jobForm.title.trim() || "the role";
-    const client = showClientInfo ? jobForm.company.trim() : "";
+    const client = showClientInfo ? jobForm.client.trim() : "";
 
     setJobForm((current) => ({
       ...current,
@@ -686,7 +547,7 @@ export default function JobsPage() {
           return current.questions;
         }
 
-        return [...current.questions, createQuestionSeed(nextSuggestion)];
+        return [...current.questions, createQuestionItem(nextSuggestion.label, nextSuggestion.question, nextSuggestion.note)];
       })(),
     }));
   }
@@ -711,89 +572,35 @@ export default function JobsPage() {
     }));
   }
 
-  function buildGeneratedJobContent(form, includeClientInfo) {
-    const title = form.title.trim();
-    const client = includeClientInfo ? form.company.trim() : "";
-    const roleContext = client ? `${title} at ${client}` : title;
-
-    return {
-      aiPrompt: form.aiPrompt.trim(),
-      jobDescription:
-        form.jobDescription.trim() ||
-        `We are hiring for ${roleContext}. The role should support a practical, AI-assisted recruiting flow without unnecessary ATS overhead.`,
-      primarySkills: form.primarySkills.trim() || "Communication, Collaboration, Structured Screening",
-      secondarySkills: form.secondarySkills.trim() || "Candidate Experience, Workflow Coordination, Hiring Ops",
-      responsibilities:
-        form.responsibilities.trim() ||
-        `Support ${roleContext} by keeping screening context current, coordinating evaluations, and helping the hiring team move quickly.`,
-      evaluationContext:
-        form.evaluationContext.trim() ||
-        `Use concise role context for ${roleContext} so the AI can screen for practical fit and generate better candidate follow-ups.`,
-      evaluationRounds: form.evaluationRounds.length ? form.evaluationRounds : createDefaultRounds(),
-      questionFormat: form.questionFormat || "cv_and_prescreen",
-      questions: form.questions.length ? form.questions : createDefaultQuestions(),
-      benefitsSummary:
-        form.benefitsSummary.trim() ||
-        `Candidates for ${title || "the role"} can expect a clear process, responsive feedback, and practical conversations focused on fit.`,
-      preScreeningMode: form.preScreeningMode || "call_with_email_backup",
-      callingBackup: form.callingBackup || "email",
-      backupNotes: form.backupNotes || "If a call fails, fall back to email and keep the candidate moving.",
-      interviewRounds: form.evaluationRounds.length ? form.evaluationRounds : createDefaultRounds(),
-    };
-  }
-
   function commitJob(nextStatus = jobForm.status) {
-    const title = jobForm.title.trim();
-    const company = jobForm.company.trim();
+    const validation = validateJobForm(jobForm, { includeClientInfo: showClientInfo });
 
-    if (!title || (showClientInfo && !company)) {
-      setFormError(showClientInfo ? "Job title and client are required." : "Job title is required.");
+    if (!validation.valid) {
+      setValidationErrors(validation.errors);
+      setActiveSheetStep("basic");
       return;
     }
 
-    const generatedContent = buildGeneratedJobContent(jobForm, showClientInfo);
-    const nextJob = normalizeJob(
-      upsertStoredJob({
-        id: editingJob?.id ?? createJobId(),
-        title,
-        company: showClientInfo ? company : editingJob?.company ?? "",
-        positions: Math.max(1, Number(jobForm.positions) || 1),
-        location: jobForm.location.trim(),
-        experience: jobForm.experience.trim(),
+    const nextJob = serializeJobFormToRecord({
+      form: {
+        ...jobForm,
         status: nextStatus === "Published" ? "Published" : "Draft",
-        isArchived: editingJob?.isArchived ?? false,
-        unscreenedCount: editingJob?.unscreenedCount ?? 0,
-        preScreenedCount: editingJob?.screenedCount ?? 0,
-        shortlistedCount: editingJob?.shortlistedCount ?? 0,
-        sentToClientCount: editingJob?.sharedCount ?? 0,
-        createdBy: editingJob?.createdBy ?? "John Doe",
-        updatedBy: "John Doe",
-        data: {
-          ...(editingJob?.data ?? {}),
-          jobTitle: title,
-          aiPrompt: generatedContent.aiPrompt,
-          jobDescription: generatedContent.jobDescription,
-          primarySkills: generatedContent.primarySkills,
-          secondarySkills: generatedContent.secondarySkills,
-          responsibilities: generatedContent.responsibilities,
-          evaluationContext: generatedContent.evaluationContext,
-          evaluationRounds: generatedContent.evaluationRounds,
-          questionFormat: generatedContent.questionFormat,
-          questions: generatedContent.questions,
-          benefits: fromCommaList(generatedContent.benefitsSummary),
-          preScreeningMode: generatedContent.preScreeningMode,
-          callingBackup: generatedContent.callingBackup,
-          backupNotes: generatedContent.backupNotes,
-          interviewRounds: generatedContent.interviewRounds,
-        },
-      }),
-    );
+      },
+      existingJob: editingJob,
+      includeClientInfo: showClientInfo,
+      updatedBy: "John Doe",
+    });
+
+    const storedJob = upsertStoredJob({
+      ...nextJob,
+      id: editingJob?.id ?? createJobId(),
+    });
 
     setJobs((currentJobs) => {
-      const exists = currentJobs.some((job) => job.id === nextJob.id);
+      const exists = currentJobs.some((job) => job.id === storedJob.id);
       return exists
-        ? currentJobs.map((job) => (job.id === nextJob.id ? nextJob : job))
-        : [nextJob, ...currentJobs];
+        ? currentJobs.map((job) => (job.id === storedJob.id ? storedJob : job))
+        : [storedJob, ...currentJobs];
     });
     resetJobSheetState();
   }
@@ -809,6 +616,46 @@ export default function JobsPage() {
 
   function handlePublishJob() {
     commitJob("Published");
+  }
+
+  function validateBasicDetailsStep() {
+    const validation = validateJobForm(jobForm, { includeClientInfo: showClientInfo });
+    const relevantFields = ["title", "experience", "employmentType", "workplaceType", "positions"];
+
+    if (isCityRequired) {
+      relevantFields.push("city");
+    }
+
+    if (showClientInfo) {
+      relevantFields.push("client");
+    }
+
+    const nextErrors = Object.fromEntries(
+      Object.entries(validation.errors).filter(([fieldName]) => relevantFields.includes(fieldName)),
+    );
+
+    if (!Object.keys(nextErrors).length) {
+      return true;
+    }
+
+    setValidationErrors((current) => ({
+      ...current,
+      ...nextErrors,
+    }));
+    showWarning("Complete basic details", "Fill the required fields before moving to the next step.");
+    return false;
+  }
+
+  function canLeaveCurrentStep(nextStep) {
+    if (activeSheetStep === nextStep) {
+      return true;
+    }
+
+    if (activeSheetStep === "basic" && nextStep !== "basic") {
+      return validateBasicDetailsStep();
+    }
+
+    return true;
   }
 
   function getSheetStepTabClassName(step) {
@@ -852,6 +699,49 @@ export default function JobsPage() {
     );
   }
 
+  function handleGenerateBasicDetails() {}
+
+  const sheetSummaryLocation = isRemote
+    ? "Remote"
+    : [jobForm.locality, jobForm.city].filter(Boolean).join(", ") || "—";
+  const sheetSummaryItems = [
+    { label: "Job Title", value: jobForm.title || "New Job" },
+    ...(showClientInfo ? [{ label: "Client", value: jobForm.client || "—" }] : []),
+    { label: "Experience", value: jobForm.experience || "—" },
+    { label: "Employment Type", value: jobForm.employmentType || "—" },
+    { label: "Workplace Type", value: jobForm.workplaceType || "—" },
+    { label: "Location", value: sheetSummaryLocation },
+    { label: "Status", value: editingJob?.status ?? "Draft" },
+    { label: "Positions", value: jobForm.positions || "1" },
+  ];
+
+  const currentSheetStepIndex = JOB_SHEET_STEPS.findIndex((step) => step.value === activeSheetStep);
+  const hasPreviousSheetStep = currentSheetStepIndex > 0;
+  const hasNextSheetStep = currentSheetStepIndex >= 0 && currentSheetStepIndex < JOB_SHEET_STEPS.length - 1;
+
+  function handlePreviousSheetStep() {
+    if (!hasPreviousSheetStep) {
+      requestSheetClose();
+      return;
+    }
+
+    setActiveSheetStep(JOB_SHEET_STEPS[currentSheetStepIndex - 1].value);
+  }
+
+  function handleNextSheetStep() {
+    if (!hasNextSheetStep) {
+      return;
+    }
+
+    const nextStep = JOB_SHEET_STEPS[currentSheetStepIndex + 1].value;
+
+    if (!canLeaveCurrentStep(nextStep)) {
+      return;
+    }
+
+    setActiveSheetStep(nextStep);
+  }
+
   const filteredJobs = useMemo(() => {
     let nextJobs = jobs;
 
@@ -860,7 +750,7 @@ export default function JobsPage() {
     if (searchTerm.trim()) {
       const query = searchTerm.trim().toLowerCase();
       nextJobs = nextJobs.filter((job) =>
-        [job.title, job.company, job.location].some((value) => value.toLowerCase().includes(query)),
+        [job.title, job.client, job.location].some((value) => value.toLowerCase().includes(query)),
       );
     }
 
@@ -887,12 +777,21 @@ export default function JobsPage() {
   const activeCount = useMemo(() => jobs.filter((job) => !job.isArchived).length, [jobs]);
   const archivedCount = useMemo(() => jobs.filter((job) => job.isArchived).length, [jobs]);
   const showArchivedEmptyState = selectedTab === "archived" && archivedCount === 0;
+  const showJobsEmptyState = selectedTab === "active" && jobs.length === 0 && !searchTerm.trim();
 
   function handleResetDemoData() {
-    clearAllStoredState();
-    window.dispatchEvent(new Event("fx-auth-change"));
-    router.replace(ROUTES.LANDING);
-    router.refresh();
+    resetDemoStore();
+    setJobs(ensureJobsStore());
+    setSearchTerm("");
+    setSelectedTab("active");
+    setSortConfig(DEFAULT_PAGE_STATE.sortConfig);
+    setJobsViewMode(DEFAULT_JOBS_VIEW_MODE);
+    setEditingJob(null);
+    setJobForm(EMPTY_JOB_FORM);
+    setActiveSheetStep("basic");
+    setIsAiPromptExpanded(false);
+    setIsBasicDetailsGenerated(false);
+    setValidationErrors({});
   }
 
   function getJobWorkspaceHref(jobId, tab = "unscreened") {
@@ -918,9 +817,9 @@ export default function JobsPage() {
     ...(showClientInfo
       ? [
           {
-            key: "company",
+            key: "client",
             label: (
-              <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("company")}>
+              <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("client")}>
                 <span>Client</span>
                 <ArrowUpDown className="size-[14px]" />
               </button>
@@ -1051,7 +950,7 @@ export default function JobsPage() {
         )}
       </div>
     ),
-    company: <span className={`block truncate ${FX_TYPOGRAPHY.tableCell}`}>{job.company}</span>,
+    client: <span className={`block truncate ${FX_TYPOGRAPHY.tableCell}`}>{job.client}</span>,
     positions: <span className={FX_TYPOGRAPHY.tableCell}>{job.positions}</span>,
     location: <span className={`block truncate ${FX_TYPOGRAPHY.tableCell}`}>{job.location}</span>,
     unscreenedCount: renderPipelineCell(job.unscreenedCount, "Unscreened", getJobWorkspaceHref(job.id, "unscreened")),
@@ -1182,7 +1081,7 @@ export default function JobsPage() {
                 </div>
               </div>
             ) : null}
-            {jobsViewMode === "empty" ? (
+            {showJobsEmptyState || jobsViewMode === "empty" ? (
               <div className={`flex h-full min-h-0 items-center justify-center border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)] px-[24px] py-[24px]`}>
                 <div className="max-w-[420px] space-y-[16px] text-center">
                   <div className="mx-auto flex size-[44px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] text-[var(--fx-primary)]">
@@ -1200,7 +1099,16 @@ export default function JobsPage() {
                 </div>
               </div>
             ) : !showArchivedEmptyState ? (
-              <FxTable columns={columns} rows={rows} stickyHeader emptyMessage={PAGE_COPY.jobs.tableEmpty} />
+              <FxTable
+                columns={columns}
+                rows={rows}
+                stickyHeader
+                stickyFirstColumn
+                stickyLastColumn
+                scrollX
+                minTableWidth="1040px"
+                emptyMessage={PAGE_COPY.jobs.tableEmpty}
+              />
             ) : null}
           </div>
         </div>
@@ -1236,11 +1144,34 @@ export default function JobsPage() {
         <SheetContent size="xl">
           <SheetHeader
             title={editingJob ? PAGE_COPY.jobs.editCta : PAGE_COPY.jobs.createCta}
-            description={null}
+            actions={(
+              <>
+                <FxButton
+                  type="button"
+                  variant="ghost"
+                  className="text-[var(--fx-text-muted)] hover:bg-transparent hover:text-[var(--fx-text)]"
+                  onClick={handleSaveDraft}
+                >
+                  Save as Draft
+                </FxButton>
+                <FxButton type="button" onClick={handlePublishJob}>
+                  Publish
+                </FxButton>
+              </>
+            )}
           />
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmitJob}>
             <SheetBody className="space-y-[24px]">
+              <div className={`grid gap-[20px] rounded-[20px] border border-[color:color-mix(in_srgb,var(--fx-primary)_24%,var(--fx-border)_76%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_4%,var(--fx-surface)_96%)] p-[20px] md:grid-cols-2 xl:grid-cols-4`}>
+                {sheetSummaryItems.map((item) => (
+                  <div key={item.label} className="space-y-[6px]">
+                    <p className={`${FX_TYPOGRAPHY.metaLabel} font-normal text-[var(--fx-text-muted)]`}>{item.label}</p>
+                    <p className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{item.value}</p>
+                  </div>
+                ))}
+              </div>
+
               <div className="border-b border-[var(--fx-border)]">
                 <div className="flex gap-[24px] overflow-x-auto">
                   {JOB_SHEET_STEPS.map((step) => (
@@ -1248,7 +1179,13 @@ export default function JobsPage() {
                       key={step.value}
                       type="button"
                       className={getSheetStepTabClassName(step.value)}
-                      onClick={() => setActiveSheetStep(step.value)}
+                      onClick={() => {
+                        if (!canLeaveCurrentStep(step.value)) {
+                          return;
+                        }
+
+                        setActiveSheetStep(step.value);
+                      }}
                     >
                       {step.label}
                       {activeSheetStep === step.value ? (
@@ -1261,149 +1198,286 @@ export default function JobsPage() {
 
               {activeSheetStep === "basic" ? (
                 <section className="space-y-[16px]">
-                  {renderSectionHeader(
-                    "Basic Details",
-                    null,
-                    <FxAiButton onClick={autofillBasicDetails}>
-                      Generate Basics
-                    </FxAiButton>,
-                  )}
-                  <div className="grid gap-[16px] md:grid-cols-2">
-                    <FxInput
-                      name="title"
-                      label="Job Title"
-                      placeholder="Senior Frontend Engineer"
-                      value={jobForm.title}
-                      onChange={handleJobFormChange}
-                    />
-                    {showClientInfo ? (
-                      <FxInput
-                        name="company"
-                        label="Client"
-                        placeholder="ThinkJS"
-                        value={jobForm.company}
-                        onChange={handleJobFormChange}
-                      />
-                    ) : null}
-                    <FxInput
-                      name="positions"
-                      label="Positions"
-                      min="1"
-                      type="number"
-                      value={jobForm.positions}
-                      onChange={handleJobFormChange}
-                    />
-                    <label className="flex w-full flex-col gap-[8px]" htmlFor="status">
-                      <span className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>Status</span>
-                      <select
-                        id="status"
-                        name="status"
-                        className={`min-h-[40px] w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-[8px] ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
-                        value={jobForm.status}
-                        onChange={handleJobFormChange}
-                      >
-                        <option value="Draft">Draft</option>
-                        <option value="Published">Published</option>
-                      </select>
-                    </label>
-                    <FxInput
-                      name="location"
-                      label="Location"
-                      placeholder="HSR Layout, Bengaluru"
-                      value={jobForm.location}
-                      onChange={handleJobFormChange}
-                    />
-                    <FxInput
-                      name="experience"
-                      label="Experience"
-                      placeholder="3 - 5 yrs"
-                      value={jobForm.experience}
-                      onChange={handleJobFormChange}
-                    />
+                  <div className="rounded-[20px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[20px]">
+                    <div className="space-y-[24px]">
+                      <div className="grid gap-[16px] xl:grid-cols-[minmax(0,1fr)_220px] xl:items-center">
+                        <div>
+                          <FxInput
+                            name="aiPrompt"
+                            placeholder='Describe the role. Example: Senior React Developer, Bangalore, 5+ years, immediate joiners.'
+                            value={jobForm.aiPrompt}
+                            onChange={handleJobFormChange}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                          />
+                        </div>
+
+                        <div>
+                          <FxAiButton type="button" onClick={handleGenerateBasicDetails} className="w-full justify-center">
+                            Auto Generate
+                          </FxAiButton>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-[24px] xl:grid-cols-12">
+                        <div className="xl:col-span-12">
+                          <FxInput
+                            name="title"
+                            label="Job Title"
+                            placeholder="Senior Frontend Engineer"
+                            value={jobForm.title}
+                            onChange={handleJobFormChange}
+                            required
+                            state={fieldState("title")}
+                            validationMessage={validationErrors.title}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-3">
+                          <FxInput
+                            name="experience"
+                            label="Experience"
+                            placeholder="3 - 5 yrs"
+                            value={jobForm.experience}
+                            onChange={handleJobFormChange}
+                            required
+                            state={fieldState("experience")}
+                            validationMessage={validationErrors.experience}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-3">
+                          <FxSelect
+                            name="employmentType"
+                            options={EMPLOYMENT_TYPE_OPTIONS}
+                            value={jobForm.employmentType}
+                            onChange={(event) => handleSelectFieldChange("employmentType", event.target.value)}
+                            label="Employment Type"
+                            placeholder="Employment type"
+                            required
+                            state={fieldState("employmentType")}
+                            validationMessage={validationErrors.employmentType}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-3">
+                          <FxSelect
+                            name="workplaceType"
+                            options={WORKPLACE_TYPE_OPTIONS}
+                            value={jobForm.workplaceType}
+                            onChange={(event) => handleSelectFieldChange("workplaceType", event.target.value)}
+                            label="Workplace Type"
+                            placeholder="Workplace type"
+                            required
+                            state={fieldState("workplaceType")}
+                            validationMessage={validationErrors.workplaceType}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-3">
+                          <FxInput
+                            name="positions"
+                            label="Number of Positions"
+                            min="1"
+                            type="number"
+                            value={jobForm.positions}
+                            onChange={handleJobFormChange}
+                            required
+                            state={fieldState("positions")}
+                            validationMessage={validationErrors.positions}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-[24px] xl:grid-cols-12">
+                        <div className="xl:col-span-3">
+                          <FxInput
+                            name="city"
+                            label="City"
+                            placeholder="Bengaluru"
+                            value={jobForm.city}
+                            onChange={handleJobFormChange}
+                            required={isCityRequired}
+                            optional={!isCityRequired}
+                            state={fieldState("city")}
+                            validationMessage={validationErrors.city}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-3">
+                          <FxInput
+                            name="locality"
+                            label="Locality"
+                            placeholder={isRemote ? "Optional for remote roles" : "HSR Layout"}
+                            value={jobForm.locality}
+                            onChange={handleJobFormChange}
+                            optional
+                            disabled={isRemote}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        {showClientInfo ? (
+                          <div className="xl:col-span-3">
+                            <FxCreatableSelect
+                              options={clientOptions}
+                              value={jobForm.client}
+                              onChange={(value) => handleSelectFieldChange("client", value)}
+                              onCreate={(value) => handleSelectFieldChange("client", value)}
+                              allowCreate
+                              createLabel="Create new client"
+                              label="Client"
+                              placeholder="Select or create client"
+                              searchPlaceholder="Search clients"
+                              required
+                              state={fieldState("client")}
+                              validationMessage={validationErrors.client}
+                              triggerClassName={BASIC_FORM_CONTROL_CLASS}
+                              stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                            />
+                          </div>
+                        ) : null}
+
+                        <div className={showClientInfo ? "xl:col-span-3" : "xl:col-span-6"}>
+                          <FxSelect
+                            name="assignee"
+                            options={assigneeOptions}
+                            value={jobForm.assignee}
+                            onChange={(event) => handleSelectFieldChange("assignee", event.target.value)}
+                            label="Job Assignee"
+                            placeholder="Assign to recruiter"
+                            optional
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-[24px] xl:grid-cols-12">
+                        <div className="xl:col-span-4">
+                          <FxInput
+                            name="salaryMin"
+                            label="Salary Min"
+                            type="number"
+                            placeholder="1000000"
+                            value={jobForm.salaryMin}
+                            onChange={handleJobFormChange}
+                            optional
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-4">
+                          <FxInput
+                            name="salaryMax"
+                            label="Salary Max"
+                            type="number"
+                            placeholder="1500000"
+                            value={jobForm.salaryMax}
+                            onChange={handleJobFormChange}
+                            optional
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-4">
+                          <FxSelect
+                            name="currency"
+                            options={CURRENCY_OPTIONS}
+                            value={jobForm.currency}
+                            onChange={(event) => handleSelectFieldChange("currency", event.target.value)}
+                            label="Currency"
+                            placeholder="Select currency"
+                            optional
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <section className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[16px] py-[16px]">
-                    <div className="flex items-start justify-between gap-[16px]">
-                      <p className={FX_TYPOGRAPHY.button}>AI Prompt</p>
-                      <FxButton
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsAiPromptExpanded((current) => !current)}
-                      >
-                        {isAiPromptExpanded ? "Collapse" : "Expand"}
-                      </FxButton>
-                    </div>
-                    <div className="mt-[12px]">
-                      {isAiPromptExpanded ? (
-                        <FxInput
-                          textarea
-                          name="aiPrompt"
-                          placeholder="e.g. Keep it direct, practical, and candidate-friendly."
-                          value={jobForm.aiPrompt}
-                          onChange={handleJobFormChange}
-                          className="min-h-[120px]"
-                        />
-                      ) : (
-                        <FxInput
-                          name="aiPrompt"
-                          placeholder="Add optional AI guidance..."
-                          value={jobForm.aiPrompt}
-                          onChange={handleJobFormChange}
-                        />
-                      )}
-                    </div>
-                  </section>
                 </section>
               ) : null}
 
               {activeSheetStep === "description" ? (
-                <section className="space-y-[16px]">
-                  {renderSectionHeader(
-                    "Job Description",
-                    "Keep the JD concise. AI can expand it later.",
-                    <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
-                      Rewrite with AI
-                    </FxAiButton>,
-                  )}
-                  <FxInput
-                    textarea
-                    name="jobDescription"
-                    label="JD Editor"
-                    placeholder="Describe the role, responsibilities, and what makes it exciting."
-                    value={jobForm.jobDescription}
-                    onChange={handleJobFormChange}
-                    helperText="This powers candidate communication and screening context."
-                    className="min-h-[180px]"
-                  />
-                  <div className="grid gap-[16px] md:grid-cols-2">
-                    <FxInput
-                      textarea
-                      name="primarySkills"
-                      label="Primary Skills"
-                      placeholder="React, Node.js, ownership"
-                      value={jobForm.primarySkills}
-                      onChange={handleJobFormChange}
-                      helperText="Comma-separated."
-                    />
-                    <FxInput
-                      textarea
-                      name="secondarySkills"
-                      label="Secondary Skills"
-                      placeholder="Mentoring, stakeholder communication"
-                      value={jobForm.secondarySkills}
-                      onChange={handleJobFormChange}
-                      helperText="Optional supporting skills."
+                <section className="space-y-[32px]">
+                  <div className="space-y-[12px]">
+                    <div className="flex flex-wrap items-center justify-between gap-[12px]">
+                      <h3 className={FX_TYPOGRAPHY.cardTitle}>Job Description</h3>
+                      <div className="flex flex-wrap items-center gap-[10px]">
+                        <FxButton type="button" variant="outline" className="gap-[8px]">
+                          <Upload className="size-[16px]" />
+                          Upload JD
+                        </FxButton>
+                        <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
+                          Write JD with AI
+                        </FxAiButton>
+                      </div>
+                    </div>
+                    <FxRichTextEditor
+                      value={jobForm.jobDescription}
+                      onChange={(nextValue) => handleSelectFieldChange("jobDescription", nextValue)}
+                      placeholder="Add job description"
+                      minHeight={280}
                     />
                   </div>
-                  <FxInput
-                    textarea
-                    name="responsibilities"
-                    label="Roles & Responsibilities"
-                    placeholder="List the work the person should actually own."
-                    value={jobForm.responsibilities}
-                    onChange={handleJobFormChange}
-                    className="min-h-[160px]"
-                  />
+
+                  <div className="space-y-[12px]">
+                    <div className="flex flex-wrap items-center justify-between gap-[12px]">
+                      <h3 className={FX_TYPOGRAPHY.cardTitle}>Primary Skills</h3>
+                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
+                        Retrieve Primary Skills from JD
+                      </FxAiButton>
+                    </div>
+                    <FxTagInput
+                      value={fromCommaList(jobForm.primarySkills)}
+                      onChange={(nextValue) => handleSelectFieldChange("primarySkills", toCommaList(nextValue))}
+                      placeholder="Add primary skills"
+                    />
+                  </div>
+
+                  <div className="space-y-[12px]">
+                    <div className="flex flex-wrap items-center justify-between gap-[12px]">
+                      <h3 className={FX_TYPOGRAPHY.cardTitle}>Secondary Skills</h3>
+                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
+                        Retrieve Secondary Skills from JD
+                      </FxAiButton>
+                    </div>
+                    <FxTagInput
+                      value={fromCommaList(jobForm.secondarySkills)}
+                      onChange={(nextValue) => handleSelectFieldChange("secondarySkills", toCommaList(nextValue))}
+                      placeholder="Add secondary skills"
+                    />
+                  </div>
+
+                  <div className="space-y-[12px]">
+                    <div className="flex flex-wrap items-center justify-between gap-[12px]">
+                      <h3 className={FX_TYPOGRAPHY.cardTitle}>Roles & Responsibilities</h3>
+                      <FxAiButton icon={WandSparkles} onClick={autofillJobDescription}>
+                        Write Responsibilities with AI
+                      </FxAiButton>
+                    </div>
+                    <FxRichTextEditor
+                      value={jobForm.responsibilities}
+                      onChange={(nextValue) => handleSelectFieldChange("responsibilities", nextValue)}
+                      placeholder="Add roles and responsibilities"
+                      minHeight={240}
+                    />
+                  </div>
                 </section>
               ) : null}
 
@@ -1667,21 +1741,22 @@ export default function JobsPage() {
                 </section>
               ) : null}
 
-              {formError ? <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-danger)]`}>{formError}</p> : null}
             </SheetBody>
 
             <SheetFooter
-              left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-muted-foreground`}>Changes update across Jobs and Workspace</span>}
               right={
                 <>
-                  <FxButton type="button" variant="secondary" onClick={requestSheetClose}>
-                    Cancel
+                  <FxButton type="button" variant="outline" onClick={handlePreviousSheetStep}>
+                    Back
                   </FxButton>
-                  <FxButton type="button" variant="secondary" onClick={handleSaveDraft}>
-                    Save as Draft
-                  </FxButton>
-                  <FxButton type="button" onClick={handlePublishJob}>
-                    Publish
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    className="gap-[8px]"
+                    onClick={handleNextSheetStep}
+                    disabled={!hasNextSheetStep}
+                  >
+                    Next
                     <ArrowRight className="size-[16px]" />
                   </FxButton>
                 </>

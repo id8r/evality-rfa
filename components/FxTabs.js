@@ -7,9 +7,9 @@ components/FxTabs.js | Shared tabs primitive | Sree | 2026-06-13
 import { cn } from "@/lib/FxUtils";
 import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
-export function FxTabs({ tabs, active, onChange, className }) {
+export function FxTabs({ tabs, active, onChange, className, showUnderline = true, showBorder = true }) {
   return (
-    <div className={cn("flex w-full items-end gap-[24px] border-b border-[var(--fx-border)]", className)}>
+    <div className={cn("flex w-full items-end gap-[24px]", showBorder ? "border-b border-[var(--fx-border)]" : "", className)}>
       {tabs.map((tab) => {
         const isActive = tab.value === active;
 
@@ -28,7 +28,7 @@ export function FxTabs({ tabs, active, onChange, className }) {
             )}
           >
             {tab.label}
-            {isActive ? <span className="absolute bottom-[-1px] left-0 right-0 h-[2px] rounded-full bg-[var(--fx-primary)]" /> : null}
+            {showUnderline && isActive ? <span className="absolute bottom-[-1px] left-0 right-0 h-[2px] rounded-full bg-[var(--fx-primary)]" /> : null}
           </button>
         );
       })}
