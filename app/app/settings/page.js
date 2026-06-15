@@ -1,23 +1,71 @@
-/* app/app/settings/page.js | Lightweight settings shell | Sree | 2026-06-14 */
+/* app/app/settings/page.js | Lightweight settings shell | Sree | 2026-06-15 */
 
 "use client";
 
-import { useState } from "react";
-import { Building2, CircleDot, CreditCard, ListChecks, Plug, User, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Bell,
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
+  CircleDot,
+  CreditCard,
+  ListChecks,
+  Mail,
+  Plug,
+  Settings2,
+  ShieldCheck,
+  Upload,
+  User,
+  Users,
+} from "lucide-react";
 
 import { FxButton } from "@/components/FxButton";
 import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
+import { DEMO_USER, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
-import { cn } from "@/lib/FxUtils";
+import { cn, readStoredValue, writeStoredValue } from "@/lib/FxUtils";
 
 const SETTINGS_SECTIONS = [
   { id: "profile", label: "Profile", description: "Personal account details", icon: User },
-  { id: "organization", label: "Organization", description: "Workspace identity and hiring mode", icon: Building2 },
-  { id: "team", label: "Team", description: "People and roles", icon: Users },
+  { id: "organization", label: "Organization", description: "Workspace identity for internal hiring", icon: Building2 },
+  { id: "recruiting-status", label: "Recruiting Status", description: "Default recruiting context", icon: BriefcaseBusiness },
   { id: "screening", label: "Screening Method", description: "AI screening defaults and question flow", icon: ListChecks },
+  { id: "team", label: "Team", description: "People and permissions", icon: Users },
+  { id: "email-settings", label: "Email Settings", description: "Outbound email defaults", icon: Mail },
+  { id: "calendar", label: "Calendar", description: "Calendar connection preferences", icon: CalendarDays },
+  { id: "scheduling", label: "Scheduling", description: "Interview scheduling defaults", icon: Settings2 },
+  { id: "notifications", label: "Notifications", description: "Recruiting alerts and digests", icon: Bell },
   { id: "integrations", label: "Integrations", description: "Connected tools", icon: Plug },
   { id: "billing", label: "Billing", description: "Plan and invoices", icon: CreditCard },
+];
+
+const ROLE_OPTIONS = ["Recruiter", "Founder", "TA", "Other"];
+const COMPANY_SIZE_OPTIONS = ["1-10", "11-50", "51-200", "201-500", "500+"];
+const INDUSTRY_OPTIONS = ["Software", "Staffing", "Healthcare", "Fintech", "E-commerce"];
+const RECRUITING_STATUS_OPTIONS = [
+  { value: WORKSPACE_TYPES.MY_COMPANY, title: "Hiring for My Company", description: "Use Evality primarily for internal recruiting." },
+  { value: WORKSPACE_TYPES.CLIENTS, title: "Hiring for Clients", description: "Default workflows for agency or client-facing recruiting." },
+  { value: WORKSPACE_TYPES.BOTH, title: "Hiring for Both", description: "Support both internal and client hiring from the same workspace." },
+];
+const SCREENING_CHANNEL_OPTIONS = [
+  { value: "email", title: "Email Screening", description: "Collect candidate responses through email." },
+  { value: "manual", title: "Manual Screening", description: "Review and qualify candidates manually." },
+  { value: "whatsapp", title: "WhatsApp Screening", description: "Run lightweight screening on WhatsApp." },
+  { value: "phone", title: "Phone Screening", description: "Use recruiter-led phone conversations as the default path." },
+];
+const PRESCREEN_OPTIONS = [
+  {
+    value: "cv_and_prescreen",
+    title: "CV + pre-screening",
+    description: "Use CV context first, then ask focused qualification questions.",
+  },
+  {
+    value: "prescreen_only",
+    title: "Pre-screening only",
+    description: "Keep the flow shorter when the goal is quick qualification.",
+  },
 ];
 
 function SectionButton({ section, active, onClick }) {
@@ -70,61 +118,136 @@ function SettingsCard({ title, description, children, action = null }) {
   );
 }
 
-function SectionContent({ sectionId }) {
+function FieldLabel({ children }) {
+  return <span className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>{children}</span>;
+}
+
+function SelectField({ label, defaultValue, options }) {
+  return (
+    <label className="flex w-full flex-col gap-[8px]">
+      <FieldLabel>{label}</FieldLabel>
+      <select
+        className={`min-h-[40px] w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-[8px] ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
+        defaultValue={defaultValue}
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function OptionGrid({ options, selectedValue, onSelect, columns = "md:grid-cols-2" }) {
+  return (
+    <div className={cn("grid gap-[12px]", columns)}>
+      {options.map((option) => {
+        const active = selectedValue === option.value;
+
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onSelect(option.value)}
+            className={cn(
+              "flex items-start gap-[12px] rounded-[10px] border px-[14px] py-[14px] text-left transition-colors",
+              active
+                ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-transparent hover:bg-[var(--fx-surface-hover)]/60",
+            )}
+          >
+            <span
+              className={cn(
+                "mt-[2px] inline-flex size-[20px] shrink-0 items-center justify-center rounded-full",
+                active ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
+              )}
+            >
+              <CircleDot className="size-[18px]" strokeWidth={1.8} />
+            </span>
+            <span className="space-y-[2px]">
+              <span className="block text-[14px] font-medium leading-[20px] text-[var(--fx-text)]">{option.title}</span>
+              <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{option.description}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PlaceholderSection({ title, description }) {
+  return (
+    <SettingsCard title={title} description={description}>
+      <div className="space-y-[8px]">
+        <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>This section is reserved for the next release.</p>
+        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+          The current sheet keeps the IA in place without overbuilding dynamic behavior yet.
+        </p>
+      </div>
+    </SettingsCard>
+  );
+}
+
+function SectionContent({
+  sectionId,
+  recruitingStatus,
+  onRecruitingStatusChange,
+  screeningChannel,
+  onScreeningChannelChange,
+  prescreenMode,
+  onPrescreenModeChange,
+}) {
   if (sectionId === "organization") {
     return (
       <SettingsCard
         title="Organization"
-        description="Core workspace identity, hiring mode, and public-facing brand defaults."
+        description="This represents the Hiring for My Company settings context."
         action={<FxButton variant="secondary" size="sm">Save</FxButton>}
       >
         <div className="grid gap-[16px] md:grid-cols-2">
-          <FxInput label="Organization Name" defaultValue="Evality" />
-          <FxInput label="Workspace Slug" defaultValue="evality" />
+          <FxInput label="Company Name" defaultValue="Evality" />
+          <FxInput label="Company Website" defaultValue="https://evality.ai" />
         </div>
-        <label className="flex w-full flex-col gap-[8px]">
-          <span className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>Hiring Mode</span>
-          <select
-            className={`min-h-[40px] w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-[8px] ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
-            defaultValue="both"
-          >
-            <option value="my_company">My Company</option>
-            <option value="clients">Clients</option>
-            <option value="both">Both</option>
-          </select>
-        </label>
         <div className="grid gap-[16px] md:grid-cols-2">
-          <FxInput label="Career Page URL" defaultValue="evality.ai/careers" />
-          <FxInput label="Primary Color" defaultValue="#2563eb" />
+          <FxInput label="Company LinkedIn Page" defaultValue="https://linkedin.com/company/evality" />
+          <FxInput label="Career Page" defaultValue="https://evality.ai/careers" />
+        </div>
+        <FxInput
+          textarea
+          label="About Company"
+          defaultValue="Evality is building a recruiter-first workspace to make screening, candidate flow, and hiring operations easier to run."
+          className="min-h-[120px]"
+        />
+        <div className="grid gap-[16px] md:grid-cols-2">
+          <SelectField label="Company Size" defaultValue={COMPANY_SIZE_OPTIONS[1]} options={COMPANY_SIZE_OPTIONS} />
+          <SelectField label="Industry" defaultValue={INDUSTRY_OPTIONS[0]} options={INDUSTRY_OPTIONS} />
+        </div>
+        <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <FxInput label="Upload Logo" defaultValue="evality-logo.svg" />
+          <FxButton variant="secondary" size="sm">
+            <Upload className="size-[16px]" />
+            Upload Logo
+          </FxButton>
         </div>
       </SettingsCard>
     );
   }
 
-  if (sectionId === "team") {
+  if (sectionId === "recruiting-status") {
     return (
       <SettingsCard
-        title="Team"
-        description="Manage the small set of people who keep the workspace moving."
-        action={<FxButton variant="secondary" size="sm">Invite</FxButton>}
+        title="Recruiting Status"
+        description="Controls default recruiting workflows and available settings."
+        action={<FxButton variant="secondary" size="sm">Save</FxButton>}
       >
-        <div className="space-y-[12px]">
-          {[
-            ["John Doe", "Owner"],
-            ["Ayush", "Recruiter"],
-            ["Priya", "Hiring Manager"],
-          ].map(([name, role]) => (
-            <div key={name} className="flex items-center justify-between rounded-[12px] border border-[var(--fx-border)] px-[16px] py-[12px]">
-              <div>
-                <p className={FX_TYPOGRAPHY.button}>{name}</p>
-                <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{role}</p>
-              </div>
-              <span className="rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
-                Active
-              </span>
-            </div>
-          ))}
-        </div>
+        <OptionGrid
+          options={RECRUITING_STATUS_OPTIONS}
+          selectedValue={recruitingStatus}
+          onSelect={onRecruitingStatusChange}
+          columns="grid-cols-1"
+        />
       </SettingsCard>
     );
   }
@@ -136,40 +259,29 @@ function SectionContent({ sectionId }) {
         description="Set the default screening flow used when new roles are created."
         action={<FxButton variant="secondary" size="sm">Save</FxButton>}
       >
-        <div className="grid gap-[12px] md:grid-cols-2">
-          {[
-            {
-              title: "CV + pre-screening",
-              description: "Use CV context first, then ask focused qualification questions.",
-            },
-            {
-              title: "Pre-screening only",
-              description: "Keep the flow shorter when the goal is quick qualification.",
-            },
-          ].map((option, index) => (
-            <button
-              key={option.title}
-              type="button"
-              className={cn(
-                "flex items-start gap-[12px] rounded-[10px] border px-[14px] py-[14px] text-left transition-colors",
-                index === 0
-                  ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-                  : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-transparent hover:bg-[var(--fx-surface-hover)]/60",
-              )}
-            >
-              <span className={cn(
-                "mt-[2px] inline-flex size-[20px] shrink-0 items-center justify-center rounded-full",
-                index === 0 ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
-              )}>
-                <CircleDot className="size-[18px]" strokeWidth={1.8} />
-              </span>
-              <span className="space-y-[2px]">
-                <span className="block text-[14px] font-medium leading-[20px] text-[var(--fx-text)]">{option.title}</span>
-                <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{option.description}</span>
-              </span>
-            </button>
-          ))}
+        <div className="space-y-[8px]">
+          <h3 className={FX_TYPOGRAPHY.button}>Default Screening Channel</h3>
+          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+            Choose the channel that should guide new screening workflows by default.
+          </p>
         </div>
+        <OptionGrid
+          options={SCREENING_CHANNEL_OPTIONS}
+          selectedValue={screeningChannel}
+          onSelect={onScreeningChannelChange}
+        />
+
+        <div className="space-y-[8px]">
+          <h3 className={FX_TYPOGRAPHY.button}>Question Flow</h3>
+          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+            Decide whether new roles should use CV context along with pre-screening questions.
+          </p>
+        </div>
+        <OptionGrid
+          options={PRESCREEN_OPTIONS}
+          selectedValue={prescreenMode}
+          onSelect={onPrescreenModeChange}
+        />
 
         <FxInput
           textarea
@@ -208,62 +320,92 @@ function SectionContent({ sectionId }) {
     );
   }
 
+  if (sectionId === "team") {
+    return <PlaceholderSection title="Team" description="Manage team members, permissions, and workspace access." />;
+  }
+
+  if (sectionId === "email-settings") {
+    return <PlaceholderSection title="Email Settings" description="Set outbound email defaults, signatures, and sending rules." />;
+  }
+
+  if (sectionId === "calendar") {
+    return <PlaceholderSection title="Calendar" description="Choose the calendar account and availability defaults used by recruiters." />;
+  }
+
+  if (sectionId === "scheduling") {
+    return <PlaceholderSection title="Scheduling" description="Configure interview scheduling policies and routing defaults." />;
+  }
+
+  if (sectionId === "notifications") {
+    return <PlaceholderSection title="Notifications" description="Control candidate alerts, reminders, and digest frequency." />;
+  }
+
   if (sectionId === "billing") {
     return (
-      <SettingsCard title="Billing" description="Current billing surface for the workspace.">
-        <div className="grid gap-[16px] md:grid-cols-2">
-          <div className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-bg)] p-[16px]">
-            <p className={FX_TYPOGRAPHY.button}>Starter</p>
-            <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>Enough to configure jobs, candidates, and AI-assisted screening.</p>
-          </div>
-          <div className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-bg)] p-[16px]">
-            <p className={FX_TYPOGRAPHY.button}>Next renewal</p>
-            <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>June 30, 2026</p>
-          </div>
-        </div>
-      </SettingsCard>
+      <PlaceholderSection title="Billing" description="Review plan, invoices, and subscription changes." />
     );
   }
 
   if (sectionId === "integrations") {
-    return (
-      <SettingsCard title="Integrations" description="Keep this lean for v1.">
-        <div className="space-y-[12px]">
-          {[
-            ["Email", "Connected"],
-            ["Calendar", "Not connected"],
-            ["WhatsApp", "Connected"],
-          ].map(([name, status]) => (
-            <div key={name} className="flex items-center justify-between rounded-[12px] border border-[var(--fx-border)] px-[16px] py-[12px]">
-              <div>
-                <p className={FX_TYPOGRAPHY.button}>{name}</p>
-                <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{status}</p>
-              </div>
-              <FxButton variant="secondary" size="sm">{status === "Connected" ? "Manage" : "Connect"}</FxButton>
-            </div>
-          ))}
-        </div>
-      </SettingsCard>
-    );
+    return <PlaceholderSection title="Integrations" description="Connect email, calendar, messaging, and ATS tools." />;
   }
 
   return (
     <SettingsCard
       title="Profile"
-      description="Account details shown to the rest of the workspace."
+      description="Personal details used across recruiting workflows."
       action={<FxButton variant="secondary" size="sm">Save</FxButton>}
     >
       <div className="grid gap-[16px] md:grid-cols-2">
-        <FxInput label="Name" defaultValue="John Doe" />
-        <FxInput label="Email" defaultValue="jdoe@evality.ai" />
+        <FxInput label="Name" defaultValue={DEMO_USER.name} />
+        <FxInput label="Email" defaultValue={DEMO_USER.email} />
       </div>
-      <FxInput label="Role" defaultValue="Recruiter" />
+      <div className="grid gap-[16px] md:grid-cols-2">
+        <FxInput label="Phone" defaultValue="+1 (415) 555-0124" />
+        <div className="flex flex-col gap-[8px]">
+          <FieldLabel>LinkedIn</FieldLabel>
+          <div className="flex min-h-[40px] items-center gap-[12px]">
+            <FxButton variant="secondary" size="sm">
+              <ShieldCheck className="size-[16px]" />
+              Connect LinkedIn
+            </FxButton>
+            <span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Authenticate to pull your public profile.</span>
+          </div>
+        </div>
+      </div>
+      <SelectField label="Role" defaultValue={ROLE_OPTIONS[0]} options={ROLE_OPTIONS} />
+      <FxInput
+        textarea
+        label="About Me"
+        defaultValue="Recruiter focused on building structured screening workflows and a calm candidate experience."
+        className="min-h-[120px]"
+      />
     </SettingsCard>
   );
 }
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile");
+  const [recruitingStatus, setRecruitingStatus] = useState(WORKSPACE_TYPES.MY_COMPANY);
+  const [screeningChannel, setScreeningChannel] = useState("email");
+  const [prescreenMode, setPrescreenMode] = useState("cv_and_prescreen");
+
+  useEffect(() => {
+    const storedWorkspaceType = readStoredValue(STORAGE_KEYS.WORKSPACE_TYPE);
+
+    if (
+      storedWorkspaceType === WORKSPACE_TYPES.MY_COMPANY ||
+      storedWorkspaceType === WORKSPACE_TYPES.CLIENTS ||
+      storedWorkspaceType === WORKSPACE_TYPES.BOTH
+    ) {
+      setRecruitingStatus(storedWorkspaceType);
+    }
+  }, []);
+
+  function handleRecruitingStatusChange(nextValue) {
+    setRecruitingStatus(nextValue);
+    writeStoredValue(STORAGE_KEYS.WORKSPACE_TYPE, nextValue);
+  }
 
   return (
     <FxProtectedAppPage pageId="settings">
@@ -284,7 +426,15 @@ export default function SettingsPage() {
 
           <main className="min-w-0 py-[4px]">
             <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[24px] py-[24px] shadow-sm md:px-[32px] md:py-[28px]`}>
-              <SectionContent sectionId={activeSection} />
+              <SectionContent
+                sectionId={activeSection}
+                recruitingStatus={recruitingStatus}
+                onRecruitingStatusChange={handleRecruitingStatusChange}
+                screeningChannel={screeningChannel}
+                onScreeningChannelChange={setScreeningChannel}
+                prescreenMode={prescreenMode}
+                onPrescreenModeChange={setPrescreenMode}
+              />
             </div>
           </main>
         </div>
