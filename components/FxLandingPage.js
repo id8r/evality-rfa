@@ -1,8 +1,4 @@
-/*
-components/FxLandingPage.js | Landing page auth surface | Sree | 2026-06-13
-*/
-
-/* - - - - - - - - - - - - - - - - */
+/* components/FxLandingPage.js | Landing page auth surface | Sree | 2026-06-13 */
 
 "use client";
 
@@ -25,6 +21,7 @@ function SectionTitle({ eyebrow, title, body, align = "center" }) {
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
 
 function ProductFrame({ children, className = "" }) {
   return (
@@ -41,6 +38,7 @@ function SectionShell({ alt = false, children, className = "", ...props }) {
     </section>
   );
 }
+/* - - - - - - - - - - - - - - - - */
 
 function MockWindowHeader({ label, status }) {
   return (
@@ -57,6 +55,7 @@ function MockWindowHeader({ label, status }) {
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
 
 function JobsPreview() {
   const rows = LANDING_COPY.product.jobs.rows;
@@ -132,6 +131,7 @@ function JobsPreview() {
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
 
 function CandidatesPreview() {
   return (
@@ -151,6 +151,7 @@ function CandidatesPreview() {
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
 
 function WorkspacePreview() {
   return (
@@ -164,6 +165,7 @@ function WorkspacePreview() {
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
 
 function ActionCenterPreview() {
   return (
@@ -182,6 +184,7 @@ function ActionCenterPreview() {
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
 
 export function FxLandingPage() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -489,5 +492,4 @@ export function FxLandingPage() {
     </div>
   );
 }
-
 /* - - - - - - - - - - - - - - - - */
