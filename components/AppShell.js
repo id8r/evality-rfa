@@ -34,8 +34,8 @@ export function AppShell({ children, title, navbarLeading = null, navbarActions 
       >
         <Navbar title={title} leading={navbarLeading} actions={navbarActions} />
 
-        <main className="min-h-0 flex-1 overflow-hidden">
-          <div className={`${FX_LAYOUT.appContent} flex h-full min-h-0 min-w-0 flex-col overflow-hidden`}>
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className={`${FX_LAYOUT.appContent} flex min-h-full min-w-0 flex-col`}>
             {children}
           </div>
         </main>

@@ -11,6 +11,7 @@ import {
   CircleDot,
   Cog,
   CreditCard,
+  FileText,
   ListChecks,
   Mail,
   Plug,
@@ -28,38 +29,20 @@ import { DEMO_USER, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { FX_COLORS, FX_CONTROL_HEIGHT, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn, readStoredValue, writeStoredValue } from "@/lib/FxUtils";
 
-const SETTINGS_GROUPS = [
-  {
-    label: "Workspace",
-    sections: [
-      { id: "profile", label: "Profile", description: "Personal account details", icon: User },
-      { id: "organization", label: "Organization", description: "Workspace identity for internal hiring", icon: Building2 },
-      { id: "team", label: "Team", description: "People and permissions", icon: Users },
-    ],
-  },
-  {
-    label: "Recruiting",
-    sections: [
-      { id: "recruiting-status", label: "Recruiting Status", description: "Default recruiting context", icon: BriefcaseBusiness },
-      { id: "screening", label: "Screening Method", description: "AI screening defaults and question flow", icon: ListChecks },
-    ],
-  },
-  {
-    label: "Operations",
-    sections: [
-      { id: "email-settings", label: "Email Settings", description: "Outbound email defaults", icon: Mail },
-      { id: "calendar", label: "Calendar", description: "Calendar connection preferences", icon: CalendarDays },
-      { id: "scheduling", label: "Scheduling", description: "Interview scheduling defaults", icon: Settings2 },
-      // { id: "notifications", label: "Notifications", description: "Recruiting alerts and digests", icon: Bell },
-    ],
-  },
-  // {
-  //   label: "Platform",
-  //   sections: [
-  //     { id: "integrations", label: "Integrations", description: "Connected tools", icon: Plug },
-  //     { id: "billing", label: "Billing", description: "Plan and invoices", icon: CreditCard },
-  //   ],
-  // },
+const SETTINGS_SECTIONS = [
+  { id: "profile", label: "Profile", description: "Personal account details", icon: User },
+  { id: "organization", label: "Organization", description: "Workspace identity for internal hiring", icon: Building2 },
+  { id: "recruiting-status", label: "Recruiting Status", description: "Default recruiting context", icon: BriefcaseBusiness },
+  { id: "screening", label: "Screening Method", description: "AI screening defaults and question flow", icon: ListChecks },
+  { id: "ai-context", label: "AI Context", description: "Default recruiting context and evaluation guidance", icon: FileText },
+  { id: "email-settings", label: "Email Settings", description: "Outbound email defaults", icon: Mail },
+  { id: "calendar", label: "Calendar", description: "Calendar connection preferences", icon: CalendarDays },
+  { id: "scheduling", label: "Scheduling", description: "Interview scheduling defaults", icon: Settings2 },
+  { id: "notifications", label: "Notifications", description: "Recruiting alerts and digests", icon: Bell },
+  { id: "team", label: "Team", description: "People and permissions", icon: Users },
+  { id: "integrations", label: "Integrations", description: "Connected tools", icon: Plug },
+  { id: "billing", label: "Billing", description: "Plan and invoices", icon: CreditCard },
+  { id: "career-page", label: "Career Page", description: "Public application and branding", icon: Cog },
 ];
 
 const ROLE_OPTIONS = ["Recruiter", "Founder", "TA", "Other"];
@@ -391,6 +374,15 @@ function SectionContent({
     );
   }
 
+  if (sectionId === "ai-context") {
+    return (
+      <PlaceholderSection
+        title="AI Context"
+        description="Keep the default recruiting context and evaluation guidance aligned to the role."
+      />
+    );
+  }
+
   if (sectionId === "team") {
     return <PlaceholderSection title="Team" description="Manage team members, permissions, and workspace access." />;
   }
@@ -419,6 +411,15 @@ function SectionContent({
 
   if (sectionId === "integrations") {
     return <PlaceholderSection title="Integrations" description="Connect email, calendar, messaging, and ATS tools." />;
+  }
+
+  if (sectionId === "career-page") {
+    return (
+      <PlaceholderSection
+        title="Career Page"
+        description="Configure the public job application experience, branding, and career site defaults."
+      />
+    );
   }
 
   return (
@@ -487,23 +488,14 @@ export default function SettingsPage() {
       <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px]`}>
         <div className="grid min-h-0 gap-[24px] lg:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="px-[4px]">
-            <div className="space-y-[16px]">
-              {SETTINGS_GROUPS.map((group) => (
-                <div key={group.label} className="space-y-[8px]">
-                  <div className={`${FX_TYPOGRAPHY.metaLabel} px-[12px] text-[var(--fx-text-muted)] uppercase`}>
-                    {group.label}
-                  </div>
-                  <div className="space-y-[8px]">
-                    {group.sections.map((section) => (
-                      <SectionButton
-                        key={section.id}
-                        section={section}
-                        active={activeSection === section.id}
-                        onClick={setActiveSection}
-                      />
-                    ))}
-                  </div>
-                </div>
+            <div className="space-y-[8px]">
+              {SETTINGS_SECTIONS.map((section) => (
+                <SectionButton
+                  key={section.id}
+                  section={section}
+                  active={activeSection === section.id}
+                  onClick={setActiveSection}
+                />
               ))}
             </div>
           </aside>
@@ -526,3 +518,4 @@ export default function SettingsPage() {
     </FxProtectedAppPage>
   );
 }
+/* - - - - - - - - - - - - - - - - */
