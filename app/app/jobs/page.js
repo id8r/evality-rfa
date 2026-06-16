@@ -63,6 +63,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Sheet,
@@ -955,34 +956,32 @@ export default function JobsPage() {
         <div className="space-y-[8px]">
           {prompt.options.map((option) => {
             const isSelected = selectedValues.includes(option);
+            const optionId = `evaluation-context-${prompt.id}-${option}`;
 
             return (
-              <button
+              <label
                 key={option}
-                type="button"
                 className={`flex w-full items-start gap-[12px] rounded-[12px] border px-[14px] py-[12px] text-left transition-colors ${
                   isSelected
                     ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
                     : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
                 }`}
-                onClick={() =>
-                  setEvaluationContextAnswers((current) => ({
-                    ...current,
-                    [prompt.id]: isSelected
-                      ? selectedValues.filter((value) => value !== option)
-                      : [...selectedValues, option],
-                  }))
-                }
               >
-                <span
-                  className={`mt-[2px] inline-flex size-[16px] shrink-0 items-center justify-center rounded-[4px] border ${
-                    isSelected
-                      ? "border-[var(--fx-primary)] bg-[var(--fx-primary)] text-white"
-                      : "border-[var(--fx-border)] bg-[var(--fx-surface)] text-transparent"
-                  }`}
+                <Checkbox
+                  id={optionId}
+                  checked={isSelected}
+                  onCheckedChange={(checked) =>
+                    setEvaluationContextAnswers((current) => ({
+                      ...current,
+                      [prompt.id]: checked
+                        ? [...selectedValues, option]
+                        : selectedValues.filter((value) => value !== option),
+                    }))
+                  }
+                  className="mt-[2px]"
                 />
                 <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{option}</span>
-              </button>
+              </label>
             );
           })}
         </div>

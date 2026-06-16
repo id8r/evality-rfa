@@ -21,10 +21,11 @@ import { FxInput } from "@/components/FxInput";
 import { FxFieldLabel } from "@/components/FxFieldState";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxSelect } from "@/components/FxSelect";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DEMO_USER, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { FX_COLORS, FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
-import { cn, readStoredValue, writeStoredValue } from "@/lib/FxUtils";
+import { cn, readStoredJSON, readStoredValue, writeStoredJSON, writeStoredValue } from "@/lib/FxUtils";
 
 const SETTINGS_SECTIONS = [
   { id: "profile", label: "Profile", description: "Personal account details", icon: User },
@@ -33,7 +34,7 @@ const SETTINGS_SECTIONS = [
   { id: "recruiting-status", label: "Recruiting Status", description: "Default recruiting context", icon: BriefcaseBusiness },
   { id: "screening", label: "Screening Method", description: "AI screening defaults and question flow", icon: ListChecks },
   { id: "billing", label: "Billing", description: "Plan and invoices", icon: CreditCard },
-  { id: "email-settings", label: "Email", description: "Outbound email defaults", icon: Mail },
+  { id: "email-settings", label: "Email", description: "Connected mailboxes and sender defaults", icon: Mail },
   { id: "calendar", label: "Calender", description: "Calendar connection preferences", icon: CalendarDays },
   // { id: "ai-context", label: "AI Context", description: "Default recruiting context and evaluation guidance", icon: FileText },
   // { id: "scheduling", label: "Scheduling", description: "Interview scheduling defaults", icon: Settings2 },
@@ -273,12 +274,200 @@ function PlaceholderSection({ title, description, items = [] }) {
   );
 }
 
+function ProviderLogo({ provider }) {
+  if (provider === "gmail") {
+    return <img alt="" src="/images/providers/gmail.svg" className="size-[48px] shrink-0 object-contain" />;
+  }
+
+  if (provider === "outlook") {
+    return <img alt="" src="/images/providers/outlook.svg" className="size-[48px] shrink-0 object-contain" />;
+  }
+
+  if (provider === "google-calendar") {
+    return <img alt="" src="/images/providers/google-calendar.svg" className="size-[48px] shrink-0 object-contain" />;
+  }
+
+  if (provider === "outlook-calendar") {
+    return <img alt="" src="/images/providers/outlook-calendar.svg" className="size-[48px] shrink-0 object-contain" />;
+  }
+
+  return <Mail className="size-[48px] text-[var(--fx-text-muted)]" strokeWidth={1.6} />;
+}
+
+function ProviderBadge({ children, connected = false }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-[10px] py-[4px] text-[12px] font-medium leading-[16px]",
+        connected
+          ? "bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]"
+          : "bg-[var(--fx-surface-subtle)] text-[var(--fx-text-muted)]",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ConnectionProviderCard({
+  title,
+  subtitle,
+  provider,
+  connected,
+  connecting,
+  onConnect,
+  buttonLabel,
+  bodyText,
+  comingSoon = false,
+  statusLabel = null,
+  comingSoonText = "More providers will come later. Gmail and Microsoft 365 are the primary options for V1.",
+}) {
+  const actionLabel = connected ? "Connected" : buttonLabel;
+
+  return (
+    <div className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+      <div className="flex items-start justify-between gap-[12px]">
+        <div className="flex min-w-0 items-center gap-[12px]">
+          <ProviderLogo provider={provider} />
+          <div className="min-w-0 space-y-[2px]">
+            <div className={`${FX_TYPOGRAPHY.cardTitle} truncate text-[var(--fx-text)]`}>{title}</div>
+            <div className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{subtitle}</div>
+          </div>
+        </div>
+        <ProviderBadge connected={connected}>{statusLabel ?? (connected ? "Connected" : "Not connected")}</ProviderBadge>
+      </div>
+
+      <div className="mt-[16px] flex flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-between">
+        <p className={`${FX_TYPOGRAPHY.fieldHint} max-w-[36ch] text-[var(--fx-text-muted)]`}>
+          {comingSoon
+            ? comingSoonText
+            : bodyText ?? (connected
+              ? "This account is ready for recruiting conversations in Evality."
+              : "Connect this account to route recruiting work through Evality.")}
+        </p>
+        {comingSoon ? (
+          <FxButton variant="secondary" size="md" disabled className="h-[40px] shrink-0">
+            Coming Soon
+          </FxButton>
+        ) : (
+          <FxButton
+            variant="secondary"
+            size="md"
+            className="h-[40px] shrink-0"
+            disabled={connected || connecting}
+            onClick={onConnect}
+          >
+            {connecting ? "Connecting..." : actionLabel}
+          </FxButton>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PreferenceRow({ label, description, checked, onCheckedChange }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-[12px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[14px] py-[12px]">
+      <Checkbox checked={checked} onCheckedChange={onCheckedChange} />
+      <span className="space-y-[2px]">
+        <span className={`${FX_TYPOGRAPHY.body} block text-[var(--fx-text)]`}>{label}</span>
+        <span className={`${FX_TYPOGRAPHY.fieldHint} block text-[var(--fx-text-muted)]`}>{description}</span>
+      </span>
+    </label>
+  );
+}
+
+function ProviderConnectionSection({
+  sectionTitle,
+  sectionDescription,
+  providerConnections,
+  connectingProvider,
+  onConnectProvider,
+  primaryAccount,
+  onPrimaryAccountChange,
+  primaryAccountLabel,
+  primaryAccountPlaceholder,
+  primaryAccountOptions,
+  secondaryTitle,
+  secondaryDescription,
+  secondaryPlaceholderLabel,
+  secondaryActionLabel,
+  secondaryActionDescription,
+  secondaryPreferences,
+  onSecondaryPreferenceChange,
+  providerCards,
+}) {
+  return (
+    <div className="space-y-[24px]">
+      <SettingsCard
+        title={sectionTitle}
+        description={sectionDescription}
+      >
+        <div className="grid gap-[12px] lg:grid-cols-2">
+          {providerCards.map((card) => (
+            <div key={card.id} className={card.fullWidth ? "lg:col-span-2" : ""}>
+              <ConnectionProviderCard
+                title={card.title}
+                subtitle={card.subtitle}
+                provider={card.provider}
+                connected={providerConnections[card.id]}
+                connecting={connectingProvider === card.id}
+                onConnect={() => onConnectProvider(card.id)}
+                buttonLabel={card.buttonLabel}
+                bodyText={card.bodyText}
+                comingSoon={card.comingSoon}
+                statusLabel={card.statusLabel}
+              />
+            </div>
+          ))}
+        </div>
+      </SettingsCard>
+
+      <SettingsCard
+        title={secondaryTitle}
+        description={secondaryDescription}
+      >
+        <div className="grid gap-[16px] md:grid-cols-2">
+          <FxSelect
+            label={primaryAccountLabel}
+            value={primaryAccount}
+            onChange={onPrimaryAccountChange}
+            options={primaryAccountOptions}
+            placeholder={primaryAccountPlaceholder}
+            disabled={!primaryAccountOptions.length}
+          />
+          <FxInput
+            textarea
+            label={secondaryPlaceholderLabel}
+            defaultValue={secondaryActionDescription}
+            className="min-h-[120px]"
+          />
+        </div>
+
+        <div className="space-y-[8px]">
+          <FieldLabel>{secondaryActionLabel}</FieldLabel>
+          <div className="grid gap-[8px]">
+            {secondaryPreferences.map((preference) => (
+              <PreferenceRow
+                key={preference.key}
+                label={preference.label}
+                description={preference.description}
+                checked={Boolean(preference.checked)}
+                onCheckedChange={(checked) => onSecondaryPreferenceChange(preference.key, Boolean(checked))}
+              />
+            ))}
+          </div>
+        </div>
+      </SettingsCard>
+    </div>
+  );
+}
+
 function ProfileCompletionBanner({
   onNavigate,
   profileComplete,
   organizationComplete,
   recruitingComplete,
-  linkedInConnected,
   emailConnected,
   calendarConnected,
 }) {
@@ -352,6 +541,20 @@ function SectionContent({
   onScreeningChannelChange,
   prescreenMode,
   onPrescreenModeChange,
+  emailProviderConnections,
+  emailSenderAccount,
+  onEmailSenderAccountChange,
+  connectingEmailProvider,
+  onConnectEmailProvider,
+  emailCommunicationPreferences,
+  onEmailPreferenceChange,
+  calendarProviderConnections,
+  calendarDefaultAccount,
+  onCalendarDefaultAccountChange,
+  connectingCalendarProvider,
+  onConnectCalendarProvider,
+  calendarPreferences,
+  onCalendarPreferenceChange,
 }) {
   if (sectionId === "organization") {
     return (
@@ -508,20 +711,152 @@ function SectionContent({
 
   if (sectionId === "email-settings") {
     return (
-      <PlaceholderSection
-        title="Email Settings"
-        description="Set outbound email defaults, signatures, and sending rules."
-        items={["Sender defaults", "Signature", "Email connection placeholder"]}
+      <ProviderConnectionSection
+        sectionTitle="Email Providers"
+        sectionDescription="Connect a mailbox so recruiters can send and receive recruiting communication through Evality."
+        providerConnections={emailProviderConnections}
+        connectingProvider={connectingEmailProvider}
+        onConnectProvider={onConnectEmailProvider}
+        primaryAccount={emailSenderAccount}
+        onPrimaryAccountChange={onEmailSenderAccountChange}
+        primaryAccountLabel="Default sender account"
+        primaryAccountPlaceholder="Connect a provider first"
+        primaryAccountOptions={[
+          emailProviderConnections.gmail ? { value: "gmail", label: "Gmail" } : null,
+          emailProviderConnections.outlook ? { value: "outlook", label: "Microsoft Outlook" } : null,
+        ].filter(Boolean)}
+        secondaryTitle="Secondary settings"
+        secondaryDescription="Choose the default sender, signature, and communication preferences after your mailbox is connected."
+        secondaryPlaceholderLabel="Email signature"
+        secondaryActionLabel="Communication preferences"
+        secondaryActionDescription="Best,\nJohn Doe"
+        secondaryPreferences={[
+          {
+            key: "routeReplies",
+            label: "Route candidate replies to the connected mailbox",
+            description: "Keeps recruiting conversations attached to the provider you connected.",
+            checked: emailCommunicationPreferences.routeReplies,
+          },
+          {
+            key: "copyRecruiters",
+            label: "Copy recruiters on outbound messages",
+            description: "Useful when the workspace needs visibility across the hiring team.",
+            checked: emailCommunicationPreferences.copyRecruiters,
+          },
+          {
+            key: "sendReminders",
+            label: "Send follow-up reminders from Evality",
+            description: "Keeps reminder cadence inside the workspace rather than outside it.",
+            checked: emailCommunicationPreferences.sendReminders,
+          },
+        ]}
+        onSecondaryPreferenceChange={onEmailPreferenceChange}
+        providerCards={[
+          {
+            id: "gmail",
+            title: "Gmail",
+            subtitle: "Google Workspace",
+            provider: "gmail",
+            buttonLabel: "Connect Gmail",
+            bodyText: "Connect Gmail so Evality can send and receive recruiting communication from your mailbox.",
+          },
+          {
+            id: "outlook",
+            title: "Microsoft Outlook",
+            subtitle: "Microsoft 365",
+            provider: "outlook",
+            buttonLabel: "Connect Outlook",
+            bodyText: "Connect Outlook so recruiters can keep messages inside Microsoft 365.",
+          },
+          {
+            id: "other",
+            title: "Other provider",
+            subtitle: "Placeholder",
+            provider: "other",
+            buttonLabel: "Coming Soon",
+            comingSoon: true,
+            statusLabel: "Coming soon",
+            bodyText: "Other mail providers will come later. Gmail and Microsoft 365 are the primary options for V1.",
+            comingSoonText: "Other mail providers will come later. Gmail and Microsoft 365 are the primary options for V1.",
+            fullWidth: true,
+          },
+        ]}
       />
     );
   }
 
   if (sectionId === "calendar") {
     return (
-      <PlaceholderSection
-        title="Calendar"
-        description="Choose the calendar account and availability defaults used by recruiters."
-        items={["Calendar connection placeholder", "Availability defaults"]}
+      <ProviderConnectionSection
+        sectionTitle="Calendar"
+        sectionDescription="Connect the calendar recruiters should use for interview booking and availability."
+        providerConnections={calendarProviderConnections}
+        connectingProvider={connectingCalendarProvider}
+        onConnectProvider={onConnectCalendarProvider}
+        primaryAccount={calendarDefaultAccount}
+        onPrimaryAccountChange={onCalendarDefaultAccountChange}
+        primaryAccountLabel="Default calendar account"
+        primaryAccountPlaceholder="Connect a calendar first"
+        primaryAccountOptions={[
+          calendarProviderConnections.googleCalendar ? { value: "googleCalendar", label: "Google Calendar" } : null,
+          calendarProviderConnections.outlookCalendar ? { value: "outlookCalendar", label: "Microsoft Outlook" } : null,
+        ].filter(Boolean)}
+        secondaryTitle="Availability defaults"
+        secondaryDescription="Keep interview availability and scheduling behavior aligned to the connected calendar."
+        secondaryPlaceholderLabel="Availability notes"
+        secondaryActionLabel="Scheduling preferences"
+        secondaryActionDescription="Mon-Fri, 9:00 AM - 6:00 PM\nHold 15 minutes before interviews\nUse local time zone"
+        secondaryPreferences={[
+          {
+            key: "useConnectedCalendar",
+            label: "Use the connected calendar for interview booking",
+            description: "Keeps recruiting scheduling inside the selected calendar account.",
+            checked: calendarPreferences.useConnectedCalendar,
+          },
+          {
+            key: "blockBusyTime",
+            label: "Block busy time automatically",
+            description: "Avoids double-booking when recruiters already have events on the calendar.",
+            checked: calendarPreferences.blockBusyTime,
+          },
+          {
+            key: "keepSchedulingInsideEvality",
+            label: "Keep scheduling nudges inside Evality",
+            description: "Lets recruiters manage booking decisions from the workspace.",
+            checked: calendarPreferences.keepSchedulingInsideEvality,
+          },
+        ]}
+        onSecondaryPreferenceChange={onCalendarPreferenceChange}
+        providerCards={[
+          {
+            id: "googleCalendar",
+            title: "Google Calendar",
+            subtitle: "Google Workspace",
+            provider: "google-calendar",
+            buttonLabel: "Connect Google Calendar",
+            bodyText: "Connect Google Calendar so interview booking stays aligned with recruiter availability.",
+          },
+          {
+            id: "outlookCalendar",
+            title: "Microsoft Outlook",
+            subtitle: "Microsoft 365",
+            provider: "outlook-calendar",
+            buttonLabel: "Connect Outlook",
+            bodyText: "Connect Outlook Calendar for calendar-aware interview scheduling inside Evality.",
+          },
+          {
+            id: "other",
+            title: "Other calendar provider",
+            subtitle: "Placeholder",
+            provider: "other",
+            buttonLabel: "Coming Soon",
+            comingSoon: true,
+            statusLabel: "Coming soon",
+            bodyText: "Other calendar providers will come later.",
+            comingSoonText: "Other calendar providers will come later.",
+            fullWidth: true,
+          },
+        ]}
       />
     );
   }
@@ -619,12 +954,36 @@ export default function SettingsPage() {
   const [recruitingStatus, setRecruitingStatus] = useState(WORKSPACE_TYPES.MY_COMPANY);
   const [screeningChannel, setScreeningChannel] = useState("email");
   const [prescreenMode, setPrescreenMode] = useState("cv_and_prescreen");
+  const [emailProviderConnections, setEmailProviderConnections] = useState({
+    gmail: false,
+    outlook: false,
+  });
+  const [emailSenderAccount, setEmailSenderAccount] = useState("");
+  const [connectingEmailProvider, setConnectingEmailProvider] = useState(null);
+  const [emailCommunicationPreferences, setEmailCommunicationPreferences] = useState({
+    routeReplies: true,
+    copyRecruiters: false,
+    sendReminders: true,
+  });
+  const [calendarProviderConnections, setCalendarProviderConnections] = useState({
+    googleCalendar: false,
+    outlookCalendar: false,
+  });
+  const [calendarDefaultAccount, setCalendarDefaultAccount] = useState("");
+  const [connectingCalendarProvider, setConnectingCalendarProvider] = useState(null);
+  const [calendarPreferences, setCalendarPreferences] = useState({
+    useConnectedCalendar: true,
+    blockBusyTime: true,
+    keepSchedulingInsideEvality: true,
+  });
   const [sidebarScrollState, setSidebarScrollState] = useState({
     canScroll: false,
     isAtTop: true,
     isAtBottom: true,
   });
   const sidebarScrollRef = useRef(null);
+  const emailConnectTimerRef = useRef(null);
+  const calendarConnectTimerRef = useRef(null);
 
   useEffect(() => {
     const storedWorkspaceType = readStoredValue(STORAGE_KEYS.WORKSPACE_TYPE);
@@ -638,9 +997,189 @@ export default function SettingsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const storedConnections = readStoredJSON(STORAGE_KEYS.EMAIL_PROVIDER_CONNECTIONS);
+
+    if (storedConnections && typeof storedConnections === "object") {
+      const nextConnections = {
+        gmail: Boolean(storedConnections.gmail),
+        outlook: Boolean(storedConnections.outlook),
+      };
+
+      setEmailProviderConnections(nextConnections);
+
+      const storedSenderAccount = readStoredValue(STORAGE_KEYS.EMAIL_SENDER_ACCOUNT);
+      if (storedSenderAccount === "gmail" || storedSenderAccount === "outlook") {
+        setEmailSenderAccount(storedSenderAccount);
+      } else if (nextConnections.gmail) {
+        setEmailSenderAccount("gmail");
+      } else if (nextConnections.outlook) {
+        setEmailSenderAccount("outlook");
+      }
+    }
+
+    const storedCommunicationPreferences = readStoredJSON(STORAGE_KEYS.EMAIL_COMMUNICATION_PREFERENCES);
+    if (storedCommunicationPreferences && typeof storedCommunicationPreferences === "object") {
+      setEmailCommunicationPreferences((current) => ({
+        ...current,
+        routeReplies: Boolean(storedCommunicationPreferences.routeReplies ?? current.routeReplies),
+        copyRecruiters: Boolean(storedCommunicationPreferences.copyRecruiters ?? current.copyRecruiters),
+        sendReminders: Boolean(storedCommunicationPreferences.sendReminders ?? current.sendReminders),
+      }));
+    }
+
+    const storedCalendarConnections = readStoredJSON(STORAGE_KEYS.CALENDAR_PROVIDER_CONNECTIONS);
+    if (storedCalendarConnections && typeof storedCalendarConnections === "object") {
+      const nextConnections = {
+        googleCalendar: Boolean(storedCalendarConnections.googleCalendar),
+        outlookCalendar: Boolean(storedCalendarConnections.outlookCalendar),
+      };
+
+      setCalendarProviderConnections(nextConnections);
+
+      const storedCalendarAccount = readStoredValue(STORAGE_KEYS.CALENDAR_DEFAULT_ACCOUNT);
+      if (storedCalendarAccount === "googleCalendar" || storedCalendarAccount === "outlookCalendar") {
+        setCalendarDefaultAccount(storedCalendarAccount);
+      } else if (nextConnections.googleCalendar) {
+        setCalendarDefaultAccount("googleCalendar");
+      } else if (nextConnections.outlookCalendar) {
+        setCalendarDefaultAccount("outlookCalendar");
+      }
+    }
+
+    const storedCalendarPreferences = readStoredJSON(STORAGE_KEYS.CALENDAR_PREFERENCES);
+    if (storedCalendarPreferences && typeof storedCalendarPreferences === "object") {
+      setCalendarPreferences((current) => ({
+        ...current,
+        useConnectedCalendar: Boolean(storedCalendarPreferences.useConnectedCalendar ?? current.useConnectedCalendar),
+        blockBusyTime: Boolean(storedCalendarPreferences.blockBusyTime ?? current.blockBusyTime),
+        keepSchedulingInsideEvality: Boolean(
+          storedCalendarPreferences.keepSchedulingInsideEvality ?? current.keepSchedulingInsideEvality,
+        ),
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (emailConnectTimerRef.current) {
+        window.clearTimeout(emailConnectTimerRef.current);
+      }
+      if (calendarConnectTimerRef.current) {
+        window.clearTimeout(calendarConnectTimerRef.current);
+      }
+    };
+  }, []);
+
   function handleRecruitingStatusChange(nextValue) {
     setRecruitingStatus(nextValue);
     writeStoredValue(STORAGE_KEYS.WORKSPACE_TYPE, nextValue);
+  }
+
+  function handleEmailSenderAccountChange(event) {
+    const nextValue = event?.target?.value ?? "";
+    setEmailSenderAccount(nextValue);
+    writeStoredValue(STORAGE_KEYS.EMAIL_SENDER_ACCOUNT, nextValue);
+  }
+
+  function handleEmailPreferenceChange(key, nextValue) {
+    setEmailCommunicationPreferences((current) => {
+      const nextPreferences = {
+        ...current,
+        [key]: nextValue,
+      };
+
+      writeStoredJSON(STORAGE_KEYS.EMAIL_COMMUNICATION_PREFERENCES, nextPreferences);
+      return nextPreferences;
+    });
+  }
+
+  function handleConnectEmailProvider(providerId) {
+    if (emailProviderConnections[providerId] || connectingEmailProvider) {
+      return;
+    }
+
+    setConnectingEmailProvider(providerId);
+
+    if (emailConnectTimerRef.current) {
+      window.clearTimeout(emailConnectTimerRef.current);
+    }
+
+    emailConnectTimerRef.current = window.setTimeout(() => {
+      setEmailProviderConnections((current) => {
+        const nextConnections = {
+          ...current,
+          [providerId]: true,
+        };
+
+        writeStoredJSON(STORAGE_KEYS.EMAIL_PROVIDER_CONNECTIONS, nextConnections);
+        return nextConnections;
+      });
+
+      setEmailSenderAccount((current) => {
+        if (current && current !== providerId) {
+          return current;
+        }
+
+        writeStoredValue(STORAGE_KEYS.EMAIL_SENDER_ACCOUNT, providerId);
+        return providerId;
+      });
+
+      setConnectingEmailProvider(null);
+    }, 500);
+  }
+
+  function handleCalendarDefaultAccountChange(event) {
+    const nextValue = event?.target?.value ?? "";
+    setCalendarDefaultAccount(nextValue);
+    writeStoredValue(STORAGE_KEYS.CALENDAR_DEFAULT_ACCOUNT, nextValue);
+  }
+
+  function handleCalendarPreferenceChange(key, nextValue) {
+    setCalendarPreferences((current) => {
+      const nextPreferences = {
+        ...current,
+        [key]: nextValue,
+      };
+
+      writeStoredJSON(STORAGE_KEYS.CALENDAR_PREFERENCES, nextPreferences);
+      return nextPreferences;
+    });
+  }
+
+  function handleConnectCalendarProvider(providerId) {
+    if (calendarProviderConnections[providerId] || connectingCalendarProvider) {
+      return;
+    }
+
+    setConnectingCalendarProvider(providerId);
+
+    if (calendarConnectTimerRef.current) {
+      window.clearTimeout(calendarConnectTimerRef.current);
+    }
+
+    calendarConnectTimerRef.current = window.setTimeout(() => {
+      setCalendarProviderConnections((current) => {
+        const nextConnections = {
+          ...current,
+          [providerId]: true,
+        };
+
+        writeStoredJSON(STORAGE_KEYS.CALENDAR_PROVIDER_CONNECTIONS, nextConnections);
+        return nextConnections;
+      });
+
+      setCalendarDefaultAccount((current) => {
+        if (current && current !== providerId) {
+          return current;
+        }
+
+        writeStoredValue(STORAGE_KEYS.CALENDAR_DEFAULT_ACCOUNT, providerId);
+        return providerId;
+      });
+
+      setConnectingCalendarProvider(null);
+    }, 500);
   }
 
   function updateSidebarScrollState() {
@@ -667,9 +1206,8 @@ export default function SettingsPage() {
     profileComplete: true,
     organizationComplete: true,
     recruitingComplete: Boolean(recruitingStatus),
-    linkedInConnected: false,
-    emailConnected: true,
-    calendarConnected: false,
+    emailConnected: Boolean(emailProviderConnections.gmail || emailProviderConnections.outlook),
+    calendarConnected: Boolean(calendarProviderConnections.googleCalendar || calendarProviderConnections.outlookCalendar),
   };
 
   return (
@@ -718,6 +1256,20 @@ export default function SettingsPage() {
                     onScreeningChannelChange={setScreeningChannel}
                     prescreenMode={prescreenMode}
                     onPrescreenModeChange={setPrescreenMode}
+                    emailProviderConnections={emailProviderConnections}
+                    emailSenderAccount={emailSenderAccount}
+                    onEmailSenderAccountChange={handleEmailSenderAccountChange}
+                    connectingEmailProvider={connectingEmailProvider}
+                    onConnectEmailProvider={handleConnectEmailProvider}
+                    emailCommunicationPreferences={emailCommunicationPreferences}
+                    onEmailPreferenceChange={handleEmailPreferenceChange}
+                    calendarProviderConnections={calendarProviderConnections}
+                    calendarDefaultAccount={calendarDefaultAccount}
+                    onCalendarDefaultAccountChange={handleCalendarDefaultAccountChange}
+                    connectingCalendarProvider={connectingCalendarProvider}
+                    onConnectCalendarProvider={handleConnectCalendarProvider}
+                    calendarPreferences={calendarPreferences}
+                    onCalendarPreferenceChange={handleCalendarPreferenceChange}
                   />
                 </div>
               </div>
