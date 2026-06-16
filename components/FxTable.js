@@ -181,7 +181,7 @@ function getStickyHeaderClassName(stickyPosition, stickyHeader) {
   }
 
   const base = cn(
-    "bg-[var(--fx-bg-soft)]",
+    "bg-[var(--fx-table-header)]",
     stickyHeader ? "sticky top-0 z-[50]" : "",
     stickyPosition ? "z-[60]" : "",
   );
@@ -321,7 +321,7 @@ export function FxTable({
     ) : null;
 
     return (
-      <thead className={cn("bg-[var(--fx-bg-soft)]", FX_TYPOGRAPHY.tableHeader, headerClassName)}>
+      <thead className={cn("bg-[var(--fx-table-header)]", FX_TYPOGRAPHY.tableHeader, headerClassName)}>
         <tr className={FX_TABLE.headerRowHeight}>
           {visibleColumns.map((column, columnIndex) => {
             const stickyPosition = getColumnStickyPosition(column, columnIndex, visibleColumns.length, stickyFirstColumn, stickyLastColumn);
@@ -332,6 +332,7 @@ export function FxTable({
                 key={column.key}
                 className={cn(
                   FX_TABLE.headerCell,
+                  "bg-[var(--fx-table-header)]",
                   getStickyHeaderClassName(stickyPosition, stickyHeader),
                   column.align === "right" ? "text-right" : "",
                   column.align === "center" ? "text-center" : "",

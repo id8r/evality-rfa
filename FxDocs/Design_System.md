@@ -1,6 +1,6 @@
 # Evality AI - Design System
 
-**Version:** 1.1 | **Date:** 14 Jun 2026 | **Status:** Approved Baseline | **Path:** FxDocs/Design_System.md | **Need:** Source of Truth for Dev | **Last Updated:** 14 Jun 2026
+**Version:** 1.2 | **Date:** 16 Jun 2026 | **Status:** Approved Baseline | **Path:** FxDocs/Design_System.md | **Need:** Source of Truth for Dev | **Last Updated:** 16 Jun 2026
 
 
 # Principles
@@ -30,12 +30,16 @@
 | Token            | Value     | Usage                            |
 | ---------------- | --------- | -------------------------------- |
 | Primary          | `#2563EB` | Primary actions, active links    |
-| Background       | `#FFFFFF` | App shell, page background       |
-| Surface          | `#FFFFFF` | Cards, tables, panels            |
-| Surface Raised   | `#F8FAFC` | Sheets, dialogs, dropdowns       |
-| Surface Hover    | `#F1F5F9` | Hover states                     |
+| Background       | `#FFFFFF` | App shell background             |
+| Background Soft  | `#F5F7FA` | Outer app canvas, page background |
+| Surface          | `#FFFFFF` | Cards, tables, panels, chrome    |
+| Surface Subtle   | `#F7F9FC` | Low-emphasis grouped surfaces    |
+| Surface Raised   | `#FAFBFD` | Sheets, dialogs, dropdowns       |
+| Table Header     | `#F6F8FB` | Table header rows                |
+| Table Row Alt    | `#F9FBFD` | Alternate table rows             |
+| Surface Hover    | `#EEF2F7` | Hover states                     |
 | Surface Selected | `#E0ECFF` | Selected rows, active navigation |
-| Border           | `#E2E8F0` | Dividers, outlines               |
+| Border           | `#D6DEE8` | Dividers, outlines               |
 | Text Primary     | `#0F172A` | Main text                        |
 | Text Secondary   | `#64748B` | Secondary text                   |
 | Text Disabled    | `#94A3B8` | Disabled controls and text       |
@@ -48,12 +52,16 @@
 | Token            | Value     | Usage                            |
 | ---------------- | --------- | -------------------------------- |
 | Primary          | `#3B82F6` | Primary actions, active links    |
-| Background       | `#1E2430` | App shell, page background       |
-| Surface          | `#262D3A` | Cards, tables, panels            |
+| Background       | `#1E2430` | App shell background             |
+| Background Soft  | `#262D3A` | Outer app canvas, page background |
+| Surface          | `#262D3A` | Cards, tables, panels, chrome    |
+| Surface Subtle   | `#283140` | Low-emphasis grouped surfaces    |
 | Surface Raised   | `#313948` | Sheets, dialogs, dropdowns       |
+| Table Header     | `#2D3544` | Table header rows                |
+| Table Row Alt    | `#293140` | Alternate table rows             |
 | Surface Hover    | `#394354` | Hover states                     |
 | Surface Selected | `#445066` | Selected rows, active navigation |
-| Border           | `#434C5E` | Dividers, outlines               |
+| Border           | `#546173` | Dividers, outlines               |
 | Text Primary     | `#F3F4F6` | Main text                        |
 | Text Secondary   | `#A8B0BF` | Secondary text                   |
 | Text Disabled    | `#6B7280` | Disabled controls and text       |
@@ -92,23 +100,23 @@ font-family:
 | Token       | Size | Line Height | Weight | Usage                                |
 | ----------- | ---- | ----------- | ------ | ------------------------------------ |
 | Display     | 36px | 44px        | 600    | Landing sections, major headers      |
-| H1          | 28px | 36px        | 600    | Page titles                          |
-| H2          | 24px | 32px        | 600    | Section titles                       |
-| H3          | 20px | 28px        | 600    | Subsections                          |
-| Title       | 16px | 24px        | 600    | Card titles, dialog titles           |
+| Page Title  | 28px | 36px        | 600    | Page titles                          |
+| Section Title | 20px | 28px      | 600    | Section titles                       |
+| Card Title  | 16px | 24px        | 600    | Card titles, dialog titles           |
 | Body        | 14px | 22px        | 400    | Default text                         |
-| Body Medium | 14px | 22px        | 500    | Clickable data, emphasized body text |
-| Label       | 13px | 20px        | 500    | Form labels                          |
-| Helper      | 12px | 18px        | 400    | Helper text, validation text         |
-| Meta        | 12px | 18px        | 500    | Table headers, metadata, chips       |
+| Field Label | 13px | 20px        | 400    | Form labels                          |
+| Field Hint  | 13px | 20px        | 400    | Helper text, validation text         |
+| Button      | 14px | 22px        | 500    | Primary and secondary actions        |
+| Table Header | 12px | 18px       | 500    | Table headers, metadata, chips       |
+| Table Cell  | 14px | 22px        | 400    | Table cells                          |
 | Caption     | 11px | 16px        | 400    | Tiny metadata, timestamps            |
 
 ## Typography Rules
 
 * Use Body as the default application text
-* Use Label for form labels
-* Use Helper for field help and validation text
-* Use Meta for table headers and compact metadata
+* Use Field Label for form labels
+* Use Field Hint for field help and validation text
+* Use Table Header for table headers and compact metadata
 * Do not use text below 11px
 
 
@@ -246,7 +254,7 @@ Example IDs:
 
 * Height: 36px or 40px
 * Radius: 6px
-* Typography: Body Medium
+* Typography: Button
 * Icon Size: 16px
 
 ### States

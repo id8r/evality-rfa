@@ -3,37 +3,11 @@
 "use client";
 
 import { FxThemeToggle } from "@/components/FxThemeToggle";
+import {
+  DESIGN_SYSTEM_COLORS,
+  DESIGN_SYSTEM_TYPOGRAPHY,
+} from "@/lib/FxDesignSystem";
 import { cn } from "@/lib/FxUtils";
-
-const COLOR_TOKENS = [
-  { name: "Primary", variable: "--fx-primary", light: "#2563EB", dark: "#3B82F6", usage: "Primary actions, active links" },
-  { name: "Background", variable: "--fx-bg", light: "#FFFFFF", dark: "#1E2430", usage: "App shell, page background" },
-  { name: "Surface", variable: "--fx-surface", light: "#FFFFFF", dark: "#262D3A", usage: "Cards, tables, panels" },
-  { name: "Surface Raised", variable: "--fx-surface-raised", light: "#F8FAFC", dark: "#313948", usage: "Sheets, dialogs, dropdowns" },
-  { name: "Surface Hover", variable: "--fx-surface-hover", light: "#F1F5F9", dark: "#394354", usage: "Hover states" },
-  { name: "Surface Selected", variable: "--fx-surface-selected", light: "#E0ECFF", dark: "#445066", usage: "Selected rows, active navigation" },
-  { name: "Border", variable: "--fx-border", light: "#E2E8F0", dark: "#434C5E", usage: "Dividers, outlines" },
-  { name: "Text Primary", variable: "--fx-text", light: "#0F172A", dark: "#F3F4F6", usage: "Main text" },
-  { name: "Text Secondary", variable: "--fx-text-muted", light: "#64748B", dark: "#A8B0BF", usage: "Secondary text" },
-  { name: "Text Disabled", variable: "--fx-text-disabled", light: "#94A3B8", dark: "#6B7280", usage: "Disabled controls and text" },
-  { name: "Success", variable: "--fx-success", light: "#16A34A", dark: "#22C55E", usage: "Success states" },
-  { name: "Warning", variable: "--fx-warning", light: "#D97706", dark: "#F59E0B", usage: "Warning states" },
-  { name: "Danger", variable: "--fx-danger", light: "#DC2626", dark: "#EF4444", usage: "Error/destructive states" }
-];
-
-const TYPE_SCALE = [
-  { token: "Display", size: "36px", lh: "44px", weight: "600", sample: "High-Density AI Sourcing", usage: "Landing sections, major headers" },
-  { token: "H1", size: "28px", lh: "36px", weight: "600", sample: "Job Pipeline Workspace", usage: "Page titles" },
-  { token: "H2", size: "24px", lh: "32px", weight: "600", sample: "Section Title Header", usage: "Section titles" },
-  { token: "H3", size: "20px", lh: "28px", weight: "600", sample: "Subsection Category", usage: "Subsections" },
-  { token: "Title", size: "16px", lh: "24px", weight: "600", sample: "Recent Submissions Matrix", usage: "Card titles, dialog titles" },
-  { token: "Body", size: "14px", lh: "22px", weight: "400", sample: "High density structural layers allow quick evaluation patterns across long table streams.", usage: "Default text" },
-  { token: "Body Medium", size: "14px", lh: "22px", weight: "500", sample: "Clickable Data Item Row", usage: "Clickable data, emphasized body text" },
-  { token: "Label", size: "13px", lh: "20px", weight: "500", sample: "Primary Field Label Input", usage: "Form labels" },
-  { token: "Helper", size: "12px", lh: "18px", weight: "400", sample: "Validation verification log error description", usage: "Helper text, validation text" },
-  { token: "Meta", size: "12px", lh: "18px", weight: "500", sample: "JOB-402 REFERENCE", usage: "Table headers, metadata, chips" },
-  { token: "Caption", size: "11px", lh: "16px", weight: "400", sample: "Updated 2 mins ago via system channel", usage: "Tiny metadata, timestamps" }
-];
 
 export function DesignSystemPage() {
   return (
@@ -107,7 +81,7 @@ export function DesignSystemPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {COLOR_TOKENS.map((token) => (
+              {DESIGN_SYSTEM_COLORS.map((token) => (
                 <div
                   key={token.variable}
                   className="flex flex-col justify-between p-4 bg-[var(--fx-surface)] border border-[var(--fx-border)] rounded-lg font-mono text-xs space-y-3"
@@ -135,12 +109,12 @@ export function DesignSystemPage() {
                     {/* Concentric Split Dual Color Circular Swatches */}
                     <div className="flex items-center shrink-0">
                       <div
-                        className="w-4 h-8 rounded-l-full border-y border-l border-[var(--fx-border)]"
+                className="w-4 h-8 rounded-l-[8px] border-y border-l border-[0.5px] border-[var(--fx-border)]"
                         style={{ backgroundColor: token.light }}
                         title={`Light Theme: ${token.light}`}
                       />
                       <div
-                        className="w-4 h-8 rounded-r-full border-y border-r border-[var(--fx-border)]"
+                className="w-4 h-8 rounded-r-[8px] border-y border-r border-[0.5px] border-[var(--fx-border)]"
                         style={{ backgroundColor: token.dark }}
                         title={`Dark Theme: ${token.dark}`}
                       />
@@ -170,7 +144,7 @@ export function DesignSystemPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--fx-border)] text-[13px]">
-                    {TYPE_SCALE.map((t) => (
+                    {DESIGN_SYSTEM_TYPOGRAPHY.map((t) => (
                       <tr key={t.token} className="h-14 font-sans text-[var(--fx-text)]">
                         <td className="px-4 font-mono text-xs text-[var(--fx-text-muted)]">{t.token}</td>
                         <td className="px-4 font-mono text-xs text-[var(--fx-text-disabled)]">{t.size} / {t.lh}</td>

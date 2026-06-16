@@ -28,7 +28,14 @@ function readStoredAuthStatus() {
   return typeof window !== "undefined" && Boolean(readStoredValue(STORAGE_KEYS.AUTH_COMPLETE));
 }
 
-export function FxProtectedAppPage({ children, pageId = "jobs", title = null, navbarLeading = null, navbarActions = null }) {
+export function FxProtectedAppPage({
+  children,
+  pageId = "jobs",
+  title = null,
+  navbarLeading = null,
+  navbarActions = null,
+  contentClassName = "",
+}) {
   const pageMeta = getPageMeta(pageId);
   const pageTitle = title === false ? null : title ?? pageMeta?.pageTitle ?? "Evality";
   const isAuthenticated = useSyncExternalStore(subscribeToAuthChange, readStoredAuthStatus, () => false);
@@ -55,6 +62,7 @@ export function FxProtectedAppPage({ children, pageId = "jobs", title = null, na
       navbarActions={navbarActions}
       mainScroll={pageId === "settings" ? "hidden" : "auto"}
       contentPaddingYClassName={pageId === "settings" ? "py-0" : "py-[32px]"}
+      contentClassName={contentClassName}
     >
       {children}
     </AppShell>

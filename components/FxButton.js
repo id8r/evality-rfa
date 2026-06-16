@@ -8,7 +8,7 @@ import { FX_BUTTON_HEIGHT, FX_BUTTON_PADDING_X, FX_RADIUS, FX_TYPE } from "@/lib
 import { cn } from "@/lib/FxUtils";
 
 const variantClasses = {
-  primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+  primary: "bg-primary !text-white hover:bg-primary/90",
   secondary: "border border-border bg-card text-card-foreground hover:bg-muted",
   outline: "border border-border bg-background text-foreground hover:bg-muted",
   ghost: "bg-transparent text-foreground hover:bg-muted",

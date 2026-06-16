@@ -37,34 +37,10 @@ import {
   FX_SHADOW,
   FX_TYPOGRAPHY,
 } from "@/lib/FxTheme";
-
-const COLOR_SWATCHES = [
-  { label: "Background", token: "--fx-bg", className: "bg-[var(--fx-bg)]" },
-  { label: "Background Soft", token: "--fx-bg-soft", className: "bg-[var(--fx-bg-soft)]" },
-  { label: "Surface", token: "--fx-surface", className: "bg-[var(--fx-surface)]" },
-  { label: "Surface Raised", token: "--fx-surface-raised", className: "bg-[var(--fx-surface-raised)]" },
-  { label: "Surface Hover", token: "--fx-surface-hover", className: "bg-[var(--fx-surface-hover)]" },
-  { label: "Surface Selected", token: "--fx-surface-selected", className: "bg-[var(--fx-surface-selected)]" },
-  { label: "Text", token: "--fx-text", className: "bg-[var(--fx-text)]" },
-  { label: "Text Muted", token: "--fx-text-muted", className: "bg-[var(--fx-text-muted)]" },
-  { label: "Border", token: "--fx-border", className: "bg-[var(--fx-border)]" },
-  { label: "Primary", token: "--fx-primary", className: "bg-[var(--fx-primary)]" },
-  { label: "Success", token: "--fx-success", className: "bg-[var(--fx-success)]" },
-  { label: "Warning", token: "--fx-warning", className: "bg-[var(--fx-warning)]" },
-  { label: "Danger", token: "--fx-danger", className: "bg-[var(--fx-danger)]" },
-];
-
-const TYPOGRAPHY_ROWS = [
-  { name: "Page Title", sample: "Design System", token: FX_TYPOGRAPHY.pageTitle, source: "FX_TYPOGRAPHY.pageTitle" },
-  { name: "Section Title", sample: "Visual primitives", token: FX_TYPOGRAPHY.sectionTitle, source: "FX_TYPOGRAPHY.sectionTitle" },
-  { name: "Card Title", sample: "Active jobs", token: FX_TYPOGRAPHY.cardTitle, source: "FX_TYPOGRAPHY.cardTitle" },
-  { name: "Body", sample: "Shared components for scanning and repeated action.", token: FX_TYPOGRAPHY.body, source: "FX_TYPOGRAPHY.body" },
-  { name: "Field Label", sample: "Company Name", token: FX_TYPOGRAPHY.fieldLabel, source: "FX_TYPOGRAPHY.fieldLabel" },
-  { name: "Field Hint", sample: "Used below forms and controls.", token: FX_TYPOGRAPHY.fieldHint, source: "FX_TYPOGRAPHY.fieldHint" },
-  { name: "Button", sample: "Primary action", token: FX_TYPOGRAPHY.button, source: "FX_TYPOGRAPHY.button" },
-  { name: "Table Header", sample: "Job Title", token: FX_TYPOGRAPHY.tableHeader, source: "FX_TYPOGRAPHY.tableHeader" },
-  { name: "Table Cell", sample: "Senior Frontend Engineer", token: FX_TYPOGRAPHY.tableCell, source: "FX_TYPOGRAPHY.tableCell" },
-];
+import {
+  DESIGN_SYSTEM_COLORS,
+  DESIGN_SYSTEM_TYPOGRAPHY,
+} from "@/lib/FxDesignSystem";
 
 const TABLE_COLUMNS = [
   { key: "jobId", label: "Job ID", width: 120, minWidth: 112, maxWidth: 136, defaultVisible: true },
@@ -94,11 +70,11 @@ function Swatch({ label, token, className }) {
       : "text-[var(--fx-text)]";
 
   return (
-    <div className={`overflow-hidden rounded-[10px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-      <div className={`h-[64px] ${className}`} />
-      <div className="space-y-[4px] p-[12px]">
+    <div className={`flex items-center gap-[12px] overflow-hidden rounded-[8px] border-[0.5px] border-[var(--fx-border)] bg-[var(--fx-surface)] p-[12px]`}>
+      <div className={`size-[56px] shrink-0 rounded-full border-[0.5px] border-[var(--fx-border)] ${className}`} />
+      <div className="min-w-0 space-y-[4px]">
         <div className={`${FX_TYPOGRAPHY.button} ${textClassName}`}>{label}</div>
-        <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>{token}</div>
+        <div className={`${FX_TYPOGRAPHY.caption} truncate text-[var(--fx-text-muted)]`}>{token}</div>
       </div>
     </div>
   );
@@ -190,8 +166,8 @@ export default function DesignSystemRoute() {
           </div>
 
           <Section title="Colors" description="Tokens from FxTheme and CSS variables only.">
-            <div className="grid gap-[12px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {COLOR_SWATCHES.map((swatch) => (
+            <div className="grid gap-[12px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              {DESIGN_SYSTEM_COLORS.map((swatch) => (
                 <Swatch key={swatch.token} {...swatch} />
               ))}
             </div>
@@ -199,7 +175,7 @@ export default function DesignSystemRoute() {
 
           <Section title="Typography" description="Actual type tokens used across the app.">
             <div className="space-y-[10px]">
-              {TYPOGRAPHY_ROWS.map((row) => (
+              {DESIGN_SYSTEM_TYPOGRAPHY.map((row) => (
                 <TypographyRow key={row.name} {...row} />
               ))}
             </div>

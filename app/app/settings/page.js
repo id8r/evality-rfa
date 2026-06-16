@@ -533,7 +533,7 @@ export default function SettingsPage() {
 
   return (
     <FxProtectedAppPage pageId="settings">
-      <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px] overflow-hidden`}>
+      <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px] overflow-hidden bg-transparent`}>
         <div className="grid h-full min-h-0 flex-1 gap-[24px] overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="relative h-full min-h-0 overflow-hidden py-[32px]">
             <div className="fx-scrollbar-hidden h-full min-h-0 overflow-y-auto px-[4px]" ref={sidebarScrollRef} onScroll={updateSidebarScrollState}>

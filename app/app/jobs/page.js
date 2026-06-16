@@ -1327,7 +1327,7 @@ export default function JobsPage() {
   }));
 
   return (
-    <FxProtectedAppPage pageId="jobs">
+    <FxProtectedAppPage pageId="jobs" contentClassName="bg-[var(--fx-surface)]">
       <TooltipProvider delayDuration={0}>
         <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden`}>
         <div className="flex min-h-0 flex-1 flex-col gap-[24px] overflow-hidden">

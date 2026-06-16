@@ -6,12 +6,16 @@ components/Navbar.js | Top navbar with page title only | Sree | 2026-06-10
 
 "use client";
 
+import { cn } from "@/lib/FxUtils";
 import { FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
-export function Navbar({ title, leading = null, actions = null }) {
+export function Navbar({ title, leading = null, actions = null, className = "" }) {
   return (
     <header
-      className={`sticky top-0 z-40 flex ${FX_LAYOUT.navbarHeight} items-center justify-between border-b border-border bg-background ${FX_LAYOUT.pagePaddingX}`}
+      className={cn(
+        `sticky top-0 z-40 flex ${FX_LAYOUT.navbarHeight} items-center justify-between border-b border-border bg-background ${FX_LAYOUT.pagePaddingX}`,
+        className,
+      )}
     >
       <div className="flex min-w-0 items-center gap-[16px]">
         {leading ? <div className="flex shrink-0 items-center">{leading}</div> : null}

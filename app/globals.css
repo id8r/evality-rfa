@@ -34,18 +34,18 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
 
 :root {
   --fx-bg: #ffffff;
-  --fx-bg-soft: #f8fafc;
+  --fx-bg-soft: #f5f7fa;
   --fx-surface: #ffffff;
-  --fx-surface-raised: #f8fafc;
-  --fx-surface-hover: #f1f5f9;
+  --fx-surface-subtle: #f7f9fc;
+  --fx-surface-raised: #fafbfd;
+  --fx-table-header: #f6f8fb;
+  --fx-table-row-alt: #f9fbfd;
+  --fx-surface-hover: #eef2f7;
   --fx-surface-selected: #e0ecff;
   --fx-text: #0f172a;
   --fx-text-muted: #64748b;
-  --fx-text-disabled: #94a3b8;
-  --fx-border: #e2e8f0;
+  --fx-border: #d6dee8;
   --fx-primary: #2563eb;
-  --fx-ai: #c737f0;
-  --fx-primary-foreground: #ffffff;
   --fx-success: #16a34a;
   --fx-warning: #d97706;
   --fx-danger: #dc2626;
@@ -56,13 +56,16 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
   --fx-bg: #1e2430;
   --fx-bg-soft: #262d3a;
   --fx-surface: #262d3a;
+  --fx-surface-subtle: #283140;
   --fx-surface-raised: #313948;
+  --fx-table-header: #2d3544;
+  --fx-table-row-alt: #293140;
   --fx-surface-hover: #394354;
   --fx-surface-selected: #445066;
   --fx-text: #f3f4f6;
   --fx-text-muted: #a8b0bf;
   --fx-text-disabled: #6b7280;
-  --fx-border: #434c5e;
+  --fx-border: #546173;
   --fx-primary: #3b82f6;
   --fx-ai: #d06af4;
   --fx-primary-foreground: #ffffff;

@@ -23,6 +23,7 @@ import {
 } from "@/lib/FxConstants";
 import { FX_LAYOUT, FX_NAVIGATION, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { clearAuthAndOnboardingState } from "@/lib/FxStore";
+import { cn } from "@/lib/FxUtils";
 
 function Avatar({ name }) {
   const initials = name
@@ -40,7 +41,7 @@ function Avatar({ name }) {
 }
 /* - - - - - - - - - - - - - - - - */
 
-export function Sidebar({ isCollapsed, onToggle, width }) {
+export function Sidebar({ isCollapsed, onToggle, width, className = "" }) {
   const pathname = usePathname();
   const { theme, handleToggleTheme } = useFxTheme();
   const navItems = getSidebarNavItems();
@@ -61,7 +62,10 @@ export function Sidebar({ isCollapsed, onToggle, width }) {
 
   return (
     <aside
-      className="fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[16px] py-[16px] transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
+      className={cn(
+        "fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[16px] py-[16px] transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        className,
+      )}
       style={{ width }}
     >
       <div className="mb-[24px] flex items-center justify-between gap-[8px] overflow-hidden">
