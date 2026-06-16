@@ -72,16 +72,11 @@ function Section({ title, description, action, className = "", children }) {
 }
 
 function Swatch({ label, token, className }) {
-  const textClassName =
-    token === "--fx-text" || token === "--fx-primary" || token === "--fx-success" || token === "--fx-danger"
-      ? "text-white"
-      : "text-[var(--fx-text)]";
-
   return (
     <div className={`flex items-center gap-[12px] overflow-hidden rounded-[8px] border-[0.5px] border-[var(--fx-border)] bg-[var(--fx-surface)] p-[12px]`}>
       <div className={`size-[56px] shrink-0 rounded-full border-[0.5px] border-[var(--fx-border)] ${className}`} />
       <div className="min-w-0 space-y-[4px]">
-        <div className={`${FX_TYPOGRAPHY.button} ${textClassName}`}>{label}</div>
+        <div className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{label}</div>
         <div className={`${FX_TYPOGRAPHY.caption} truncate text-[var(--fx-text-muted)]`}>{token}</div>
       </div>
     </div>
@@ -90,15 +85,17 @@ function Swatch({ label, token, className }) {
 
 function ThemeColorGrid({ title, subtitle, themeClassName = "" }) {
   return (
-    <div className={cn("space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]", themeClassName)}>
+    <div className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
       <div className="space-y-[4px]">
         <div className={`${FX_TYPOGRAPHY.cardTitle} text-[var(--fx-text)]`}>{title}</div>
         <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>{subtitle}</div>
       </div>
-      <div className="grid gap-[12px] sm:grid-cols-2 xl:grid-cols-4">
-        {DESIGN_SYSTEM_COLORS.map((swatch) => (
-          <Swatch key={`${title}-${swatch.token}`} {...swatch} />
-        ))}
+      <div className={themeClassName}>
+        <div className="grid gap-[12px] sm:grid-cols-2 xl:grid-cols-3">
+          {DESIGN_SYSTEM_COLORS.map((swatch) => (
+            <Swatch key={`${title}-${swatch.token}`} {...swatch} />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -234,15 +231,13 @@ export default function DesignSystemRoute() {
 
           <Section title="Buttons" description="Existing FxButton variants and sizes.">
             <div className="space-y-[12px]">
-              <div className="flex flex-wrap items-center gap-[8px]">
+              <div className="flex flex-nowrap items-center gap-[24px] overflow-x-auto pb-[4px]">
                 <FxButton>Primary</FxButton>
                 <FxButton variant="secondary">Secondary</FxButton>
                 <FxButton variant="outline">Outline</FxButton>
                 <FxButton variant="ghost">Ghost</FxButton>
                 <FxButton variant="destructive">Danger</FxButton>
                 <FxButton disabled>Disabled</FxButton>
-              </div>
-              <div className="flex flex-wrap items-center gap-[8px]">
                 <FxButton size="sm">Small</FxButton>
                 <FxButton size="md">Medium</FxButton>
                 <FxButton size="lg">Large</FxButton>
@@ -288,7 +283,7 @@ export default function DesignSystemRoute() {
           </Section>
 
           <Section title="Table" description="Small realistic Jobs table with column picker and actions.">
-            <div className={`h-[320px] rounded-[10px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+            <div className={`max-h-[280px] rounded-[10px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
               <FxTable
                 columns={TABLE_COLUMNS}
                 rows={tableRows}

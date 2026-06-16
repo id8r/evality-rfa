@@ -47,6 +47,9 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
   --fx-text-muted: #64748b;
   --fx-text-disabled: #94a3b8;
   --fx-border: #d6dee8;
+  --fx-disabled-bg: #e5eaf1;
+  --fx-disabled-text: #475569;
+  --fx-disabled-border: #cbd5e1;
 
   --fx-primary: #2563eb;
   --fx-ai: #c737f0;
@@ -73,6 +76,9 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
   --fx-text-muted: #a8b0bf;
   --fx-text-disabled: #6b7280;
   --fx-border: #465366;
+  --fx-disabled-bg: #374151;
+  --fx-disabled-text: #cbd5e1;
+  --fx-disabled-border: #4b5563;
 
   --fx-primary: #60a5fa;
   --fx-ai: #d06af4;
