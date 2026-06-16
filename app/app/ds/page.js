@@ -54,12 +54,17 @@ const TABLE_COLUMNS = [
   { key: "actions", label: "", width: 56, minWidth: 56, maxWidth: 56, align: "right", required: true, locked: true, hideable: false },
 ];
 
-function Section({ title, description, children }) {
+function Section({ title, description, action, className = "", children }) {
   return (
-    <section className="space-y-[16px] border-t border-[var(--fx-border)] pt-[24px] first:border-t-0 first:pt-0">
+    <section className={cn("space-y-[16px] border-t border-[var(--fx-border)] pt-[24px] first:border-t-0 first:pt-0", className)}>
       <div className="space-y-[4px]">
         <h2 className={FX_TYPOGRAPHY.sectionTitle}>{title}</h2>
-        {description ? <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{description}</p> : null}
+        {description || action ? (
+          <div className="flex flex-wrap items-center gap-x-[12px] gap-y-[4px]">
+            {description ? <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{description}</p> : null}
+            {action ? <div className="shrink-0">{action}</div> : null}
+          </div>
+        ) : null}
       </div>
       {children}
     </section>
@@ -322,7 +327,7 @@ export default function DesignSystemRoute() {
             </div>
           </Section>
 
-          <Section title="Sheets, Dialogs, Menus" description="Overlay primitives that already exist in the product.">
+          <Section title="Sheets, Dialogs, Menus" description="Overlay primitives that already exist in the product." className="pb-[32px]">
             <div className="flex flex-wrap items-center gap-[8px]">
               <FxButton variant="outline" size="sm" onClick={() => setIsSheetOpen(true)}>
                 Open Sheet
@@ -382,16 +387,22 @@ export default function DesignSystemRoute() {
             </Dialog>
           </Section>
 
-          <Section title="Markdown" description="The raw Design_System.md source remains accessible.">
-            <Link
-              href="/app/ds/md"
-              target="_blank"
-              rel="noreferrer"
-              className={`${fxButtonClassName({ variant: "outline", size: "sm" })} inline-flex`}
-            >
-              Open Design System MD
-            </Link>
-          </Section>
+          {/* <Section
+            className="pb-[32px]"
+            title="Markdown"
+            description="The raw Design_System.md source remains accessible."
+            action={
+              <Link
+                href="/app/ds/md"
+                target="_blank"
+                rel="noreferrer"
+                className={`${fxButtonClassName({ variant: "ghost", size: "sm" })} inline-flex`}
+              >
+                Open Design System MD
+              </Link>
+            }
+          >
+          </Section> */}
         </div>
       </section>
     </FxProtectedAppPage>
