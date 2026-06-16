@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/sheet";
-import { ROUTES, WORKSPACE_TYPES } from "@/lib/FxConstants";
+import { ROUTES, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
 import { normalizeJobRecord } from "@/lib/FxJobSchema";
 import {
@@ -590,42 +590,51 @@ export default function JobDetailsPage({ params }) {
       label: "Candidate Name",
       width: "33%",
       cellClassName: "text-[13px] leading-[20px] font-medium",
+      required: true,
+      locked: true,
+      hideable: false,
     },
     {
       key: "matchScore",
       label: "JD Match Score",
       width: "11%",
       align: "center",
+      defaultVisible: true,
     },
     {
       key: "trustScore",
       label: "Trust Score",
       width: "11%",
       align: "center",
+      defaultVisible: true,
     },
     {
       key: "interested",
       label: "Interested",
       width: "10%",
       align: "center",
+      defaultVisible: true,
     },
     {
       key: "availability",
       label: "Availability",
       width: "10%",
       align: "center",
+      defaultVisible: true,
     },
     {
       key: "currentSalary",
       label: "Current Salary",
       width: "12.5%",
       align: "right",
+      defaultVisible: true,
     },
     {
       key: "expectedSalary",
       label: "Expectation",
       width: "12.5%",
       align: "right",
+      defaultVisible: true,
     },
     {
       key: "actions",
@@ -633,6 +642,9 @@ export default function JobDetailsPage({ params }) {
       width: "44px",
       align: "center",
       cellClassName: "px-0 pr-0",
+      required: true,
+      locked: true,
+      hideable: false,
     },
   ];
 
@@ -898,6 +910,8 @@ export default function JobDetailsPage({ params }) {
                     minTableWidth="980px"
                     density="compact"
                     emptyMessage="No candidates in this stage yet."
+                    enableColumnPicker
+                    storageKey={STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}
                   />
                 ) : (
                   <WorkspaceEmptyState

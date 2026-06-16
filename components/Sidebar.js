@@ -19,6 +19,7 @@ import {
   DEMO_USER,
   getSidebarNavItems,
   ROUTES,
+  SIDEBAR_DIMENSIONS,
 } from "@/lib/FxConstants";
 import { FX_LAYOUT, FX_NAVIGATION, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { clearAuthAndOnboardingState } from "@/lib/FxStore";
@@ -39,7 +40,7 @@ function Avatar({ name }) {
 }
 /* - - - - - - - - - - - - - - - - */
 
-export function Sidebar({ isCollapsed, onToggle }) {
+export function Sidebar({ isCollapsed, onToggle, width }) {
   const pathname = usePathname();
   const { theme, handleToggleTheme } = useFxTheme();
   const navItems = getSidebarNavItems();
@@ -60,8 +61,8 @@ export function Sidebar({ isCollapsed, onToggle }) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[16px] py-[16px] transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${isCollapsed ? FX_LAYOUT.sidebarCollapsedWidth : FX_LAYOUT.sidebarExpandedWidth
-        }`}
+      className="fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-border bg-background px-[16px] py-[16px] transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
+      style={{ width }}
     >
       <div className="mb-[24px] flex items-center justify-between gap-[8px] overflow-hidden">
         {isCollapsed ? (
@@ -187,7 +188,12 @@ export function Sidebar({ isCollapsed, onToggle }) {
               </button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align={isCollapsed ? "start" : "end"} side="top" className={FX_LAYOUT.accountMenuWidth}>
+            <DropdownMenuContent
+              align={isCollapsed ? "start" : "end"}
+              side="top"
+              className={FX_LAYOUT.accountMenuRadius}
+              style={{ width: SIDEBAR_DIMENSIONS.EXPANDED, minWidth: SIDEBAR_DIMENSIONS.EXPANDED }}
+            >
               <DropdownMenuItem onClick={handleToggleTheme}>
                 <span>Theme</span>
                 <span className={`ml-auto ${FX_TYPOGRAPHY.metaLabel} text-muted-foreground`}>

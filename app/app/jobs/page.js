@@ -1060,8 +1060,6 @@ export default function JobsPage() {
     setEditingJob(null);
     setJobForm(EMPTY_JOB_FORM);
     setActiveSheetStep("basic");
-    setIsAiPromptExpanded(false);
-    setIsBasicDetailsGenerated(false);
     setValidationErrors({});
   }
 
@@ -1084,6 +1082,9 @@ export default function JobsPage() {
       ),
       width: showClientInfo ? "24%" : "28%",
       cellClassName: FX_TYPOGRAPHY.clickableData,
+      required: true,
+      locked: true,
+      hideable: false,
     },
     ...(showClientInfo
       ? [
@@ -1103,6 +1104,7 @@ export default function JobsPage() {
       key: "positions",
       label: <span className={fieldHeaderLabelClassName()}>Positions</span>,
       width: "7%",
+      defaultVisible: true,
     },
     {
       key: "location",
@@ -1148,6 +1150,9 @@ export default function JobsPage() {
       label: "",
       width: "64px",
       align: "right",
+      required: true,
+      locked: true,
+      hideable: false,
     },
   ];
 
@@ -1377,8 +1382,11 @@ export default function JobsPage() {
                 stickyFirstColumn
                 stickyLastColumn
                 scrollX
+                className="h-full min-h-0"
                 minTableWidth="1040px"
                 emptyMessage={PAGE_COPY.jobs.tableEmpty}
+                enableColumnPicker
+                storageKey={STORAGE_KEYS.JOBS_TABLE_COLUMNS}
               />
             ) : null}
           </div>

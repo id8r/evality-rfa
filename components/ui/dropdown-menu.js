@@ -62,6 +62,28 @@ function DropdownMenuItem({ className, inset, ...props }) {
   );
 }
 
+function DropdownMenuCheckboxItem({ className, children, checked, ...props }) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem
+      data-slot="dropdown-menu-checkbox-item"
+      checked={checked}
+      className={cn(
+        "relative flex cursor-pointer select-none items-center gap-[12px] rounded-[6px] pl-[32px] pr-[12px] py-[8px] outline-none transition-colors hover:bg-accent focus:bg-accent",
+        FX_TYPOGRAPHY.dropdownItem,
+        className,
+      )}
+      {...props}
+    >
+      <DropdownMenuPrimitive.ItemIndicator className="absolute left-[10px] top-1/2 flex size-[16px] -translate-y-1/2 items-center justify-center">
+        <svg viewBox="0 0 12 12" className="size-[12px]" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M2 6l2.5 2.5L10 3" />
+        </svg>
+      </DropdownMenuPrimitive.ItemIndicator>
+      {children}
+    </DropdownMenuPrimitive.CheckboxItem>
+  );
+}
+
 function DropdownMenuSeparator({ className, ...props }) {
   return (
     <DropdownMenuPrimitive.Separator
@@ -96,6 +118,7 @@ export {
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
   DropdownMenuSubTrigger,
 };
