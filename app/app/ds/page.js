@@ -1,80 +1,376 @@
-/* app/app/ds/page.js | Design system route rendered from FxDocs/Design_System.md | Sree | 2026-06-14 */
+"use client";
 
-import path from "node:path";
-import { readFile } from "node:fs/promises";
+import { useState } from "react";
+import Link from "next/link";
+import { Inbox, MoreHorizontal } from "lucide-react";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-
+import { FxButton, fxButtonClassName, fxIconButtonClassName } from "@/components/FxButton";
+import { FxEmptyState } from "@/components/FxEmptyState";
+import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
-import { FX_COLORS, FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FxSelect } from "@/components/FxSelect";
+import { FxTagInput } from "@/components/FxTagInput";
+import { FxTable } from "@/components/FxTable";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@/components/ui/radio-group";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+} from "@/components/ui/sheet";
+import {
+  FX_COLORS,
+  FX_LAYOUT,
+  FX_SHADOW,
+  FX_TYPOGRAPHY,
+} from "@/lib/FxTheme";
 
-const DESIGN_SYSTEM_DOC_PATH = path.join(process.cwd(), "FxDocs", "Design_System.md");
+const COLOR_SWATCHES = [
+  { label: "Background", token: "--fx-bg", className: "bg-[var(--fx-bg)]" },
+  { label: "Background Soft", token: "--fx-bg-soft", className: "bg-[var(--fx-bg-soft)]" },
+  { label: "Surface", token: "--fx-surface", className: "bg-[var(--fx-surface)]" },
+  { label: "Surface Raised", token: "--fx-surface-raised", className: "bg-[var(--fx-surface-raised)]" },
+  { label: "Surface Hover", token: "--fx-surface-hover", className: "bg-[var(--fx-surface-hover)]" },
+  { label: "Surface Selected", token: "--fx-surface-selected", className: "bg-[var(--fx-surface-selected)]" },
+  { label: "Text", token: "--fx-text", className: "bg-[var(--fx-text)]" },
+  { label: "Text Muted", token: "--fx-text-muted", className: "bg-[var(--fx-text-muted)]" },
+  { label: "Border", token: "--fx-border", className: "bg-[var(--fx-border)]" },
+  { label: "Primary", token: "--fx-primary", className: "bg-[var(--fx-primary)]" },
+  { label: "Success", token: "--fx-success", className: "bg-[var(--fx-success)]" },
+  { label: "Warning", token: "--fx-warning", className: "bg-[var(--fx-warning)]" },
+  { label: "Danger", token: "--fx-danger", className: "bg-[var(--fx-danger)]" },
+];
 
-const markdownComponents = {
-  h1: ({ children }) => <h1 className={`${FX_TYPOGRAPHY.pageTitle} text-[var(--fx-text)]`}>{children}</h1>,
-  h2: ({ children }) => <h2 className={`${FX_TYPOGRAPHY.h2} mt-[32px] text-[var(--fx-text)]`}>{children}</h2>,
-  h3: ({ children }) => <h3 className={`${FX_TYPOGRAPHY.h3} mt-[24px] text-[var(--fx-text)]`}>{children}</h3>,
-  h4: ({ children }) => <h4 className={`${FX_TYPOGRAPHY.cardTitle} mt-[24px] text-[var(--fx-text)]`}>{children}</h4>,
-  p: ({ children }) => <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{children}</p>,
-  ul: ({ children }) => <ul className={`list-disc space-y-[8px] pl-[24px] ${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>{children}</ul>,
-  ol: ({ children }) => <ol className={`list-decimal space-y-[8px] pl-[24px] ${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>{children}</ol>,
-  li: ({ children }) => <li className="leading-[22px]">{children}</li>,
-  strong: ({ children }) => <strong className="font-semibold text-[var(--fx-text)]">{children}</strong>,
-  em: ({ children }) => <em className="italic text-[var(--fx-text)]">{children}</em>,
-  hr: () => <hr className="my-[24px] border-[var(--fx-border)]" />,
-  blockquote: ({ children }) => (
-    <blockquote className={`border-l-2 border-[var(--fx-border)] pl-[16px] ${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+const TYPOGRAPHY_ROWS = [
+  { name: "Page Title", sample: "Design System", token: FX_TYPOGRAPHY.pageTitle, source: "FX_TYPOGRAPHY.pageTitle" },
+  { name: "Section Title", sample: "Visual primitives", token: FX_TYPOGRAPHY.sectionTitle, source: "FX_TYPOGRAPHY.sectionTitle" },
+  { name: "Card Title", sample: "Active jobs", token: FX_TYPOGRAPHY.cardTitle, source: "FX_TYPOGRAPHY.cardTitle" },
+  { name: "Body", sample: "Shared components for scanning and repeated action.", token: FX_TYPOGRAPHY.body, source: "FX_TYPOGRAPHY.body" },
+  { name: "Field Label", sample: "Company Name", token: FX_TYPOGRAPHY.fieldLabel, source: "FX_TYPOGRAPHY.fieldLabel" },
+  { name: "Field Hint", sample: "Used below forms and controls.", token: FX_TYPOGRAPHY.fieldHint, source: "FX_TYPOGRAPHY.fieldHint" },
+  { name: "Button", sample: "Primary action", token: FX_TYPOGRAPHY.button, source: "FX_TYPOGRAPHY.button" },
+  { name: "Table Header", sample: "Job Title", token: FX_TYPOGRAPHY.tableHeader, source: "FX_TYPOGRAPHY.tableHeader" },
+  { name: "Table Cell", sample: "Senior Frontend Engineer", token: FX_TYPOGRAPHY.tableCell, source: "FX_TYPOGRAPHY.tableCell" },
+];
+
+const TABLE_COLUMNS = [
+  { key: "jobId", label: "Job ID", width: 120, minWidth: 112, maxWidth: 136, defaultVisible: true },
+  { key: "jobTitle", label: "Job Title", width: 260, minWidth: 220, grow: 2, defaultVisible: true },
+  { key: "client", label: "Client", width: 160, minWidth: 140, maxWidth: 200, defaultVisible: true },
+  { key: "status", label: "Status", width: 120, minWidth: 104, maxWidth: 136, align: "center", defaultVisible: true },
+  { key: "lastUpdated", label: "Last Updated", width: 160, minWidth: 140, maxWidth: 180, defaultVisible: true },
+  { key: "actions", label: "", width: 56, minWidth: 56, maxWidth: 56, align: "right", required: true, locked: true, hideable: false },
+];
+
+function Section({ title, description, children }) {
+  return (
+    <section className="space-y-[16px] border-t border-[var(--fx-border)] pt-[24px] first:border-t-0 first:pt-0">
+      <div className="space-y-[4px]">
+        <h2 className={FX_TYPOGRAPHY.sectionTitle}>{title}</h2>
+        {description ? <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{description}</p> : null}
+      </div>
       {children}
-    </blockquote>
-  ),
-  code: ({ inline, children }) =>
-    inline ? (
-      <code className="rounded-[4px] bg-[var(--fx-surface-hover)] px-[4px] py-[1px] font-mono text-[12px] text-[var(--fx-text)]">
-        {children}
-      </code>
-    ) : (
-      <code className="font-mono text-[12px] text-[var(--fx-text)]">{children}</code>
-    ),
-  pre: ({ children }) => (
-    <pre className="overflow-x-auto rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-bg-soft)] p-[16px] text-[12px] leading-[18px] text-[var(--fx-text)]">
-      {children}
-    </pre>
-  ),
-  table: ({ children }) => (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-left text-[14px] leading-[22px] text-[var(--fx-text)]">
-        {children}
-      </table>
-    </div>
-  ),
-  thead: ({ children }) => <thead className="bg-[var(--fx-bg-soft)] text-[12px] leading-[18px] font-medium uppercase text-[var(--fx-text-muted)]">{children}</thead>,
-  tbody: ({ children }) => <tbody className="divide-y divide-[var(--fx-border)]">{children}</tbody>,
-  tr: ({ children }) => <tr className="border-b border-[var(--fx-border)]">{children}</tr>,
-  th: ({ children }) => <th className="px-[16px] py-[12px] font-medium">{children}</th>,
-  td: ({ children }) => <td className="px-[16px] py-[12px] align-top">{children}</td>,
-};
+    </section>
+  );
+}
 
-export default async function DesignSystemRoute() {
-  const markdown = await readFile(DESIGN_SYSTEM_DOC_PATH, "utf8");
+function Swatch({ label, token, className }) {
+  const textClassName =
+    token === "--fx-text" || token === "--fx-primary" || token === "--fx-success" || token === "--fx-danger"
+      ? "text-white"
+      : "text-[var(--fx-text)]";
 
   return (
-    <FxProtectedAppPage pageId="designSystem">
-      <section className={`${FX_LAYOUT.contentWidthWide} min-h-0 flex-1 py-[24px]`}>
-        {/* <div className="mb-[24px] space-y-[8px]">
-          <p className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>Design System</p>
-          <h1 className={`${FX_TYPOGRAPHY.pageTitle} text-[var(--fx-text)]`}>FxDocs / Design_System.md</h1>
-          <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-            Rendered directly from the markdown source so this route stays in sync with the documented baseline.
-          </p>
-        </div> */}
+    <div className={`overflow-hidden rounded-[10px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+      <div className={`h-[64px] ${className}`} />
+      <div className="space-y-[4px] p-[12px]">
+        <div className={`${FX_TYPOGRAPHY.button} ${textClassName}`}>{label}</div>
+        <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>{token}</div>
+      </div>
+    </div>
+  );
+}
 
-        <article className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[24px] shadow-[0_1px_2px_rgba(0,0,0,0.04)]`}>
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={markdownComponents}>
-            {markdown}
-          </ReactMarkdown>
-        </article>
+function TypographyRow({ name, sample, token, source }) {
+  return (
+    <div className={`grid gap-[12px] rounded-[10px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px] md:grid-cols-[180px_minmax(0,1fr)_240px] md:items-center`}>
+      <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>{name}</div>
+      <div className={`${token} text-[var(--fx-text)]`}>{sample}</div>
+      <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>{source}</div>
+    </div>
+  );
+}
+
+function TableActionsMenu() {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className={fxIconButtonClassName({ variant: "ghost", size: "sm" })} aria-label="Open row actions">
+          <MoreHorizontal className="size-[16px]" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[180px]">
+        <DropdownMenuItem>Open</DropdownMenuItem>
+        <DropdownMenuItem>Move</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-[var(--fx-danger)]">Archive</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export default function DesignSystemRoute() {
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [tags, setTags] = useState(["React", "Tailwind"]);
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState(TABLE_COLUMNS.map((column) => column.key));
+
+  const tableRows = [
+    {
+      id: "JOB-1024",
+      jobId: "JOB-1024",
+      jobTitle: "Senior Frontend Engineer",
+      client: "ThinkJS",
+      status: <span className="rounded-full bg-[var(--fx-primary)]/10 px-[10px] py-[4px] text-[var(--fx-primary)]">Published</span>,
+      lastUpdated: "2h ago",
+      actions: <TableActionsMenu />,
+    },
+    {
+      id: "JOB-2048",
+      jobId: "JOB-2048",
+      jobTitle: "Product Designer",
+      client: "Northstar Labs",
+      status: <span className="rounded-full bg-[var(--fx-warning)]/10 px-[10px] py-[4px] text-[var(--fx-warning)]">Draft</span>,
+      lastUpdated: "5h ago",
+      actions: <TableActionsMenu />,
+    },
+    {
+      id: "JOB-3096",
+      jobId: "JOB-3096",
+      jobTitle: "Backend Engineer",
+      client: "SignalDesk",
+      status: <span className="rounded-full bg-[var(--fx-success)]/10 px-[10px] py-[4px] text-[var(--fx-success)]">Active</span>,
+      lastUpdated: "1d ago",
+      actions: <TableActionsMenu />,
+    },
+  ];
+
+  return (
+    <FxProtectedAppPage pageId="designSystem" title="Design System">
+      <section className={`${FX_LAYOUT.contentWidthWide} min-h-0 flex-1 py-[24px]`}>
+        <div className="space-y-[24px]">
+          <div className="flex items-start justify-between gap-[16px]">
+            <div className="space-y-[8px]">
+              <h1 className={FX_TYPOGRAPHY.pageTitle}>Design System</h1>
+              <p className={`${FX_TYPOGRAPHY.body} max-w-[72ch] text-[var(--fx-text-muted)]`}>
+                Visual reference for Evality tokens, primitives, and reusable components.
+              </p>
+            </div>
+            <Link
+              href="/app/ds/md"
+              target="_blank"
+              rel="noreferrer"
+              className={fxButtonClassName({ variant: "outline", size: "sm" })}
+            >
+              Open Design System MD
+            </Link>
+          </div>
+
+          <Section title="Colors" description="Tokens from FxTheme and CSS variables only.">
+            <div className="grid gap-[12px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {COLOR_SWATCHES.map((swatch) => (
+                <Swatch key={swatch.token} {...swatch} />
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Typography" description="Actual type tokens used across the app.">
+            <div className="space-y-[10px]">
+              {TYPOGRAPHY_ROWS.map((row) => (
+                <TypographyRow key={row.name} {...row} />
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Buttons" description="Existing FxButton variants and sizes.">
+            <div className="space-y-[12px]">
+              <div className="flex flex-wrap items-center gap-[8px]">
+                <FxButton>Primary</FxButton>
+                <FxButton variant="secondary">Secondary</FxButton>
+                <FxButton variant="outline">Outline</FxButton>
+                <FxButton variant="ghost">Ghost</FxButton>
+                <FxButton variant="destructive">Danger</FxButton>
+                <FxButton disabled>Disabled</FxButton>
+              </div>
+              <div className="flex flex-wrap items-center gap-[8px]">
+                <FxButton size="sm">Small</FxButton>
+                <FxButton size="md">Medium</FxButton>
+                <FxButton size="lg">Large</FxButton>
+              </div>
+            </div>
+          </Section>
+
+          <Section title="Inputs" description="Built form controls already used in the product.">
+            <div className="grid gap-[16px] lg:grid-cols-2">
+              <div className="space-y-[12px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+                <FxInput label="Company Name" defaultValue="Evality" />
+                <FxInput label="About Company" textarea defaultValue="Recruiter-first workspace for jobs, candidates, and screening." className="min-h-[104px]" />
+                <FxSelect
+                  label="Company Size"
+                  value="11-50"
+                  onChange={() => {}}
+                  options={["1-10", "11-50", "51-200", "201-500", "500+"]}
+                />
+              </div>
+              <div className="space-y-[12px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+                <FxTagInput label="Tags" value={tags} onChange={setTags} />
+                <div className="space-y-[8px]">
+                  <div className={FX_TYPOGRAPHY.fieldLabel}>Recruiting Mode</div>
+                  <RadioGroup value="internal" onValueChange={() => {}} className="grid gap-[8px]">
+                    {[
+                      ["internal", "Hiring for My Company"],
+                      ["clients", "Hiring for Clients"],
+                      ["both", "Both"],
+                    ].map(([value, label]) => (
+                      <label key={value} className="flex items-center gap-[10px] rounded-[8px] border border-[var(--fx-border)] px-[12px] py-[10px]">
+                        <RadioGroupItem value={value} />
+                        <span className={FX_TYPOGRAPHY.body}>{label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </div>
+                <label className="flex items-center gap-[10px] rounded-[8px] border border-[var(--fx-border)] px-[12px] py-[10px]">
+                  <Checkbox checked />
+                  <span className={FX_TYPOGRAPHY.body}>Use AI-assisted screening</span>
+                </label>
+              </div>
+            </div>
+          </Section>
+
+          <Section title="Table" description="Small realistic Jobs table with column picker and actions.">
+            <div className={`h-[320px] rounded-[10px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+              <FxTable
+                columns={TABLE_COLUMNS}
+                rows={tableRows}
+                visibleColumnKeys={visibleColumnKeys}
+                onVisibleColumnKeysChange={setVisibleColumnKeys}
+                enableColumnPicker
+                stickyHeader
+                stickyFirstColumn
+                stickyLastColumn
+                scrollX
+                storageKey={null}
+              />
+            </div>
+          </Section>
+
+          <Section title="Surfaces" description="Cards, empty states, and lightweight content containers.">
+            <div className="grid gap-[16px] lg:grid-cols-2">
+              <div className={`rounded-[10px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px] ${FX_SHADOW.card}`}>
+                <div className="space-y-[8px]">
+                  <div className={FX_TYPOGRAPHY.cardTitle}>Simple content card</div>
+                  <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                    Use these surfaces for compact summaries, status blocks, or grouped settings.
+                  </p>
+                </div>
+                <div className="mt-[16px] flex items-center gap-[8px]">
+                  <FxButton size="sm">Primary action</FxButton>
+                  <FxButton size="sm" variant="outline">Secondary</FxButton>
+                </div>
+              </div>
+              <FxEmptyState
+                icon={Inbox}
+                title="No records yet"
+                body="Empty states should stay simple and actionable."
+                action={<FxButton size="sm" variant="outline">Create record</FxButton>}
+              />
+            </div>
+          </Section>
+
+          <Section title="Sheets, Dialogs, Menus" description="Overlay primitives that already exist in the product.">
+            <div className="flex flex-wrap items-center gap-[8px]">
+              <FxButton variant="outline" size="sm" onClick={() => setIsSheetOpen(true)}>
+                Open Sheet
+              </FxButton>
+              <FxButton variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+                Open Dialog
+              </FxButton>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className={fxIconButtonClassName({ variant: "outline", size: "sm" })}>
+                    <MoreHorizontal className="size-[16px]" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[180px]">
+                  <DropdownMenuItem>Action one</DropdownMenuItem>
+                  <DropdownMenuItem>Action two</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-[var(--fx-danger)]">Delete</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+              <SheetContent size="sm">
+                <SheetHeader title="Sheet sample" description="Compact sidebar-style overlay." />
+                <SheetBody>
+                  <div className="space-y-[12px]">
+                    <FxInput label="Title" defaultValue="New role" />
+                    <FxInput label="Note" textarea defaultValue="Use sheets for focused editing." className="min-h-[96px]" />
+                  </div>
+                </SheetBody>
+                <SheetFooter right={<FxButton size="sm" onClick={() => setIsSheetOpen(false)}>Save</FxButton>} />
+              </SheetContent>
+            </Sheet>
+
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Dialog sample</DialogTitle>
+                  <DialogDescription>Use dialogs for confirmations or tight edits.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-[12px]">
+                  <div className="rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-bg-soft)] p-[12px]">
+                    <div className={FX_TYPOGRAPHY.cardTitle}>Confirm action</div>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>Keep modal content brief.</p>
+                  </div>
+                  <div className="flex justify-end gap-[8px]">
+                    <FxButton variant="outline" size="sm" onClick={() => setIsDialogOpen(false)}>
+                      Cancel
+                    </FxButton>
+                    <FxButton size="sm" onClick={() => setIsDialogOpen(false)}>
+                      Confirm
+                    </FxButton>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </Section>
+
+          <Section title="Markdown" description="The raw Design_System.md source remains accessible.">
+            <Link
+              href="/app/ds/md"
+              target="_blank"
+              rel="noreferrer"
+              className={`${fxButtonClassName({ variant: "outline", size: "sm" })} inline-flex`}
+            >
+              Open Design System MD
+            </Link>
+          </Section>
+        </div>
       </section>
     </FxProtectedAppPage>
   );
