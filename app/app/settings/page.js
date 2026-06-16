@@ -4,29 +4,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Bell,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
   Check,
   Cog,
   CreditCard,
-  FileText,
   ListChecks,
   Mail,
-  Plug,
-  Settings2,
   Upload,
   User,
-  Users,
 } from "lucide-react";
 
 import { FxButton } from "@/components/FxButton";
 import { FxInput } from "@/components/FxInput";
+import { FxFieldLabel } from "@/components/FxFieldState";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
+import { FxSelect } from "@/components/FxSelect";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DEMO_USER, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
-import { FX_COLORS, FX_CONTROL_HEIGHT, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_COLORS, FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn, readStoredValue, writeStoredValue } from "@/lib/FxUtils";
 
 const SETTINGS_SECTIONS = [
@@ -136,7 +133,7 @@ function SettingsCard({ title, description, children, action = null }) {
     <section className="space-y-[20px]">
       <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
         <div className="space-y-[4px]">
-          <h2 className={FX_TYPOGRAPHY.cardTitle}>{title}</h2>
+          <h2 className={`${FX_TYPOGRAPHY.cardTitle} text-[var(--fx-text-muted)]`}>{title}</h2>
           {description ? <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{description}</p> : null}
         </div>
         {action ? <div className="md:justify-self-end">{action}</div> : null}
@@ -148,25 +145,11 @@ function SettingsCard({ title, description, children, action = null }) {
 }
 
 function FieldLabel({ children }) {
-  return <span className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>{children}</span>;
+  return <FxFieldLabel>{children}</FxFieldLabel>;
 }
 
 function SelectField({ label, defaultValue, options }) {
-  return (
-    <label className="flex w-full flex-col gap-[8px]">
-      <FieldLabel>{label}</FieldLabel>
-      <select
-        className={`${FX_CONTROL_HEIGHT.md} w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-0 ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
-        defaultValue={defaultValue}
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+  return <FxSelect label={label} value={defaultValue} onChange={() => {}} options={options} />;
 }
 
 function OptionGrid({ options, selectedValue, onSelect, columns = "md:grid-cols-2" }) {
@@ -245,7 +228,7 @@ function ChecklistItem({ children }) {
   return (
     <div className="flex items-center gap-[8px] px-[4px] py-[4px]">
       <Check className="size-[14px] shrink-0 text-[var(--fx-success)]" strokeWidth={2.5} />
-      <span className={cn(FX_TYPOGRAPHY.body, "truncate text-[var(--fx-text-muted)]")}>{children}</span>
+      <span className="truncate text-[15px] leading-[22px] font-normal text-[var(--fx-text-muted)]">{children}</span>
     </div>
   );
 }
@@ -262,8 +245,8 @@ function DueChecklistItem({ children, onClick }) {
       className="flex w-full items-center gap-[8px] rounded-[8px] px-[4px] py-[4px] text-left transition-colors hover:bg-[var(--fx-surface-hover)]/40"
     >
       <span className="inline-flex size-[14px] shrink-0" aria-hidden="true" />
-      <span className={cn(FX_TYPOGRAPHY.body, "truncate text-[var(--fx-primary)]")}>{children}</span>
-      <span className={`${FX_TYPOGRAPHY.body} shrink-0 text-[var(--fx-primary)]`}>&rarr;</span>
+      <span className="truncate text-[15px] leading-[22px] font-normal text-[var(--fx-primary)]">{children}</span>
+      <span className="shrink-0 text-[15px] leading-[22px] font-normal text-[var(--fx-primary)]">&rarr;</span>
     </button>
   );
 }
@@ -313,32 +296,38 @@ function ProfileCompletionBanner({
   const percentage = Math.round((completedCount / checklist.length) * 100);
 
   return (
-    <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface-subtle)] px-[20px] py-[16px]`}>
-      <div className="flex flex-col gap-[10px] lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-[6px]">
-          <div className={FX_TYPOGRAPHY.cardTitle}>Complete Your Workspace Setup</div>
-          <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-            These setup items need to be completed before the workspace is fully ready.
-          </p>
-        </div>
-        <div className="w-full max-w-[180px] space-y-[6px]">
-          <div className="h-[6px] rounded-full bg-[var(--fx-surface-hover)]">
-            <div className="h-full rounded-full bg-[var(--fx-primary)]" style={{ width: `${percentage}%` }} />
+    <div className={`overflow-hidden rounded-[16px] border ${FX_COLORS.border}`}>
+      <div className="border-b border-[color:color-mix(in_srgb,var(--fx-border)_56%,transparent)] bg-[var(--fx-surface-subtle)] px-[20px] py-[14px]">
+        <div className="flex flex-col gap-[10px] lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-[4px]">
+          <div className={`${FX_TYPOGRAPHY.cardTitle} text-[var(--fx-text-muted)]`}>Complete Your Workspace Setup</div>
+            <p className={`${FX_TYPOGRAPHY.sidebarEmail} text-[var(--fx-text-muted)]`}>
+              These setup items need to be completed before the workspace is fully ready.
+            </p>
           </div>
-          <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>{completedCount}/{checklist.length} Complete</div>
+          <div className="w-full max-w-[180px] space-y-[6px]">
+            <div className="h-[6px] rounded-full bg-[var(--fx-surface-hover)]">
+              <div className="h-full rounded-full bg-[var(--fx-primary)]" style={{ width: `${percentage}%` }} />
+            </div>
+            <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>
+              {completedCount}/{checklist.length} Complete
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="mt-[12px] grid gap-[4px] md:grid-cols-2">
-        {checklist.map((item) => (
-          item.completed ? (
-            <ChecklistItem key={item.label}>{item.label}</ChecklistItem>
-          ) : (
-            <DueChecklistItem key={item.label} onClick={() => onNavigate(item.sectionId)}>
-              {item.label}
-            </DueChecklistItem>
-          )
-        ))}
+      <div className="bg-[var(--fx-surface)] px-[20px] py-[14px]">
+        <div className="grid gap-[4px] md:grid-cols-2">
+          {checklist.map((item) =>
+            item.completed ? (
+              <ChecklistItem key={item.label}>{item.label}</ChecklistItem>
+            ) : (
+              <DueChecklistItem key={item.label} onClick={() => onNavigate(item.sectionId)}>
+                {item.label}
+              </DueChecklistItem>
+            ),
+          )}
+        </div>
       </div>
     </div>
   );
@@ -391,7 +380,7 @@ function SectionContent({
         </div>
         <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <FxInput label="Upload Logo" defaultValue="evality-logo.svg" />
-          <FxButton variant="secondary" size="sm">
+          <FxButton variant="secondary" size="md" className="h-[40px]">
             <Upload className="size-[16px]" />
             Upload Logo
           </FxButton>
@@ -599,28 +588,28 @@ function SectionContent({
       </div>
       <div className="grid gap-[16px] md:grid-cols-2">
         <FxInput label="Phone" defaultValue="+1 (415) 555-0124" />
-        <div className="flex flex-col gap-[8px]">
-          <FieldLabel>LinkedIn</FieldLabel>
-          <div className="flex min-h-[40px] items-center gap-[12px]">
-            <FxButton
-              variant="secondary"
-              size="md"
-              className="border-[#0A66C2] bg-[#0A66C2] text-white hover:bg-[#0958A8] hover:text-white"
-            >
-              <LinkedInIcon />
-              Connect LinkedIn
-            </FxButton>
-            <span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Authenticate to pull your public profile.</span>
-          </div>
-        </div>
+        <SelectField label="Role" defaultValue={ROLE_OPTIONS[0]} options={ROLE_OPTIONS} />
       </div>
-      <SelectField label="Role" defaultValue={ROLE_OPTIONS[0]} options={ROLE_OPTIONS} />
       <FxInput
         textarea
         label="About Me"
         defaultValue="Recruiter focused on building structured screening workflows and a calm candidate experience."
         className="min-h-[120px]"
       />
+      <div className="flex flex-col gap-[8px]">
+        <FieldLabel>Authenticate Yourself</FieldLabel>
+        <div className="flex min-h-[40px] items-center gap-[12px]">
+          <FxButton
+            variant="secondary"
+            size="md"
+            className="h-[40px] border-[#0A66C2] bg-[#0A66C2] px-[16px] text-white hover:bg-[#0958A8] hover:text-white"
+          >
+            <LinkedInIcon />
+            Connect LinkedIn
+          </FxButton>
+          {/* <span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Authenticate to pull your public profile.</span> */}
+        </div>
+      </div>
     </SettingsCard>
   );
 }
