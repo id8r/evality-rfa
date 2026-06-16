@@ -78,8 +78,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ROUTES } from "@/lib/FxConstants";
-import { WORKSPACE_TYPES } from "@/lib/FxConstants";
+import { DEMO_EXPERIENCE_MODES, ROUTES, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
 import {
   createEmptyJobForm as createJobEmptyForm,
@@ -94,6 +93,7 @@ import { fxButtonClassName } from "@/components/FxButton";
 import {
   createJobId,
   ensureJobsStore,
+  readStoredDemoExperience,
   readStoredCollection,
   readStoredWorkspaceType,
   readStoredJobsPageState,
@@ -104,7 +104,6 @@ import {
   writeStoredJobsPageState,
   writeStoredJobsViewMode,
 } from "@/lib/FxStore";
-import { STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
 const DEFAULT_PAGE_STATE = {
@@ -319,7 +318,17 @@ function subscribeToWorkspaceTypeChange(onStoreChange) {
 export default function JobsPage() {
   const initialPageState = readStoredJobsPageState() ?? DEFAULT_PAGE_STATE;
   const [jobsViewMode, setJobsViewMode] = useState(() => {
+    const demoExperience = readStoredDemoExperience();
     const storedViewMode = readStoredJobsViewMode();
+
+    if (demoExperience === DEMO_EXPERIENCE_MODES.GET_STARTED) {
+      return "empty";
+    }
+
+    if (demoExperience === DEMO_EXPERIENCE_MODES.LOGIN) {
+      return DEFAULT_JOBS_VIEW_MODE;
+    }
+
     return storedViewMode === "empty" ? "empty" : DEFAULT_JOBS_VIEW_MODE;
   });
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -402,7 +411,18 @@ export default function JobsPage() {
 
   useEffect(() => {
     const syncJobsViewMode = () => {
+      const demoExperience = readStoredDemoExperience();
       const storedViewMode = readStoredJobsViewMode();
+      if (demoExperience === DEMO_EXPERIENCE_MODES.GET_STARTED) {
+        setJobsViewMode("empty");
+        return;
+      }
+
+      if (demoExperience === DEMO_EXPERIENCE_MODES.LOGIN) {
+        setJobsViewMode(DEFAULT_JOBS_VIEW_MODE);
+        return;
+      }
+
       setJobsViewMode(storedViewMode === "empty" ? "empty" : DEFAULT_JOBS_VIEW_MODE);
     };
 

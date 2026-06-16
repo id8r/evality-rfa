@@ -14,9 +14,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
+import { DEMO_EXPERIENCE_MODES, ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_CONTROL_HEIGHT, FX_SURFACE, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { AUTH_COPY, LANDING_COPY } from "@/lib/FxCopy";
+import { seedDemoJobsStore, writeStoredDemoExperience, writeStoredJobsViewMode } from "@/lib/FxStore";
 import { writeStoredValue } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
 
@@ -90,6 +91,14 @@ export function FxAuthDialog({
   function completeAuth() {
     if (typeof window !== "undefined") {
       writeStoredValue(STORAGE_KEYS.AUTH_COMPLETE, "true");
+      if (intent === "login") {
+        seedDemoJobsStore();
+        writeStoredDemoExperience(DEMO_EXPERIENCE_MODES.LOGIN);
+        writeStoredJobsViewMode("table");
+      } else {
+        writeStoredDemoExperience(DEMO_EXPERIENCE_MODES.GET_STARTED);
+        writeStoredJobsViewMode("empty");
+      }
       window.dispatchEvent(new Event("fx-auth-change"));
     }
     setIsOpen(false);
