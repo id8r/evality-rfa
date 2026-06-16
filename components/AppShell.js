@@ -8,7 +8,14 @@ import { SIDEBAR_DIMENSIONS, STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_LAYOUT } from "@/lib/FxTheme";
 import { readStoredValue, writeStoredValue } from "@/lib/FxUtils";
 
-export function AppShell({ children, title, navbarLeading = null, navbarActions = null }) {
+export function AppShell({
+  children,
+  title,
+  navbarLeading = null,
+  navbarActions = null,
+  mainScroll = "auto",
+  contentPaddingYClassName = "py-[32px]",
+}) {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return readStoredValue(STORAGE_KEYS.SIDEBAR_COLLAPSED) === "true";
   });
@@ -34,8 +41,8 @@ export function AppShell({ children, title, navbarLeading = null, navbarActions 
       >
         <Navbar title={title} leading={navbarLeading} actions={navbarActions} />
 
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-          <div className={`${FX_LAYOUT.appContent} flex min-h-full min-w-0 flex-col`}>
+        <main className={mainScroll === "hidden" ? "min-h-0 flex-1 overflow-hidden overflow-x-hidden" : "min-h-0 flex-1 overflow-y-auto overflow-x-hidden"}>
+          <div className={`${FX_LAYOUT.appContent} ${contentPaddingYClassName} flex h-full min-h-0 min-w-0 flex-col`}>
             {children}
           </div>
         </main>

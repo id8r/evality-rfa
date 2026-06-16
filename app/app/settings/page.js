@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   BriefcaseBusiness,
@@ -73,6 +73,28 @@ const PRESCREEN_OPTIONS = [
 ];
 
 const SETTINGS_SAVE_BUTTON_CLASSNAME = "bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]";
+
+function getScrollMetrics(element) {
+  if (!element) {
+    return {
+      canScroll: false,
+      isAtTop: true,
+      isAtBottom: true,
+    };
+  }
+
+  const scrollTop = element.scrollTop;
+  const scrollHeight = element.scrollHeight;
+  const clientHeight = element.clientHeight;
+  const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
+  const isScrollable = maxScrollTop > 1;
+
+  return {
+    canScroll: isScrollable,
+    isAtTop: scrollTop <= 1,
+    isAtBottom: scrollTop >= maxScrollTop - 1,
+  };
+}
 
 function SectionButton({ section, active, onClick }) {
   const Icon = section.icon;
@@ -465,6 +487,12 @@ export default function SettingsPage() {
   const [recruitingStatus, setRecruitingStatus] = useState(WORKSPACE_TYPES.MY_COMPANY);
   const [screeningChannel, setScreeningChannel] = useState("email");
   const [prescreenMode, setPrescreenMode] = useState("cv_and_prescreen");
+  const [sidebarScrollState, setSidebarScrollState] = useState({
+    canScroll: false,
+    isAtTop: true,
+    isAtBottom: true,
+  });
+  const sidebarScrollRef = useRef(null);
 
   useEffect(() => {
     const storedWorkspaceType = readStoredValue(STORAGE_KEYS.WORKSPACE_TYPE);
@@ -483,34 +511,72 @@ export default function SettingsPage() {
     writeStoredValue(STORAGE_KEYS.WORKSPACE_TYPE, nextValue);
   }
 
+  function updateSidebarScrollState() {
+    setSidebarScrollState(getScrollMetrics(sidebarScrollRef.current));
+  }
+
+  useEffect(() => {
+    updateSidebarScrollState();
+  }, []);
+
+  useEffect(() => {
+    function handleResize() {
+      updateSidebarScrollState();
+    }
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
   return (
     <FxProtectedAppPage pageId="settings">
       <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px] overflow-hidden`}>
-        <div className="grid min-h-0 flex-1 gap-[24px] lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="min-h-0 overflow-y-auto px-[4px]">
-            <div className="space-y-[8px]">
-              {SETTINGS_SECTIONS.map((section) => (
-                <SectionButton
-                  key={section.id}
-                  section={section}
-                  active={activeSection === section.id}
-                  onClick={setActiveSection}
-                />
-              ))}
+        <div className="grid h-full min-h-0 flex-1 gap-[24px] overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="relative h-full min-h-0 overflow-hidden py-[32px]">
+            <div className="fx-scrollbar-hidden h-full min-h-0 overflow-y-auto px-[4px]" ref={sidebarScrollRef} onScroll={updateSidebarScrollState}>
+              <div className="space-y-[8px] pr-[4px]">
+                {SETTINGS_SECTIONS.map((section) => (
+                  <SectionButton
+                    key={section.id}
+                    section={section}
+                    active={activeSection === section.id}
+                    onClick={setActiveSection}
+                  />
+                ))}
+              </div>
             </div>
+            <div
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute inset-x-0 top-0 h-[24px] bg-gradient-to-b from-[var(--fx-bg)] to-transparent transition-opacity duration-150",
+                sidebarScrollState.isAtTop ? "opacity-0" : "opacity-100",
+              )}
+            />
+            <div
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute inset-x-0 bottom-0 h-[32px] bg-gradient-to-t from-[var(--fx-bg)] to-transparent transition-opacity duration-150",
+                sidebarScrollState.canScroll && !sidebarScrollState.isAtBottom ? "opacity-100" : "opacity-0",
+              )}
+            />
           </aside>
 
-          <main className="min-h-0 min-w-0 overflow-y-auto py-[4px]">
-            <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[24px] py-[24px] shadow-sm md:px-[32px] md:py-[28px]`}>
-              <SectionContent
-                sectionId={activeSection}
-                recruitingStatus={recruitingStatus}
-                onRecruitingStatusChange={handleRecruitingStatusChange}
-                screeningChannel={screeningChannel}
-                onScreeningChannelChange={setScreeningChannel}
-                prescreenMode={prescreenMode}
-                onPrescreenModeChange={setPrescreenMode}
-              />
+          <main className="h-full min-h-0 min-w-0 overflow-hidden py-[32px]">
+            <div className={`flex h-full min-h-0 flex-col overflow-hidden rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] shadow-sm`}>
+              <div className="fx-scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-[24px] py-[32px] md:px-[32px]">
+                <SectionContent
+                  sectionId={activeSection}
+                  recruitingStatus={recruitingStatus}
+                  onRecruitingStatusChange={handleRecruitingStatusChange}
+                  screeningChannel={screeningChannel}
+                  onScreeningChannelChange={setScreeningChannel}
+                  prescreenMode={prescreenMode}
+                  onPrescreenModeChange={setPrescreenMode}
+                />
+              </div>
             </div>
           </main>
         </div>

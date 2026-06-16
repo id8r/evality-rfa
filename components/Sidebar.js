@@ -99,8 +99,9 @@ export function Sidebar({ isCollapsed, onToggle, width }) {
         )}
       </div>
 
-      <nav className="flex flex-col gap-[8px]">
-        {navItems.map((item) => {
+      <div className="fx-scrollbar-hide min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-[2px]">
+        <nav className="flex flex-col gap-[8px]">
+          {navItems.map((item) => {
           const Icon = item.icon;
           const isJobsRoute =
             pathname === ROUTES.APP ||
@@ -136,8 +137,9 @@ export function Sidebar({ isCollapsed, onToggle, width }) {
               ) : null}
             </Link>
           );
-        })}
-      </nav>
+          })}
+        </nav>
+      </div>
 
       <div className="flex-1" />
 

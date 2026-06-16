@@ -49,7 +49,13 @@ export function FxProtectedAppPage({ children, pageId = "jobs", title = null, na
   }
 
   return (
-    <AppShell title={pageTitle} navbarLeading={navbarLeading} navbarActions={navbarActions}>
+    <AppShell
+      title={pageTitle}
+      navbarLeading={navbarLeading}
+      navbarActions={navbarActions}
+      mainScroll={pageId === "settings" ? "hidden" : "auto"}
+      contentPaddingYClassName={pageId === "settings" ? "py-0" : "py-[32px]"}
+    >
       {children}
     </AppShell>
   );

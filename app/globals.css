@@ -106,6 +106,30 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
   input {
     @apply transition-all duration-200;
   }
+
+  .fx-scrollbar-hide {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+    scrollbar-color: transparent transparent;
+  }
+
+  .fx-scrollbar-hide::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  .fx-scrollbar-hidden {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+    scrollbar-color: transparent transparent;
+  }
+
+  .fx-scrollbar-hidden::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
 }
 
 /* - - - - - - - - - - - - - - - - */
