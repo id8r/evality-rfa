@@ -485,9 +485,9 @@ export default function SettingsPage() {
 
   return (
     <FxProtectedAppPage pageId="settings">
-      <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px]`}>
-        <div className="grid min-h-0 gap-[24px] lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="px-[4px]">
+      <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px] overflow-hidden`}>
+        <div className="grid min-h-0 flex-1 gap-[24px] lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="min-h-0 overflow-y-auto px-[4px]">
             <div className="space-y-[8px]">
               {SETTINGS_SECTIONS.map((section) => (
                 <SectionButton
@@ -500,7 +500,7 @@ export default function SettingsPage() {
             </div>
           </aside>
 
-          <main className="min-w-0 py-[4px]">
+          <main className="min-h-0 min-w-0 overflow-y-auto py-[4px]">
             <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[24px] py-[24px] shadow-sm md:px-[32px] md:py-[28px]`}>
               <SectionContent
                 sectionId={activeSection}
