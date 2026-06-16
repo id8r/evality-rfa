@@ -114,7 +114,7 @@ export function FxMultiSelectInput({
   }
 
   return (
-    <label className="flex w-full flex-col gap-[8px]">
+    <div className="flex w-full flex-col gap-[8px]">
       {label ? (
         <FxFieldLabel required={required} optional={optional} state={state}>
           {label}
@@ -140,6 +140,7 @@ export function FxMultiSelectInput({
               <span className="max-w-[180px] truncate">{item}</span>
               <button
                 type="button"
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => removeValue(item)}
                 disabled={disabled}
                 className="inline-flex size-[16px] items-center justify-center rounded-full text-[var(--fx-text-muted)] hover:text-[var(--fx-text)] disabled:cursor-not-allowed"
@@ -201,6 +202,6 @@ export function FxMultiSelectInput({
         ) : null}
       </div>
       {message ? <FxFieldMessage state={messageState}>{message}</FxFieldMessage> : null}
-    </label>
+    </div>
   );
 }

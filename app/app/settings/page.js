@@ -604,23 +604,29 @@ function SectionContent({
           defaultValue="Evality is building a recruiter-first workspace to make screening, candidate flow, and hiring operations easier to run."
           className="min-h-[120px]"
         />
-        <div className="grid gap-[16px] md:grid-cols-2">
+        <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:items-start">
           <SelectField label="Company Size" defaultValue={COMPANY_SIZE_OPTIONS[1]} options={COMPANY_SIZE_OPTIONS} />
-          <FxMultiSelectInput
-            label="Industry"
-            value={organizationIndustries}
-            onChange={onOrganizationIndustriesChange}
-            options={INDUSTRY_SUGGESTIONS}
-            placeholder="Search or add industries..."
-          />
+          <div className="flex items-end gap-[8px]">
+            <div className="min-w-0 flex-1 space-y-[8px]">
+              <FxFieldLabel>Company Logo</FxFieldLabel>
+              <div className="flex h-[40px] min-w-0 items-center rounded-[4px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[16px] text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                <span className="truncate">No logo selected</span>
+              </div>
+            </div>
+            <FxButton variant="secondary" size="md" className="h-[40px] shrink-0">
+              <Upload className="size-[16px]" />
+              Upload Logo
+            </FxButton>
+          </div>
         </div>
-        <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-          <FxInput label="Upload Logo" defaultValue="evality-logo.svg" />
-          <FxButton variant="secondary" size="md" className="h-[40px]">
-            <Upload className="size-[16px]" />
-            Upload Logo
-          </FxButton>
-        </div>
+        <FxMultiSelectInput
+          label="Industry"
+          value={organizationIndustries}
+          onChange={onOrganizationIndustriesChange}
+          options={INDUSTRY_SUGGESTIONS}
+          placeholder="Search or add industries..."
+          className="min-h-[56px]"
+        />
       </SettingsCard>
     );
   }
