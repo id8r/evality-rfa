@@ -29,7 +29,7 @@
 
 | Token            | Value     | Usage                            |
 | ---------------- | --------- | -------------------------------- |
-| Primary          | `#2563EB` | Primary actions, active links    |
+| Primary          | `#2060E8` | Primary actions, active links    |
 | AI               | `#C737F0` | AI-specific accents and cues     |
 | Background       | `#FFFFFF` | App shell background             |
 | Background Soft  | `#F5F7FA` | Outer app canvas, page background |
@@ -52,7 +52,7 @@
 
 | Token            | Value     | Usage                            |
 | ---------------- | --------- | -------------------------------- |
-| Primary          | `#3B82F6` | Primary actions, active links    |
+| Primary          | `#6C98FF` | Primary actions, active links    |
 | AI               | `#D06AF4` | AI-specific accents and cues     |
 | Background       | `#1E2430` | App shell background             |
 | Background Soft  | `#202735` | Outer app canvas, page background |

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Inbox, MoreHorizontal } from "lucide-react";
 
 import { FxButton, fxButtonClassName, fxIconButtonClassName } from "@/components/FxButton";
+import { FxAiButton } from "@/components/FxAiButton";
 import { FxEmptyState } from "@/components/FxEmptyState";
 import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
@@ -241,6 +242,7 @@ export default function DesignSystemRoute() {
                 <FxButton size="sm">Small</FxButton>
                 <FxButton size="md">Medium</FxButton>
                 <FxButton size="lg">Large</FxButton>
+                <FxAiButton>AI Action</FxAiButton>
               </div>
             </div>
           </Section>
