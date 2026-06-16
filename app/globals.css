@@ -42,31 +42,39 @@ app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09
   --fx-table-row-alt: #f9fbfd;
   --fx-surface-hover: #eef2f7;
   --fx-surface-selected: #e0ecff;
+
   --fx-text: #0f172a;
   --fx-text-muted: #64748b;
+  --fx-text-disabled: #94a3b8;
   --fx-border: #d6dee8;
+
   --fx-primary: #2563eb;
+  --fx-ai: #c737f0;
+  --fx-primary-foreground: #ffffff;
   --fx-success: #16a34a;
   --fx-warning: #d97706;
   --fx-danger: #dc2626;
+
   --radius: 8px;
 }
 
 .dark {
   --fx-bg: #1e2430;
-  --fx-bg-soft: #262d3a;
+  --fx-bg-soft: #202735;
   --fx-surface: #262d3a;
   --fx-surface-subtle: #283140;
-  --fx-surface-raised: #313948;
+  --fx-surface-raised: #2b3443;
   --fx-table-header: #2d3544;
   --fx-table-row-alt: #293140;
-  --fx-surface-hover: #394354;
-  --fx-surface-selected: #445066;
+  --fx-surface-hover: #343f52;
+  --fx-surface-selected: #334b73;
+
   --fx-text: #f3f4f6;
   --fx-text-muted: #a8b0bf;
   --fx-text-disabled: #6b7280;
-  --fx-border: #546173;
-  --fx-primary: #3b82f6;
+  --fx-border: #465366;
+
+  --fx-primary: #60a5fa;
   --fx-ai: #d06af4;
   --fx-primary-foreground: #ffffff;
   --fx-success: #22c55e;

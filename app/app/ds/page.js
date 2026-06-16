@@ -10,6 +10,7 @@ import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxSelect } from "@/components/FxSelect";
 import { FxTagInput } from "@/components/FxTagInput";
+import { useFxTheme } from "@/components/FxThemeToggle";
 import { FxTable } from "@/components/FxTable";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -41,6 +42,8 @@ import {
   DESIGN_SYSTEM_COLORS,
   DESIGN_SYSTEM_TYPOGRAPHY,
 } from "@/lib/FxDesignSystem";
+import { cn } from "@/lib/FxUtils";
+import { THEMES } from "@/lib/FxConstants";
 
 const TABLE_COLUMNS = [
   { key: "jobId", label: "Job ID", width: 120, minWidth: 112, maxWidth: 136, defaultVisible: true },
@@ -80,6 +83,22 @@ function Swatch({ label, token, className }) {
   );
 }
 
+function ThemeColorGrid({ title, subtitle, themeClassName = "" }) {
+  return (
+    <div className={cn("space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]", themeClassName)}>
+      <div className="space-y-[4px]">
+        <div className={`${FX_TYPOGRAPHY.cardTitle} text-[var(--fx-text)]`}>{title}</div>
+        <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>{subtitle}</div>
+      </div>
+      <div className="grid gap-[12px] sm:grid-cols-2 xl:grid-cols-4">
+        {DESIGN_SYSTEM_COLORS.map((swatch) => (
+          <Swatch key={`${title}-${swatch.token}`} {...swatch} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TypographyRow({ name, sample, token, source }) {
   return (
     <div className={`grid gap-[12px] rounded-[10px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px] md:grid-cols-[180px_minmax(0,1fr)_240px] md:items-center`}>
@@ -113,6 +132,8 @@ export default function DesignSystemRoute() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [tags, setTags] = useState(["React", "Tailwind"]);
   const [visibleColumnKeys, setVisibleColumnKeys] = useState(TABLE_COLUMNS.map((column) => column.key));
+  const [recruitingMode, setRecruitingMode] = useState("internal");
+  const { theme, handleToggleTheme } = useFxTheme();
 
   const tableRows = [
     {
@@ -150,7 +171,7 @@ export default function DesignSystemRoute() {
         <div className="space-y-[24px]">
           <div className="flex items-start justify-between gap-[16px]">
             <div className="space-y-[8px]">
-              <h1 className={FX_TYPOGRAPHY.pageTitle}>Design System</h1>
+              <h1 className={FX_TYPOGRAPHY.pageTitle}>Evality AI Design System</h1>
               <p className={`${FX_TYPOGRAPHY.body} max-w-[72ch] text-[var(--fx-text-muted)]`}>
                 Visual reference for Evality tokens, primitives, and reusable components.
               </p>
@@ -166,10 +187,35 @@ export default function DesignSystemRoute() {
           </div>
 
           <Section title="Colors" description="Tokens from FxTheme and CSS variables only.">
-            <div className="grid gap-[12px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              {DESIGN_SYSTEM_COLORS.map((swatch) => (
-                <Swatch key={swatch.token} {...swatch} />
-              ))}
+            <div className="mb-[12px] flex items-center justify-between gap-[16px] rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[16px] py-[12px]">
+              <div className="space-y-[2px]">
+                <div className={FX_TYPOGRAPHY.cardTitle}>Theme preview</div>
+                <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>Switch the app chrome while keeping both token groups visible.</div>
+              </div>
+              <label className="flex items-center gap-[10px]">
+                <Checkbox
+                  checked={theme === THEMES.DARK}
+                  onCheckedChange={(checked) => {
+                    const shouldBeDark = checked === true;
+                    if (shouldBeDark !== (theme === THEMES.DARK)) {
+                      handleToggleTheme();
+                    }
+                  }}
+                />
+                <span className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>Use dark app theme</span>
+              </label>
+            </div>
+
+            <div className="grid gap-[16px] lg:grid-cols-2">
+              <ThemeColorGrid
+                title="Light Theme"
+                subtitle="Current default token set."
+              />
+              <ThemeColorGrid
+                title="Dark Theme"
+                subtitle="Rendered with the dark token set."
+                themeClassName="dark"
+              />
             </div>
           </Section>
 
@@ -215,7 +261,7 @@ export default function DesignSystemRoute() {
                 <FxTagInput label="Tags" value={tags} onChange={setTags} />
                 <div className="space-y-[8px]">
                   <div className={FX_TYPOGRAPHY.fieldLabel}>Recruiting Mode</div>
-                  <RadioGroup value="internal" onValueChange={() => {}} className="grid gap-[8px]">
+                  <RadioGroup value={recruitingMode} onValueChange={setRecruitingMode} className="grid gap-[8px]">
                     {[
                       ["internal", "Hiring for My Company"],
                       ["clients", "Hiring for Clients"],

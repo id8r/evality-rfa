@@ -30,6 +30,7 @@
 | Token            | Value     | Usage                            |
 | ---------------- | --------- | -------------------------------- |
 | Primary          | `#2563EB` | Primary actions, active links    |
+| AI               | `#C737F0` | AI-specific accents and cues     |
 | Background       | `#FFFFFF` | App shell background             |
 | Background Soft  | `#F5F7FA` | Outer app canvas, page background |
 | Surface          | `#FFFFFF` | Cards, tables, panels, chrome    |
@@ -52,16 +53,17 @@
 | Token            | Value     | Usage                            |
 | ---------------- | --------- | -------------------------------- |
 | Primary          | `#3B82F6` | Primary actions, active links    |
+| AI               | `#D06AF4` | AI-specific accents and cues     |
 | Background       | `#1E2430` | App shell background             |
-| Background Soft  | `#262D3A` | Outer app canvas, page background |
+| Background Soft  | `#202735` | Outer app canvas, page background |
 | Surface          | `#262D3A` | Cards, tables, panels, chrome    |
 | Surface Subtle   | `#283140` | Low-emphasis grouped surfaces    |
-| Surface Raised   | `#313948` | Sheets, dialogs, dropdowns       |
+| Surface Raised   | `#2B3443` | Sheets, dialogs, dropdowns       |
 | Table Header     | `#2D3544` | Table header rows                |
 | Table Row Alt    | `#293140` | Alternate table rows             |
-| Surface Hover    | `#394354` | Hover states                     |
-| Surface Selected | `#445066` | Selected rows, active navigation |
-| Border           | `#546173` | Dividers, outlines               |
+| Surface Hover    | `#343F52` | Hover states                     |
+| Surface Selected | `#334B73` | Selected rows, active navigation |
+| Border           | `#465366` | Dividers, outlines               |
 | Text Primary     | `#F3F4F6` | Main text                        |
 | Text Secondary   | `#A8B0BF` | Secondary text                   |
 | Text Disabled    | `#6B7280` | Disabled controls and text       |

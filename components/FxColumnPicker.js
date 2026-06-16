@@ -4,10 +4,10 @@
 
 "use client";
 
-import { useId } from "react";
-import { Columns3 } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Columns2 } from "lucide-react";
 
-import { FxButton } from "@/components/FxButton";
+import { fxButtonClassName, fxIconButtonClassName } from "@/components/FxButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,8 +53,22 @@ export function FxColumnPicker({
   itemClassName = "",
 }) {
   const pickerId = useId();
+  const triggerRef = useRef(null);
+  const [open, setOpen] = useState(false);
   const visibleKeySet = new Set(visibleColumnKeys ?? []);
   const optionalColumns = columns.filter((column) => !isRequiredColumn(column));
+
+  useEffect(() => {
+    if (open) {
+      return;
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      triggerRef.current?.blur();
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [open]);
 
   function toggleColumn(column) {
     if (isRequiredColumn(column)) {
@@ -69,18 +83,40 @@ export function FxColumnPicker({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <FxButton
-          type="button"
-          variant="outline"
-          size="sm"
-          className={cn("!w-[30px] !px-0", buttonLabel ? "!w-auto !px-[12px] gap-[8px]" : "", className)}
-          {...buttonProps}
-        >
-          <Columns3 className="size-[16px]" />
-          {buttonLabel ? <span>{buttonLabel}</span> : null}
-        </FxButton>
+        {buttonLabel ? (
+          <button
+            ref={triggerRef}
+            type="button"
+            className={cn(
+              fxButtonClassName({ variant: "outline", size: "sm" }),
+              "rounded-[4px]",
+              className,
+            )}
+            {...buttonProps}
+          >
+            <Columns2 className="size-[16px]" />
+            <span>{buttonLabel}</span>
+          </button>
+        ) : (
+          <button
+            ref={triggerRef}
+            type="button"
+            className={cn(
+              fxIconButtonClassName({
+                variant: "ghost",
+                size: "sm",
+                className:
+                  "!h-[32px] !w-[32px] !rounded-[4px] !border-0 !bg-transparent !p-0 !text-[var(--fx-text-muted)] !shadow-none focus-visible:!ring-0 focus-visible:!ring-offset-0 hover:!bg-[var(--fx-surface-hover)] hover:!text-[var(--fx-text)] data-[state=open]:!bg-[var(--fx-surface-hover)] data-[state=open]:!text-[var(--fx-text)]",
+              }),
+              className,
+            )}
+            {...buttonProps}
+          >
+            <Columns2 className="size-[16px]" />
+          </button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className={cn("w-[260px] p-[4px]", menuClassName)}>
         <div className="px-[8px] py-[8px]">

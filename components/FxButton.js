@@ -11,7 +11,7 @@ const variantClasses = {
   primary: "bg-primary !text-white hover:bg-primary/90",
   secondary: "border border-border bg-card text-card-foreground hover:bg-muted",
   outline: "border border-border bg-background text-foreground hover:bg-muted",
-  ghost: "bg-transparent text-foreground hover:bg-muted",
+  ghost: "bg-transparent text-foreground hover:bg-[var(--fx-primary)]/10 hover:text-[var(--fx-primary)]",
   auth: "border border-border bg-card text-card-foreground hover:bg-muted",
   destructive: "bg-[var(--fx-danger)] text-white hover:opacity-90",
 };
