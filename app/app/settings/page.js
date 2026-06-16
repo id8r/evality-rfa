@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { FxButton } from "@/components/FxButton";
+import { FxMultiSelectInput } from "@/components/FxMultiSelectInput";
 import { FxInput } from "@/components/FxInput";
 import { FxFieldLabel } from "@/components/FxFieldState";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
@@ -45,7 +46,20 @@ const SETTINGS_SECTIONS = [
 
 const ROLE_OPTIONS = ["Recruiter", "Founder", "TA", "Other"];
 const COMPANY_SIZE_OPTIONS = ["1-10", "11-50", "51-200", "201-500", "500+"];
-const INDUSTRY_OPTIONS = ["Software", "Staffing", "Healthcare", "Fintech", "E-commerce"];
+const INDUSTRY_SUGGESTIONS = [
+  "Staffing",
+  "Recruitment",
+  "Software",
+  "SaaS",
+  "AI",
+  "Healthcare",
+  "Fintech",
+  "E-Commerce",
+  "Manufacturing",
+  "Consulting",
+  "Education",
+  "Real Estate",
+];
 const RECRUITING_STATUS_OPTIONS = [
   { value: WORKSPACE_TYPES.MY_COMPANY, title: "Hiring for My Company", description: "Use Evality primarily for internal recruiting." },
   { value: WORKSPACE_TYPES.CLIENTS, title: "Hiring for Clients", description: "Default workflows for agency or client-facing recruiting." },
@@ -472,22 +486,22 @@ function ProfileCompletionBanner({
   calendarConnected,
 }) {
   const checklist = [
-    { label: "Profile details completed", completed: profileComplete, sectionId: null },
-    { label: "Organization details completed", completed: organizationComplete, sectionId: null },
+    { label: "Profile Details", completed: profileComplete, sectionId: null },
+    { label: "Organization Details", completed: organizationComplete, sectionId: null },
     { label: "Career Page", completed: false, sectionId: "career-page" },
-    { label: "Recruiting status selected", completed: recruitingComplete, sectionId: null },
+    { label: "Recruiting Status", completed: recruitingComplete, sectionId: null },
     { label: "Screening Method", completed: false, sectionId: "screening" },
     { label: "Billing", completed: false, sectionId: "billing" },
     { label: "Email", completed: emailConnected, sectionId: "email-settings" },
     { label: "Calender", completed: calendarConnected, sectionId: "calendar" },
   ];
   const completedCount = checklist.filter((item) => item.completed).length;
-  const percentage = Math.round((completedCount / checklist.length) * 100);
+  const completedSegments = completedCount;
 
   return (
     <div className={`overflow-hidden rounded-[16px] border ${FX_COLORS.border}`}>
       <div className="border-b border-[color:color-mix(in_srgb,var(--fx-border)_56%,transparent)] bg-[var(--fx-surface-subtle)] px-[20px] py-[14px]">
-        <div className="flex flex-col gap-[10px] lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-[10px] lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-[4px]">
           <div className={`${FX_TYPOGRAPHY.cardTitle} text-[var(--fx-text-muted)]`}>Complete Your Workspace Setup</div>
             <p className={`${FX_TYPOGRAPHY.sidebarEmail} text-[var(--fx-text-muted)]`}>
@@ -495,18 +509,29 @@ function ProfileCompletionBanner({
             </p>
           </div>
           <div className="w-full max-w-[180px] space-y-[6px]">
-            <div className="h-[6px] rounded-full bg-[var(--fx-surface-hover)]">
-              <div className="h-full rounded-full bg-[var(--fx-primary)]" style={{ width: `${percentage}%` }} />
+            <div
+              className="grid h-[6px] gap-[2px]"
+              style={{ gridTemplateColumns: `repeat(${checklist.length}, minmax(0, 1fr))` }}
+            >
+              {checklist.map((item, index) => (
+                <div
+                  key={item.label}
+                  className={cn(
+                    "h-full rounded-[1.5px] transition-colors",
+                    index < completedSegments ? "bg-[var(--fx-text-muted)]" : "bg-[var(--fx-disabled-bg)]",
+                  )}
+                />
+              ))}
             </div>
-            <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>
+            {/* <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>
               {completedCount}/{checklist.length} Complete
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
 
       <div className="bg-[var(--fx-surface)] px-[20px] py-[14px]">
-        <div className="grid gap-[4px] md:grid-cols-2">
+        <div className="grid gap-[4px] md:grid-cols-4">
           {checklist.map((item) =>
             item.completed ? (
               <ChecklistItem key={item.label}>{item.label}</ChecklistItem>
@@ -537,6 +562,8 @@ function SectionContent({
   sectionId,
   recruitingStatus,
   onRecruitingStatusChange,
+  organizationIndustries,
+  onOrganizationIndustriesChange,
   screeningChannel,
   onScreeningChannelChange,
   prescreenMode,
@@ -579,7 +606,13 @@ function SectionContent({
         />
         <div className="grid gap-[16px] md:grid-cols-2">
           <SelectField label="Company Size" defaultValue={COMPANY_SIZE_OPTIONS[1]} options={COMPANY_SIZE_OPTIONS} />
-          <SelectField label="Industry" defaultValue={INDUSTRY_OPTIONS[0]} options={INDUSTRY_OPTIONS} />
+          <FxMultiSelectInput
+            label="Industry"
+            value={organizationIndustries}
+            onChange={onOrganizationIndustriesChange}
+            options={INDUSTRY_SUGGESTIONS}
+            placeholder="Search or add industries..."
+          />
         </div>
         <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <FxInput label="Upload Logo" defaultValue="evality-logo.svg" />
@@ -965,6 +998,7 @@ export default function SettingsPage() {
     copyRecruiters: false,
     sendReminders: true,
   });
+  const [organizationIndustries, setOrganizationIndustries] = useState(["Staffing", "SaaS", "AI"]);
   const [calendarProviderConnections, setCalendarProviderConnections] = useState({
     googleCalendar: false,
     outlookCalendar: false,
@@ -1212,9 +1246,9 @@ export default function SettingsPage() {
 
   return (
     <FxProtectedAppPage pageId="settings">
-      <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px] overflow-hidden bg-transparent`}>
-        <div className="grid h-full min-h-0 flex-1 gap-[24px] overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="relative h-full min-h-0 overflow-hidden py-[32px]">
+      <section className={`${FX_LAYOUT.contentWidthWide} flex w-full min-w-0 flex-1 flex-col gap-[24px] bg-transparent`}>
+        <div className="grid gap-[24px] lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="sticky top-0 self-start h-[calc(100vh-64px)] overflow-hidden py-[32px]">
             <div className="fx-scrollbar-hidden h-full min-h-0 overflow-y-auto px-[4px]" ref={sidebarScrollRef} onScroll={updateSidebarScrollState}>
               <div className="space-y-[8px] pr-[4px]">
                 {SETTINGS_SECTIONS.map((section) => (
@@ -1243,15 +1277,17 @@ export default function SettingsPage() {
             />
           </aside>
 
-          <main className="h-full min-h-0 min-w-0 overflow-hidden py-[32px]">
-            <div className="flex h-full min-h-0 flex-col gap-[16px] overflow-hidden">
+          <main className="min-w-0 py-[32px]">
+            <div className="flex flex-col gap-[16px]">
               <ProfileCompletionBanner onNavigate={setActiveSection} {...profileCompletion} />
-              <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                <div className="fx-scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-[24px] py-[32px] md:px-[32px]">
+              <div className={`flex flex-col rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                <div className="px-[24px] py-[32px] md:px-[32px]">
                   <SectionContent
                     sectionId={activeSection}
                     recruitingStatus={recruitingStatus}
                     onRecruitingStatusChange={handleRecruitingStatusChange}
+                    organizationIndustries={organizationIndustries}
+                    onOrganizationIndustriesChange={setOrganizationIndustries}
                     screeningChannel={screeningChannel}
                     onScreeningChannelChange={setScreeningChannel}
                     prescreenMode={prescreenMode}

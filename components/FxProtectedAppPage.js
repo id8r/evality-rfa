@@ -60,7 +60,7 @@ export function FxProtectedAppPage({
       title={pageTitle}
       navbarLeading={navbarLeading}
       navbarActions={navbarActions}
-      mainScroll={pageId === "settings" ? "hidden" : "auto"}
+      mainScroll="auto"
       contentPaddingYClassName={pageId === "settings" ? "py-0" : "py-[32px]"}
       contentClassName={contentClassName}
     >
