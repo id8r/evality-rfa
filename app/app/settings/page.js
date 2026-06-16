@@ -8,7 +8,6 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarDays,
-  CircleDot,
   Check,
   Cog,
   CreditCard,
@@ -33,17 +32,17 @@ import { cn, readStoredValue, writeStoredValue } from "@/lib/FxUtils";
 const SETTINGS_SECTIONS = [
   { id: "profile", label: "Profile", description: "Personal account details", icon: User },
   { id: "organization", label: "Organization", description: "Workspace identity for internal hiring", icon: Building2 },
+  { id: "career-page", label: "Career Page", description: "Public application and branding", icon: Cog },
   { id: "recruiting-status", label: "Recruiting Status", description: "Default recruiting context", icon: BriefcaseBusiness },
   { id: "screening", label: "Screening Method", description: "AI screening defaults and question flow", icon: ListChecks },
-  { id: "ai-context", label: "AI Context", description: "Default recruiting context and evaluation guidance", icon: FileText },
-  { id: "email-settings", label: "Email Settings", description: "Outbound email defaults", icon: Mail },
-  { id: "calendar", label: "Calendar", description: "Calendar connection preferences", icon: CalendarDays },
-  { id: "scheduling", label: "Scheduling", description: "Interview scheduling defaults", icon: Settings2 },
-  { id: "notifications", label: "Notifications", description: "Recruiting alerts and digests", icon: Bell },
-  { id: "team", label: "Team", description: "People and permissions", icon: Users },
-  { id: "integrations", label: "Integrations", description: "Connected tools", icon: Plug },
   { id: "billing", label: "Billing", description: "Plan and invoices", icon: CreditCard },
-  { id: "career-page", label: "Career Page", description: "Public application and branding", icon: Cog },
+  { id: "email-settings", label: "Email", description: "Outbound email defaults", icon: Mail },
+  { id: "calendar", label: "Calender", description: "Calendar connection preferences", icon: CalendarDays },
+  // { id: "ai-context", label: "AI Context", description: "Default recruiting context and evaluation guidance", icon: FileText },
+  // { id: "scheduling", label: "Scheduling", description: "Interview scheduling defaults", icon: Settings2 },
+  // { id: "notifications", label: "Notifications", description: "Recruiting alerts and digests", icon: Bell },
+  // { id: "team", label: "Team", description: "People and permissions", icon: Users },
+  // { id: "integrations", label: "Integrations", description: "Connected tools", icon: Plug },
 ];
 
 const ROLE_OPTIONS = ["Recruiter", "Founder", "TA", "Other"];
@@ -172,38 +171,35 @@ function SelectField({ label, defaultValue, options }) {
 
 function OptionGrid({ options, selectedValue, onSelect, columns = "md:grid-cols-2" }) {
   return (
-    <div className={cn("grid gap-[12px]", columns)}>
+    <RadioGroup value={selectedValue} onValueChange={onSelect} className={cn("grid gap-[12px]", columns)}>
       {options.map((option) => {
         const active = selectedValue === option.value;
+        const optionId = `option-${option.value}`;
 
         return (
-          <button
+          <label
             key={option.value}
-            type="button"
-            onClick={() => onSelect(option.value)}
+            htmlFor={optionId}
             className={cn(
-              "flex items-start gap-[12px] rounded-[10px] border px-[14px] py-[14px] text-left transition-colors",
+              "flex cursor-pointer items-start gap-[12px] rounded-[10px] border px-[14px] py-[14px] text-left transition-colors",
               active
                 ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
                 : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-transparent hover:bg-[var(--fx-surface-hover)]/60",
             )}
           >
-            <span
-              className={cn(
-                "mt-[2px] inline-flex size-[20px] shrink-0 items-center justify-center rounded-full",
-                active ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
-              )}
-            >
-              <CircleDot className="size-[18px]" strokeWidth={1.8} />
-            </span>
+            <RadioGroupItem
+              id={optionId}
+              value={option.value}
+              className="mt-[1px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+            />
             <span className="space-y-[2px]">
               <span className="block text-[14px] font-medium leading-[20px] text-[var(--fx-text)]">{option.title}</span>
               <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{option.description}</span>
             </span>
-          </button>
+          </label>
         );
       })}
-    </div>
+    </RadioGroup>
   );
 }
 
@@ -245,31 +241,29 @@ function RecruitingStatusGroup({ options, selectedValue, onSelect }) {
   );
 }
 
-function ChecklistItem({ completed, children, actionLabel, onClick }) {
+function ChecklistItem({ children }) {
+  return (
+    <div className="flex items-center gap-[8px] px-[4px] py-[4px]">
+      <Check className="size-[14px] shrink-0 text-[var(--fx-success)]" strokeWidth={2.5} />
+      <span className={cn(FX_TYPOGRAPHY.body, "truncate text-[var(--fx-text-muted)]")}>{children}</span>
+    </div>
+  );
+}
+
+function DueChecklistItem({ children, onClick }) {
   if (!onClick) {
-    return (
-      <div className="flex items-center gap-[10px] rounded-[8px] px-[4px] py-[4px]">
-        <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border border-[var(--fx-primary)] bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]">
-          <Check className="size-[12px]" strokeWidth={2.5} />
-        </span>
-        <span className={cn(FX_TYPOGRAPHY.body, "truncate text-[var(--fx-text)]")}>{children}</span>
-      </div>
-    );
+    return null;
   }
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-[12px] rounded-[8px] px-[4px] py-[4px] text-left transition-colors hover:bg-[var(--fx-surface-hover)]/40"
+      className="flex w-full items-center gap-[8px] rounded-[8px] px-[4px] py-[4px] text-left transition-colors hover:bg-[var(--fx-surface-hover)]/40"
     >
-      <span className="flex min-w-0 items-center gap-[10px]">
-        <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border border-[var(--fx-border)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)]">
-          <span className="size-[6px] rounded-full bg-current" />
-        </span>
-        <span className={cn(FX_TYPOGRAPHY.body, "truncate text-[var(--fx-text-muted)]")}>{children}</span>
-      </span>
-      <span className={`${FX_TYPOGRAPHY.caption} shrink-0 text-[var(--fx-primary)]`}>{actionLabel}</span>
+      <span className="inline-flex size-[14px] shrink-0" aria-hidden="true" />
+      <span className={cn(FX_TYPOGRAPHY.body, "truncate text-[var(--fx-primary)]")}>{children}</span>
+      <span className={`${FX_TYPOGRAPHY.body} shrink-0 text-[var(--fx-primary)]`}>&rarr;</span>
     </button>
   );
 }
@@ -308,43 +302,42 @@ function ProfileCompletionBanner({
   const checklist = [
     { label: "Profile details completed", completed: profileComplete, sectionId: null },
     { label: "Organization details completed", completed: organizationComplete, sectionId: null },
+    { label: "Career Page", completed: false, sectionId: "career-page" },
     { label: "Recruiting status selected", completed: recruitingComplete, sectionId: null },
-    { label: "Connect LinkedIn", completed: linkedInConnected, sectionId: "profile", actionLabel: "Go to Profile \u2192" },
-    { label: "Connect Email", completed: emailConnected, sectionId: "email-settings", actionLabel: "Go to Email Settings \u2192" },
-    { label: "Connect Calendar", completed: calendarConnected, sectionId: "calendar", actionLabel: "Go to Calendar \u2192" },
+    { label: "Screening Method", completed: false, sectionId: "screening" },
+    { label: "Billing", completed: false, sectionId: "billing" },
+    { label: "Email", completed: emailConnected, sectionId: "email-settings" },
+    { label: "Calender", completed: calendarConnected, sectionId: "calendar" },
   ];
   const completedCount = checklist.filter((item) => item.completed).length;
   const percentage = Math.round((completedCount / checklist.length) * 100);
 
   return (
-    <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[20px] py-[16px]`}>
+    <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface-subtle)] px-[20px] py-[16px]`}>
       <div className="flex flex-col gap-[10px] lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-[6px]">
           <div className={FX_TYPOGRAPHY.cardTitle}>Complete Your Workspace Setup</div>
-          <p className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>
-            A calm checklist for the core setup still missing from the workspace.
+          <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+            These setup items need to be completed before the workspace is fully ready.
           </p>
         </div>
         <div className="w-full max-w-[180px] space-y-[6px]">
           <div className="h-[6px] rounded-full bg-[var(--fx-surface-hover)]">
             <div className="h-full rounded-full bg-[var(--fx-primary)]" style={{ width: `${percentage}%` }} />
           </div>
-          <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>
-            {completedCount} of {checklist.length} items complete
-          </div>
+          <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>{completedCount}/{checklist.length} Complete</div>
         </div>
       </div>
 
       <div className="mt-[12px] grid gap-[4px] md:grid-cols-2">
         {checklist.map((item) => (
-          <ChecklistItem
-            key={item.label}
-            completed={item.completed}
-            onClick={item.sectionId ? () => onNavigate(item.sectionId) : null}
-            actionLabel={item.actionLabel}
-          >
-            {item.label}
-          </ChecklistItem>
+          item.completed ? (
+            <ChecklistItem key={item.label}>{item.label}</ChecklistItem>
+          ) : (
+            <DueChecklistItem key={item.label} onClick={() => onNavigate(item.sectionId)}>
+              {item.label}
+            </DueChecklistItem>
+          )
         ))}
       </div>
     </div>
