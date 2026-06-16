@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarDays,
   CircleDot,
+  Check,
   Cog,
   CreditCard,
   FileText,
@@ -57,6 +58,7 @@ const SCREENING_CHANNEL_OPTIONS = [
   { value: "email", title: "Email Screening", description: "Collect candidate responses through email." },
   { value: "manual", title: "Manual Screening", description: "Review and qualify candidates manually." },
   { value: "whatsapp", title: "WhatsApp Screening", description: "Run lightweight screening on WhatsApp." },
+  { value: "sms", title: "SMS Screening", description: "Use short text-based screening when needed." },
   { value: "phone", title: "Phone Screening", description: "Use recruiter-led phone conversations as the default path." },
 ];
 const PRESCREEN_OPTIONS = [
@@ -243,16 +245,109 @@ function RecruitingStatusGroup({ options, selectedValue, onSelect }) {
   );
 }
 
-function PlaceholderSection({ title, description }) {
+function ChecklistItem({ completed, children, actionLabel, onClick }) {
+  if (!onClick) {
+    return (
+      <div className="flex items-center gap-[10px] rounded-[8px] px-[4px] py-[4px]">
+        <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border border-[var(--fx-primary)] bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]">
+          <Check className="size-[12px]" strokeWidth={2.5} />
+        </span>
+        <span className={cn(FX_TYPOGRAPHY.body, "truncate text-[var(--fx-text)]")}>{children}</span>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-between gap-[12px] rounded-[8px] px-[4px] py-[4px] text-left transition-colors hover:bg-[var(--fx-surface-hover)]/40"
+    >
+      <span className="flex min-w-0 items-center gap-[10px]">
+        <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full border border-[var(--fx-border)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)]">
+          <span className="size-[6px] rounded-full bg-current" />
+        </span>
+        <span className={cn(FX_TYPOGRAPHY.body, "truncate text-[var(--fx-text-muted)]")}>{children}</span>
+      </span>
+      <span className={`${FX_TYPOGRAPHY.caption} shrink-0 text-[var(--fx-primary)]`}>{actionLabel}</span>
+    </button>
+  );
+}
+
+function PlaceholderSection({ title, description, items = [] }) {
   return (
     <SettingsCard title={title} description={description}>
-      <div className="space-y-[8px]">
+      <div className="space-y-[12px]">
         <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>This section is reserved for the next release.</p>
         <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
           The current sheet keeps the IA in place without overbuilding dynamic behavior yet.
         </p>
+        {items.length ? (
+          <div className="grid gap-[8px] md:grid-cols-2">
+            {items.map((item) => (
+              <div key={item} className="rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[14px] py-[12px]">
+                <div className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>{item}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </SettingsCard>
+  );
+}
+
+function ProfileCompletionBanner({
+  onNavigate,
+  profileComplete,
+  organizationComplete,
+  recruitingComplete,
+  linkedInConnected,
+  emailConnected,
+  calendarConnected,
+}) {
+  const checklist = [
+    { label: "Profile details completed", completed: profileComplete, sectionId: null },
+    { label: "Organization details completed", completed: organizationComplete, sectionId: null },
+    { label: "Recruiting status selected", completed: recruitingComplete, sectionId: null },
+    { label: "Connect LinkedIn", completed: linkedInConnected, sectionId: "profile", actionLabel: "Go to Profile \u2192" },
+    { label: "Connect Email", completed: emailConnected, sectionId: "email-settings", actionLabel: "Go to Email Settings \u2192" },
+    { label: "Connect Calendar", completed: calendarConnected, sectionId: "calendar", actionLabel: "Go to Calendar \u2192" },
+  ];
+  const completedCount = checklist.filter((item) => item.completed).length;
+  const percentage = Math.round((completedCount / checklist.length) * 100);
+
+  return (
+    <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[20px] py-[16px]`}>
+      <div className="flex flex-col gap-[10px] lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-[6px]">
+          <div className={FX_TYPOGRAPHY.cardTitle}>Complete Your Workspace Setup</div>
+          <p className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>
+            A calm checklist for the core setup still missing from the workspace.
+          </p>
+        </div>
+        <div className="w-full max-w-[180px] space-y-[6px]">
+          <div className="h-[6px] rounded-full bg-[var(--fx-surface-hover)]">
+            <div className="h-full rounded-full bg-[var(--fx-primary)]" style={{ width: `${percentage}%` }} />
+          </div>
+          <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>
+            {completedCount} of {checklist.length} items complete
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-[12px] grid gap-[4px] md:grid-cols-2">
+        {checklist.map((item) => (
+          <ChecklistItem
+            key={item.label}
+            completed={item.completed}
+            onClick={item.sectionId ? () => onNavigate(item.sectionId) : null}
+            actionLabel={item.actionLabel}
+          >
+            {item.label}
+          </ChecklistItem>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -348,7 +443,7 @@ function SectionContent({
         />
 
         <div className="space-y-[8px]">
-          <h3 className={FX_TYPOGRAPHY.button}>Question Flow</h3>
+          <h3 className={FX_TYPOGRAPHY.button}>Default pre-screen flow</h3>
           <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
             Decide whether new roles should use CV context along with pre-screening questions.
           </p>
@@ -398,41 +493,95 @@ function SectionContent({
 
   if (sectionId === "ai-context") {
     return (
-      <PlaceholderSection
+      <SettingsCard
         title="AI Context"
         description="Keep the default recruiting context and evaluation guidance aligned to the role."
-      />
+        action={<FxButton variant="secondary" size="md" className={SETTINGS_SAVE_BUTTON_CLASSNAME}>Save</FxButton>}
+      >
+        <div className="grid gap-[12px] md:grid-cols-2">
+          {[
+            "Default recruiting context",
+            "Evaluation guidance",
+            "AI screening instructions",
+            "Role evaluation defaults",
+          ].map((item) => (
+            <div key={item} className="rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[14px] py-[12px]">
+              <div className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>{item}</div>
+            </div>
+          ))}
+        </div>
+      </SettingsCard>
     );
   }
 
   if (sectionId === "team") {
-    return <PlaceholderSection title="Team" description="Manage team members, permissions, and workspace access." />;
+    return (
+      <PlaceholderSection
+        title="Team"
+        description="Manage team members, permissions, and workspace access."
+        items={["Members", "Roles", "Permissions", "Invitations"]}
+      />
+    );
   }
 
   if (sectionId === "email-settings") {
-    return <PlaceholderSection title="Email Settings" description="Set outbound email defaults, signatures, and sending rules." />;
+    return (
+      <PlaceholderSection
+        title="Email Settings"
+        description="Set outbound email defaults, signatures, and sending rules."
+        items={["Sender defaults", "Signature", "Email connection placeholder"]}
+      />
+    );
   }
 
   if (sectionId === "calendar") {
-    return <PlaceholderSection title="Calendar" description="Choose the calendar account and availability defaults used by recruiters." />;
+    return (
+      <PlaceholderSection
+        title="Calendar"
+        description="Choose the calendar account and availability defaults used by recruiters."
+        items={["Calendar connection placeholder", "Availability defaults"]}
+      />
+    );
   }
 
   if (sectionId === "scheduling") {
-    return <PlaceholderSection title="Scheduling" description="Configure interview scheduling policies and routing defaults." />;
+    return (
+      <PlaceholderSection
+        title="Scheduling"
+        description="Configure interview scheduling policies and routing defaults."
+        items={["Interview scheduling defaults", "Booking preferences", "Time buffers"]}
+      />
+    );
   }
 
   if (sectionId === "notifications") {
-    return <PlaceholderSection title="Notifications" description="Control candidate alerts, reminders, and digest frequency." />;
+    return (
+      <PlaceholderSection
+        title="Notifications"
+        description="Control candidate alerts, reminders, and digest frequency."
+        items={["Candidate alerts", "Screening alerts", "Follow-up reminders", "Digest preferences"]}
+      />
+    );
   }
 
   if (sectionId === "billing") {
     return (
-      <PlaceholderSection title="Billing" description="Review plan, invoices, and subscription changes." />
+      <PlaceholderSection
+        title="Billing"
+        description="Review plan, invoices, and subscription changes."
+        items={["Plan", "Subscription", "Invoices", "Usage"]}
+      />
     );
   }
 
   if (sectionId === "integrations") {
-    return <PlaceholderSection title="Integrations" description="Connect email, calendar, messaging, and ATS tools." />;
+    return (
+      <PlaceholderSection
+        title="Integrations"
+        description="Connect email, calendar, messaging, and ATS tools."
+        items={["Google", "Outlook", "LinkedIn", "WhatsApp", "Future integrations"]}
+      />
+    );
   }
 
   if (sectionId === "career-page") {
@@ -440,6 +589,7 @@ function SectionContent({
       <PlaceholderSection
         title="Career Page"
         description="Configure the public job application experience, branding, and career site defaults."
+        items={["Career page URL", "Branding", "Public application experience"]}
       />
     );
   }
@@ -531,6 +681,15 @@ export default function SettingsPage() {
     };
   }, []);
 
+  const profileCompletion = {
+    profileComplete: true,
+    organizationComplete: true,
+    recruitingComplete: Boolean(recruitingStatus),
+    linkedInConnected: false,
+    emailConnected: true,
+    calendarConnected: false,
+  };
+
   return (
     <FxProtectedAppPage pageId="settings">
       <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px] overflow-hidden bg-transparent`}>
@@ -565,17 +724,20 @@ export default function SettingsPage() {
           </aside>
 
           <main className="h-full min-h-0 min-w-0 overflow-hidden py-[32px]">
-            <div className={`flex h-full min-h-0 flex-col overflow-hidden rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] shadow-sm`}>
-              <div className="fx-scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-[24px] py-[32px] md:px-[32px]">
-                <SectionContent
-                  sectionId={activeSection}
-                  recruitingStatus={recruitingStatus}
-                  onRecruitingStatusChange={handleRecruitingStatusChange}
-                  screeningChannel={screeningChannel}
-                  onScreeningChannelChange={setScreeningChannel}
-                  prescreenMode={prescreenMode}
-                  onPrescreenModeChange={setPrescreenMode}
-                />
+            <div className="flex h-full min-h-0 flex-col gap-[16px] overflow-hidden">
+              <ProfileCompletionBanner onNavigate={setActiveSection} {...profileCompletion} />
+              <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                <div className="fx-scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-[24px] py-[32px] md:px-[32px]">
+                  <SectionContent
+                    sectionId={activeSection}
+                    recruitingStatus={recruitingStatus}
+                    onRecruitingStatusChange={handleRecruitingStatusChange}
+                    screeningChannel={screeningChannel}
+                    onScreeningChannelChange={setScreeningChannel}
+                    prescreenMode={prescreenMode}
+                    onPrescreenModeChange={setPrescreenMode}
+                  />
+                </div>
               </div>
             </div>
           </main>
