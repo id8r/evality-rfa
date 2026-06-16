@@ -588,7 +588,9 @@ export default function JobDetailsPage({ params }) {
     {
       key: "name",
       label: "Candidate Name",
-      width: "33%",
+      width: 300,
+      minWidth: 240,
+      grow: 2,
       cellClassName: "text-[13px] leading-[20px] font-medium",
       required: true,
       locked: true,
@@ -597,49 +599,63 @@ export default function JobDetailsPage({ params }) {
     {
       key: "matchScore",
       label: "JD Match Score",
-      width: "11%",
+      width: 136,
+      minWidth: 120,
+      maxWidth: 152,
       align: "center",
       defaultVisible: true,
     },
     {
       key: "trustScore",
       label: "Trust Score",
-      width: "11%",
+      width: 128,
+      minWidth: 112,
+      maxWidth: 144,
       align: "center",
       defaultVisible: true,
     },
     {
       key: "interested",
       label: "Interested",
-      width: "10%",
+      width: 112,
+      minWidth: 104,
+      maxWidth: 128,
       align: "center",
       defaultVisible: true,
     },
     {
       key: "availability",
       label: "Availability",
-      width: "10%",
+      width: 136,
+      minWidth: 120,
+      maxWidth: 152,
       align: "center",
       defaultVisible: true,
     },
     {
       key: "currentSalary",
       label: "Current Salary",
-      width: "12.5%",
+      width: 144,
+      minWidth: 128,
+      maxWidth: 160,
       align: "right",
       defaultVisible: true,
     },
     {
       key: "expectedSalary",
       label: "Expectation",
-      width: "12.5%",
+      width: 136,
+      minWidth: 120,
+      maxWidth: 152,
       align: "right",
       defaultVisible: true,
     },
     {
       key: "actions",
       label: null,
-      width: "44px",
+      width: 56,
+      minWidth: 56,
+      maxWidth: 56,
       align: "center",
       cellClassName: "px-0 pr-0",
       required: true,
@@ -907,7 +923,6 @@ export default function JobDetailsPage({ params }) {
                     stickyFirstColumn
                     stickyLastColumn
                     scrollX
-                    minTableWidth="980px"
                     density="compact"
                     emptyMessage="No candidates in this stage yet."
                     enableColumnPicker

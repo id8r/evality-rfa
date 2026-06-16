@@ -18,6 +18,122 @@ const TABLE_DENSITY = {
 };
 /* - - - - - - - - - - - - - - - - */
 
+function toCssSize(value) {
+  return typeof value === "number" ? `${value}px` : value;
+}
+
+function toPixelValue(value) {
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim().endsWith("px")) {
+    return Number.parseFloat(value);
+  }
+
+  return null;
+}
+
+function getTextFromNode(node) {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+
+  if (Array.isArray(node)) {
+    return node.map(getTextFromNode).filter(Boolean).join(" ");
+  }
+
+  if (node?.props?.children) {
+    return getTextFromNode(node.props.children);
+  }
+
+  return "";
+}
+
+function isActionColumn(column) {
+  const labelText = getTextFromNode(column.label).toLowerCase();
+
+  return column.key === "actions" || column.key === "__fx_column_picker__" || labelText === "";
+}
+
+function isPrimaryTextColumn(column) {
+  const key = String(column.key ?? "").toLowerCase();
+  const labelText = getTextFromNode(column.label).toLowerCase();
+
+  return key.includes("title") || key.includes("name") || labelText.includes("job title") || labelText.includes("candidate name");
+}
+
+function isCompactCountColumn(column) {
+  const key = String(column.key ?? "").toLowerCase();
+  const labelText = getTextFromNode(column.label).toLowerCase();
+
+  return key.endsWith("count") || labelText === "positions" || labelText === "status" || labelText === "stage";
+}
+
+function getFallbackColumnDimensions(column) {
+  if (isActionColumn(column)) {
+    return {
+      width: 64,
+      minWidth: 64,
+      maxWidth: 64,
+    };
+  }
+
+  if (isPrimaryTextColumn(column)) {
+    return {
+      width: 280,
+      minWidth: 240,
+      maxWidth: 360,
+    };
+  }
+
+  if (isCompactCountColumn(column) || column.align === "center") {
+    return {
+      width: 96,
+      minWidth: 80,
+      maxWidth: 120,
+    };
+  }
+
+  if (column.grow || column.flexible) {
+    return {
+      width: 180,
+      minWidth: 140,
+      maxWidth: 260,
+    };
+  }
+
+  return {
+    width: 160,
+    minWidth: 140,
+    maxWidth: 220,
+  };
+}
+
+function getResolvedColumnStyle(column) {
+  const fallbackDimensions = getFallbackColumnDimensions(column);
+
+  return {
+    width: toCssSize(column.width ?? fallbackDimensions.width),
+    minWidth: toCssSize(column.minWidth ?? fallbackDimensions.minWidth),
+    maxWidth: toCssSize(column.maxWidth ?? fallbackDimensions.maxWidth),
+  };
+}
+
+function getColumnMinimumWidth(column) {
+  const resolvedDimensions = getResolvedColumnStyle(column);
+
+  return toPixelValue(resolvedDimensions.minWidth) ?? toPixelValue(resolvedDimensions.width) ?? 120;
+}
+
+function getTableMinimumWidth(visibleColumns, minTableWidth) {
+  const visibleMinimumWidth = visibleColumns.reduce((total, column) => total + getColumnMinimumWidth(column), 0);
+  const fallbackMinimumWidth = toPixelValue(minTableWidth);
+
+  return `${Math.max(visibleMinimumWidth, fallbackMinimumWidth ?? 0)}px`;
+}
+/* - - - - - - - - - - - - - - - - */
+
 function normalizeColumnKeys(columns, keys) {
   const columnKeySet = new Set(columns.map((column) => column.key));
   const requiredKeys = columns.filter((column) => column.required || column.locked || column.hideable === false).map((column) => column.key);
@@ -59,14 +175,34 @@ function getColumnStickyPosition(column, columnIndex, columnsLength, stickyFirst
 }
 /* - - - - - - - - - - - - - - - - */
 
-function getStickyClassName(stickyPosition, isHeader) {
+function getStickyHeaderClassName(stickyPosition, stickyHeader) {
+  if (!stickyHeader && !stickyPosition) {
+    return "";
+  }
+
+  const base = cn(
+    "bg-[var(--fx-bg-soft)]",
+    stickyHeader ? "sticky top-0 z-[50]" : "",
+    stickyPosition ? "z-[60]" : "",
+  );
+
+  if (stickyPosition === "left") {
+    return `${base} left-0 shadow-[1px_0_0_var(--fx-border)]`;
+  }
+
+  if (stickyPosition === "right") {
+    return `${base} right-0 shadow-[-1px_0_0_var(--fx-border)]`;
+  }
+
+  return base;
+}
+
+function getStickyBodyClassName(stickyPosition) {
   if (!stickyPosition) {
     return "";
   }
 
-  const base = isHeader
-    ? "sticky z-[30] bg-[var(--fx-bg-soft)]"
-    : "sticky z-[20] bg-inherit";
+  const base = "sticky z-[20] bg-inherit";
 
   if (stickyPosition === "left") {
     return `${base} left-0 shadow-[1px_0_0_var(--fx-border)]`;
@@ -128,6 +264,20 @@ export function FxTable({
     () => columns.filter((column) => visibleColumnKeysState.includes(column.key)),
     [columns, visibleColumnKeysState],
   );
+  const visibleColumnsKey = useMemo(() => visibleColumns.map((column) => column.key).join(","), [visibleColumns]);
+  const tableMinWidth = useMemo(
+    () => getTableMinimumWidth(visibleColumns, minTableWidth),
+    [minTableWidth, visibleColumns],
+  );
+  const columnStylesByKey = useMemo(() => {
+    const nextStyles = new Map();
+
+    visibleColumns.forEach((column) => {
+      nextStyles.set(column.key, getResolvedColumnStyle(column));
+    });
+
+    return nextStyles;
+  }, [visibleColumns]);
 
   useEffect(() => {
     if (!isHydrated || controlledVisibleColumnKeys) {
@@ -153,7 +303,7 @@ export function FxTable({
     return (
       <colgroup>
         {visibleColumns.map((column) => (
-          <col key={column.key} style={column.width ? { width: column.width } : undefined} />
+          <col key={column.key} style={columnStylesByKey.get(column.key)} />
         ))}
       </colgroup>
     );
@@ -161,26 +311,42 @@ export function FxTable({
   /* - - - - - - - - - - - - - - - - */
 
   function renderHeader() {
+    const columnPicker = enableColumnPicker ? (
+      <FxColumnPicker
+        columns={columns}
+        visibleColumnKeys={visibleColumnKeysState}
+        onVisibleColumnKeysChange={updateVisibleColumnKeys}
+        {...columnPickerProps}
+      />
+    ) : null;
+
     return (
       <thead className={cn("bg-[var(--fx-bg-soft)]", FX_TYPOGRAPHY.tableHeader, headerClassName)}>
         <tr className={FX_TABLE.headerRowHeight}>
           {visibleColumns.map((column, columnIndex) => {
             const stickyPosition = getColumnStickyPosition(column, columnIndex, visibleColumns.length, stickyFirstColumn, stickyLastColumn);
+            const isLastColumn = columnIndex === visibleColumns.length - 1;
 
             return (
               <th
                 key={column.key}
                 className={cn(
                   FX_TABLE.headerCell,
-                  stickyHeader ? "sticky top-0" : "",
-                  getStickyClassName(stickyPosition, true),
+                  getStickyHeaderClassName(stickyPosition, stickyHeader),
                   column.align === "right" ? "text-right" : "",
                   column.align === "center" ? "text-center" : "",
                   headerCellClassName,
                 )}
-                style={column.width ? { width: column.width } : undefined}
+                style={columnStylesByKey.get(column.key)}
               >
-                {column.label}
+                {isLastColumn && columnPicker ? (
+                  <div className={cn("flex items-center gap-[8px]", column.align === "right" ? "justify-end" : "justify-between")}>
+                    {column.label ? <span className="min-w-0 truncate">{column.label}</span> : null}
+                    {columnPicker}
+                  </div>
+                ) : (
+                  column.label
+                )}
               </th>
             );
           })}
@@ -195,7 +361,7 @@ export function FxTable({
       <tbody className={cn("divide-y divide-[var(--fx-border)]", bodyClassName)}>
         {rows.length ? (
           rows.map((row, rowIndex) => (
-            <tr key={row.id ?? rowIndex} className={cn(FX_TABLE.row, densityClasses.row, rowClassName)}>
+            <tr key={row.id ?? rowIndex} className={cn("relative z-0", FX_TABLE.row, densityClasses.row, rowClassName)}>
               {visibleColumns.map((column, columnIndex) => {
                 const stickyPosition = getColumnStickyPosition(column, columnIndex, visibleColumns.length, stickyFirstColumn, stickyLastColumn);
 
@@ -206,12 +372,13 @@ export function FxTable({
                       FX_TABLE.bodyCell,
                       FX_TYPOGRAPHY.tableCell,
                       densityClasses.bodyCell,
-                      getStickyClassName(stickyPosition, false),
+                      getStickyBodyClassName(stickyPosition),
                       column.align === "right" ? "text-right" : "",
                       column.align === "center" ? "text-center" : "",
                       column.cellClassName,
                       bodyCellClassName,
                     )}
+                    style={columnStylesByKey.get(column.key)}
                   >
                     {row[column.key]}
                   </td>
@@ -232,17 +399,7 @@ export function FxTable({
   /* - - - - - - - - - - - - - - - - */
 
   return (
-    <div className={cn("flex min-h-0 flex-col gap-[12px]", className)}>
-      {enableColumnPicker ? (
-        <div className="flex justify-end">
-          <FxColumnPicker
-            columns={columns}
-            visibleColumnKeys={visibleColumnKeysState}
-            onVisibleColumnKeysChange={updateVisibleColumnKeys}
-            {...columnPickerProps}
-          />
-        </div>
-      ) : null}
+    <div className={cn("flex min-h-0 flex-col", className)}>
       <div
         className={cn(
           FX_TABLE.container,
@@ -252,8 +409,9 @@ export function FxTable({
         )}
       >
         <table
-          className={cn("w-full min-w-full table-fixed border-collapse", stickyHeader ? "relative" : "")}
-          style={minTableWidth ? { minWidth: minTableWidth } : undefined}
+          key={visibleColumnsKey}
+          className={cn("w-full min-w-full table-fixed border-collapse relative isolate", stickyHeader ? "relative" : "")}
+          style={{ minWidth: tableMinWidth }}
         >
           {renderColGroup()}
           {renderHeader()}

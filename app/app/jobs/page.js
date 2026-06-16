@@ -1080,7 +1080,9 @@ export default function JobsPage() {
           <ArrowUpDown className="size-[14px]" />
         </button>
       ),
-      width: showClientInfo ? "24%" : "28%",
+      width: showClientInfo ? 260 : 320,
+      minWidth: 240,
+      grow: 2,
       cellClassName: FX_TYPOGRAPHY.clickableData,
       required: true,
       locked: true,
@@ -1096,43 +1098,57 @@ export default function JobsPage() {
                 <ArrowUpDown className="size-[14px]" />
               </button>
             ),
-            width: "14%",
+            width: 180,
+            minWidth: 160,
+            grow: 1,
           },
         ]
       : []),
     {
       key: "positions",
       label: <span className={fieldHeaderLabelClassName()}>Positions</span>,
-      width: "7%",
+      width: 96,
+      minWidth: 88,
+      maxWidth: 112,
       defaultVisible: true,
     },
     {
       key: "location",
       label: <span className={fieldHeaderLabelClassName()}>Location</span>,
-      width: showClientInfo ? "17%" : "22%",
+      width: showClientInfo ? 200 : 240,
+      minWidth: 180,
+      grow: 1,
     },
     {
       key: "unscreenedCount",
       label: <span className={fieldHeaderLabelClassName()}>Unscreened</span>,
-      width: "7%",
+      width: 104,
+      minWidth: 96,
+      maxWidth: 112,
       align: "center",
     },
     {
       key: "screenedCount",
       label: <span className={fieldHeaderLabelClassName()}>Screened</span>,
-      width: "7%",
+      width: 96,
+      minWidth: 88,
+      maxWidth: 104,
       align: "center",
     },
     {
       key: "shortlistedCount",
       label: <span className={fieldHeaderLabelClassName()}>Shortlisted</span>,
-      width: "7%",
+      width: 112,
+      minWidth: 104,
+      maxWidth: 120,
       align: "center",
     },
     {
       key: "sharedCount",
       label: <span className={fieldHeaderLabelClassName()}>Shared</span>,
-      width: "6%",
+      width: 88,
+      minWidth: 80,
+      maxWidth: 96,
       align: "center",
     },
     {
@@ -1143,12 +1159,15 @@ export default function JobsPage() {
           <ArrowUpDown className="size-[14px]" />
         </button>
       ),
-      width: showClientInfo ? "9%" : "10%",
+      width: 136,
+      minWidth: 128,
     },
     {
       key: "actions",
       label: "",
-      width: "64px",
+      width: 64,
+      minWidth: 64,
+      maxWidth: 64,
       align: "right",
       required: true,
       locked: true,
@@ -1383,7 +1402,6 @@ export default function JobsPage() {
                 stickyLastColumn
                 scrollX
                 className="h-full min-h-0"
-                minTableWidth="1040px"
                 emptyMessage={PAGE_COPY.jobs.tableEmpty}
                 enableColumnPicker
                 storageKey={STORAGE_KEYS.JOBS_TABLE_COLUMNS}
@@ -1835,18 +1853,22 @@ export default function JobsPage() {
                         {
                           key: "round",
                           label: "Round",
-                          width: "18%",
+                          width: 180,
+                          minWidth: 160,
                           cellClassName: "align-top",
                         },
                         {
                           key: "stage",
                           label: "Stage",
-                          width: "26%",
+                          width: 220,
+                          minWidth: 180,
                           cellClassName: "align-top",
                         },
                         {
                           key: "info",
                           label: "Additional Information",
+                          minWidth: 280,
+                          grow: 1,
                           cellClassName: "align-top",
                         },
                       ]}

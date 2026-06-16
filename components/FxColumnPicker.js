@@ -1,23 +1,46 @@
-/*
-components/FxColumnPicker.js | Shared table column picker | Sree | 2026-06-16
-*/
+/* components/FxColumnPicker.js | Shared table column picker | Sree | 2026-06-16 */
 
 /* - - - - - - - - - - - - - - - - */
 
 "use client";
 
+import { useId } from "react";
 import { Columns3 } from "lucide-react";
 
 import { FxButton } from "@/components/FxButton";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
+
+function isRequiredColumn(column) {
+  return Boolean(column.required || column.locked || column.hideable === false);
+}
+
+function getTextFromNode(node) {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+
+  if (Array.isArray(node)) {
+    return node.map(getTextFromNode).filter(Boolean).join(" ");
+  }
+
+  if (node?.props?.children) {
+    return getTextFromNode(node.props.children);
+  }
+
+  return "";
+}
+
+function getColumnMenuLabel(column) {
+  return column.menuLabel ?? getTextFromNode(column.label) ?? "";
+}
 
 export function FxColumnPicker({
   columns,
@@ -29,19 +52,12 @@ export function FxColumnPicker({
   menuClassName = "",
   itemClassName = "",
 }) {
+  const pickerId = useId();
   const visibleKeySet = new Set(visibleColumnKeys ?? []);
+  const optionalColumns = columns.filter((column) => !isRequiredColumn(column));
 
   function toggleColumn(column) {
-    if (column.required || column.locked || column.hideable === false) {
-      return;
-    }
-
-    const visibleHideableCount = (visibleColumnKeys ?? []).filter((key) => {
-      const visibleColumn = columns.find((item) => item.key === key);
-      return visibleColumn && visibleColumn.hideable !== false && !visibleColumn.required && !visibleColumn.locked;
-    }).length;
-
-    if (visibleKeySet.has(column.key) && visibleHideableCount <= 1) {
+    if (isRequiredColumn(column)) {
       return;
     }
 
@@ -59,7 +75,7 @@ export function FxColumnPicker({
           type="button"
           variant="outline"
           size="sm"
-          className={cn("gap-[8px]", className)}
+          className={cn("!w-[30px] !px-0", buttonLabel ? "!w-auto !px-[12px] gap-[8px]" : "", className)}
           {...buttonProps}
         >
           <Columns3 className="size-[16px]" />
@@ -68,28 +84,33 @@ export function FxColumnPicker({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className={cn("w-[260px] p-[4px]", menuClassName)}>
         <div className="px-[8px] py-[8px]">
-          <p className={FX_TYPOGRAPHY.dropdownHeader}>Visible columns</p>
+          <p className={FX_TYPOGRAPHY.dropdownHeader}>Show Columns</p>
         </div>
         <DropdownMenuSeparator />
         <div className="max-h-[320px] overflow-auto py-[4px]">
-          {columns.map((column) => {
+          {optionalColumns.map((column) => {
             const isChecked = visibleKeySet.has(column.key);
-            const isLocked = Boolean(column.required || column.locked || column.hideable === false);
-            const columnLabel = typeof column.label === "string" ? column.label : column.menuLabel ?? column.key;
+            const columnLabel = getColumnMenuLabel(column);
+            const checkboxId = `${pickerId}-${column.key}`;
 
             return (
-              <DropdownMenuCheckboxItem
+              <div
                 key={column.key}
-                checked={isChecked}
-                disabled={isLocked}
-                onCheckedChange={() => toggleColumn(column)}
-                className={cn("px-[12px] py-[10px]", itemClassName)}
+                className={cn(
+                  "flex min-h-[40px] select-none items-center gap-[10px] rounded-[6px] px-[8px] py-[8px] text-[14px] leading-[20px] text-[var(--fx-text)] outline-none hover:bg-accent",
+                  itemClassName,
+                )}
               >
-                <div className="flex min-w-0 flex-1 items-center justify-between gap-[12px]">
-                  <span className="truncate">{columnLabel}</span>
-                  {isLocked ? <span className="text-[11px] font-normal text-[var(--fx-text-muted)]">Required</span> : null}
-                </div>
-              </DropdownMenuCheckboxItem>
+                <Checkbox
+                  id={checkboxId}
+                  checked={isChecked}
+                  onCheckedChange={() => toggleColumn(column)}
+                  aria-label={columnLabel}
+                />
+                <label htmlFor={checkboxId} className="min-w-0 flex-1 cursor-pointer truncate">
+                  {columnLabel}
+                </label>
+              </div>
             );
           })}
         </div>
