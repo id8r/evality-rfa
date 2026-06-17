@@ -1,15 +1,26 @@
-/* D | Shared button helper | Sree | 2026-06-10 */
+/* components/FxButton.js | Shared button helper | Sree | 2026-06-10 */
 
 import { FX_BUTTON_HEIGHT, FX_BUTTON_PADDING_X, FX_RADIUS, FX_TYPE } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 const variantClasses = {
+  // Primary action button
   primary: "bg-primary text-[var(--fx-primary-foreground)] hover:bg-primary/90",
+
+  // Secondary action button
   secondary:
-    "border border-[var(--fx-text-disabled)] bg-[var(--fx-surface)] text-[var(--fx-text)] hover:border-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)]",
-  outline: "border border-[var(--fx-border)] bg-transparent text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]/60",
+    "border border-[var(--fx-disabled-border)] bg-[var(--fx-surface)] text-[var(--fx-text)] hover:border-[var(--fx-text-disabled)] hover:bg-[var(--fx-surface-hover)]",
+
+  // Outline utility button
+  outline: "border border-[var(--fx-disabled-border)] bg-transparent text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]/60",
+
+  // Low-emphasis ghost button
   ghost: "bg-transparent text-foreground hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]",
+
+  // Auth and neutral action button
   auth: "border border-[var(--fx-border)] bg-[var(--fx-surface)] text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]",
+
+  // Destructive action button
   destructive: "bg-[var(--fx-danger)] text-white hover:opacity-90",
 };
 

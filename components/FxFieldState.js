@@ -54,7 +54,7 @@ export function getFieldMessageToneClassName(state = FX_FIELD_STATES.DEFAULT) {
 
 export function FxFieldLabel({ children, required = false, optional = false, state = FX_FIELD_STATES.DEFAULT, className }) {
   return (
-    <span className={cn(FX_TYPOGRAPHY.fieldLabel, getFieldLabelToneClassName(state), className)}>
+    <span className={cn(FX_TYPOGRAPHY.fieldLabel, "text-[var(--fx-text-muted)]", className)}>
       {children}
       {required ? <span aria-hidden="true" className="ml-[4px] text-[var(--fx-danger)]">*</span> : null}
       {optional ? <span className="ml-[6px] text-[var(--fx-text-muted)]">(optional)</span> : null}

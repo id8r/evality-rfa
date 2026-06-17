@@ -120,6 +120,17 @@
     @apply transition-all duration-200;
   }
 
+  input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+  }
+
   .fx-scrollbar-hide {
     scrollbar-width: none !important;
     -ms-overflow-style: none;
@@ -142,6 +153,11 @@
     width: 0;
     height: 0;
     display: none;
+  }
+
+  label:has([data-slot="checkbox"]),
+  label:has([data-slot="radio-group-item"]) {
+    cursor: pointer;
   }
 }
 /* - - - - - - - - - - - - - - - - */
