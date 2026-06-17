@@ -5,10 +5,11 @@ import { cn } from "@/lib/FxUtils";
 
 const variantClasses = {
   primary: "bg-primary text-[var(--fx-primary-foreground)] hover:bg-primary/90",
-  secondary: "border border-border bg-card text-card-foreground hover:bg-muted",
-  outline: "border border-border bg-background text-foreground hover:bg-muted",
+  secondary:
+    "border border-[var(--fx-text-disabled)] bg-[var(--fx-surface)] text-[var(--fx-text)] hover:border-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)]",
+  outline: "border border-[var(--fx-border)] bg-transparent text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]/60",
   ghost: "bg-transparent text-foreground hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]",
-  auth: "border border-border bg-card text-card-foreground hover:bg-muted",
+  auth: "border border-[var(--fx-border)] bg-[var(--fx-surface)] text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]",
   destructive: "bg-[var(--fx-danger)] text-white hover:opacity-90",
 };
 
