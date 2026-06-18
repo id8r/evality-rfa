@@ -354,6 +354,7 @@ export default function JobsPage() {
   const [pendingEvaluationNextStep, setPendingEvaluationNextStep] = useState(null);
   const [evaluationContextStep, setEvaluationContextStep] = useState(0);
   const [evaluationContextAnswers, setEvaluationContextAnswers] = useState({});
+  const [evaluationContextPromptInclusions, setEvaluationContextPromptInclusions] = useState({});
   const [isCustomQuestionComposerOpen, setIsCustomQuestionComposerOpen] = useState(false);
   const [customQuestionDraft, setCustomQuestionDraft] = useState("");
   const [customQuestionSuggestion, setCustomQuestionSuggestion] = useState("");
@@ -363,9 +364,11 @@ export default function JobsPage() {
   const [sortConfig, setSortConfig] = useState(initialPageState.sortConfig ?? DEFAULT_PAGE_STATE.sortConfig);
   const [jobs, setJobs] = useState(() => ensureJobsStore().map(normalizeJobRecord).filter(Boolean));
   const searchInputRef = useRef(null);
+  const jobTitleInputRef = useRef(null);
   const customQuestionInputRef = useRef(null);
   const tableSurfaceRef = useRef(null);
   const handledEditJobIdRef = useRef(null);
+  const [shouldFocusJobTitleOnOpen, setShouldFocusJobTitleOnOpen] = useState(false);
   const baselineJobForm = editingJob ? createFormFromJob(editingJob) : EMPTY_JOB_FORM;
   const isJobFormDirty = JSON.stringify(jobForm) !== JSON.stringify(baselineJobForm);
   const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
@@ -493,6 +496,19 @@ export default function JobsPage() {
   }, [jobsViewMode]);
 
   useEffect(() => {
+    if (!isSheetOpen || !shouldFocusJobTitleOnOpen) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      jobTitleInputRef.current?.focus?.();
+      jobTitleInputRef.current?.select?.();
+    });
+
+    setShouldFocusJobTitleOnOpen(false);
+  }, [isSheetOpen, shouldFocusJobTitleOnOpen]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -564,6 +580,7 @@ export default function JobsPage() {
     setJobForm(createEmptyJobForm());
     setActiveSheetStep("basic");
     setValidationErrors({});
+    setShouldFocusJobTitleOnOpen(true);
     setIsSheetOpen(true);
   }
 
@@ -572,6 +589,7 @@ export default function JobsPage() {
     setJobForm(createFormFromJob(job));
     setActiveSheetStep("basic");
     setValidationErrors({});
+    setShouldFocusJobTitleOnOpen(false);
     setIsSheetOpen(true);
   }
 
@@ -594,6 +612,7 @@ export default function JobsPage() {
     setActiveSheetStep("basic");
     setValidationErrors({});
     setPendingAction(null);
+    setShouldFocusJobTitleOnOpen(false);
   }
 
   function requestSheetClose() {
@@ -954,7 +973,9 @@ export default function JobsPage() {
   }
 
   function applyEvaluationContextDraft() {
-    const selectedAnswers = EVALUATION_CONTEXT_PROMPTS.flatMap((prompt) => evaluationContextAnswers[prompt.id] ?? []);
+    const selectedAnswers = EVALUATION_CONTEXT_PROMPTS.flatMap((prompt) =>
+      evaluationContextPromptInclusions[prompt.id] === false ? [] : evaluationContextAnswers[prompt.id] ?? [],
+    );
     const title = jobForm.title.trim() || "the role";
     const client = showClientInfo ? jobForm.client.trim() : "";
     const summary = selectedAnswers.length
@@ -978,6 +999,7 @@ export default function JobsPage() {
 
     setIsEvaluationContextOpen(false);
     setEvaluationContextStep(0);
+    setEvaluationContextPromptInclusions({});
   }
 
   function autofillQuestions() {
@@ -1250,16 +1272,31 @@ export default function JobsPage() {
   function renderEvaluationContextPromptCard() {
     const prompt = EVALUATION_CONTEXT_PROMPTS[evaluationContextStep];
     const selectedValues = evaluationContextAnswers[prompt.id] ?? [];
+    const isIncluded = evaluationContextPromptInclusions[prompt.id] !== false;
 
     return (
       <div className="space-y-[16px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-bg-soft)] p-[20px]">
-        <div className="space-y-[4px]">
-          <h3 className="text-[16px] leading-[24px] font-medium text-[var(--fx-text)]">{prompt.title}</h3>
-          <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-            Select all that apply. Evality will use these answers to generate the evaluation context.
-          </p>
+        <div className="flex items-start justify-between gap-[16px]">
+          <div className="space-y-[4px]">
+            <h3 className="text-[16px] leading-[24px] font-medium text-[var(--fx-text)]">{prompt.title}</h3>
+            <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+              Select all that apply. Evality will use these answers to generate the evaluation context.
+            </p>
+          </div>
+          <label className="flex shrink-0 items-center gap-[8px] rounded-[999px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[10px] py-[6px]">
+            <Checkbox
+              checked={isIncluded}
+              onCheckedChange={(checked) =>
+                setEvaluationContextPromptInclusions((current) => ({
+                  ...current,
+                  [prompt.id]: Boolean(checked),
+                }))
+              }
+            />
+            <span className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">Use this question</span>
+          </label>
         </div>
-        <div className="space-y-[8px]">
+        <div className={`space-y-[8px] ${isIncluded ? "" : "opacity-50"}`}>
           {prompt.options.map((option) => {
             const isSelected = selectedValues.includes(option);
             const optionId = `evaluation-context-${prompt.id}-${option}`;
@@ -1268,15 +1305,18 @@ export default function JobsPage() {
               <label
                 key={option}
                 className={`flex w-full items-start gap-[12px] rounded-[12px] border px-[14px] py-[12px] text-left transition-colors ${
-                  isSelected
-                    ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-                    : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
+                  !isIncluded
+                    ? "cursor-not-allowed border-[var(--fx-border)] bg-[var(--fx-surface)]"
+                    : isSelected
+                      ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                      : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
                 }`}
               >
                 <Checkbox
                   id={optionId}
                   checked={isSelected}
                   onCheckedChange={(checked) =>
+                    isIncluded &&
                     setEvaluationContextAnswers((current) => ({
                       ...current,
                       [prompt.id]: checked
@@ -1284,12 +1324,18 @@ export default function JobsPage() {
                         : selectedValues.filter((value) => value !== option),
                     }))
                   }
+                  disabled={!isIncluded}
                   className="mt-[2px]"
                 />
                 <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{option}</span>
               </label>
             );
           })}
+          {!isIncluded ? (
+            <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+              This question will be skipped from generation.
+            </p>
+          ) : null}
         </div>
       </div>
     );
@@ -1856,6 +1902,7 @@ export default function JobsPage() {
                         <div className="xl:col-span-12 space-y-[8px]">
                           <FxFieldLabel required>Job Title</FxFieldLabel>
                           <FxInput
+                            ref={jobTitleInputRef}
                             name="title"
                             placeholder="Senior Frontend Engineer"
                             value={jobForm.title}
@@ -2167,13 +2214,13 @@ export default function JobsPage() {
                     stackClassName="gap-[4px]"
                   />
                   <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                    Evality.ai will try to generate questions based on the Context provided for evaluation and the resume being uploaded by the candidate.
+                    This context helps Evality evaluate candidate fit and prioritize stronger matches.
                   </p>
                   <div className="space-y-[12px]">
                     <div className="flex items-center justify-between gap-[16px]">
                       <div className="space-y-[4px]">
                         <h4 className="text-[16px] leading-[24px] font-normal text-[var(--fx-text-muted)]">
-                          Interview Rounds / Evaluation Setup
+                          Interview Process for this Role
                         </h4>
                       </div>
                       <FxButton type="button" variant="outline" size="sm" onClick={addRound}>
@@ -2556,9 +2603,9 @@ export default function JobsPage() {
       <Dialog open={isEvaluationContextOpen} onOpenChange={setIsEvaluationContextOpen}>
         <DialogContent className="sm:max-w-[720px]">
           <DialogHeader>
-            <DialogTitle>Auto Generate Context</DialogTitle>
+            <DialogTitle>Generate Context</DialogTitle>
             <DialogDescription>
-              Select applicable questions and provide answers. Evality will generate the evaluation context from them.
+              Mark the prompts you want to use, answer the relevant ones, and generate the evaluation context.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-[16px]">
@@ -2588,7 +2635,7 @@ export default function JobsPage() {
                   </FxButton>
                 ) : (
                   <FxButton type="button" onClick={applyEvaluationContextDraft}>
-                    Save & Generate Context
+                    Generate Context
                   </FxButton>
                 )}
               </div>
