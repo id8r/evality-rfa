@@ -14,9 +14,6 @@ import {
   Brain,
   BusFront,
   CalendarDays,
-  Check,
-  ChevronDown,
-  ChevronUp,
   Coffee,
   Dumbbell,
   Gift,
@@ -62,6 +59,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Sheet,
@@ -82,6 +80,7 @@ import { PAGE_COPY } from "@/lib/FxCopy";
 import {
   createEmptyJobForm as createJobEmptyForm,
   createJobFormFromJob as createJobFormFromSchema,
+  DEFAULT_COMPANY_BRIEF,
   DEFAULT_JOB_QUESTION_SUGGESTIONS,
   DEFAULT_JOB_SHEET_ROUNDS,
   normalizeJobRecord,
@@ -116,10 +115,10 @@ const SHOW_DEMO_CONTROLS = process.env.NEXT_PUBLIC_SHOW_DEMO_CONTROLS !== "false
 const JOB_SHEET_STEPS = [
   { value: "basic", label: "Basic Details" },
   { value: "description", label: "Job Description" },
-  { value: "evaluation", label: "Evaluation" },
   { value: "questionnaire", label: "Questionnaire" },
   { value: "benefits", label: "Benefits" },
-  { value: "settings", label: "Settings" },
+  { value: "evaluation", label: "Evaluation" },
+  { value: "review", label: "Review" },
 ];
 
 const EVALUATION_CONTEXT_PROMPTS = [
@@ -177,6 +176,10 @@ function createQuestionItem(label, question, note) {
     question,
     note,
   };
+}
+
+function normalizeQuestionKey(value) {
+  return String(value ?? "").trim().toLowerCase();
 }
 
 function createRoundItem(title, details, note) {
@@ -351,12 +354,16 @@ export default function JobsPage() {
   const [pendingEvaluationNextStep, setPendingEvaluationNextStep] = useState(null);
   const [evaluationContextStep, setEvaluationContextStep] = useState(0);
   const [evaluationContextAnswers, setEvaluationContextAnswers] = useState({});
-  const [isBenefitsBriefOpen, setIsBenefitsBriefOpen] = useState(true);
+  const [isCustomQuestionComposerOpen, setIsCustomQuestionComposerOpen] = useState(false);
+  const [customQuestionDraft, setCustomQuestionDraft] = useState("");
+  const [customQuestionSuggestion, setCustomQuestionSuggestion] = useState("");
+  const [removedPresetQuestionLabels, setRemovedPresetQuestionLabels] = useState([]);
   const [searchTerm, setSearchTerm] = useState(initialPageState.searchTerm ?? DEFAULT_PAGE_STATE.searchTerm);
   const [selectedTab, setSelectedTab] = useState(initialPageState.selectedTab ?? DEFAULT_PAGE_STATE.selectedTab);
   const [sortConfig, setSortConfig] = useState(initialPageState.sortConfig ?? DEFAULT_PAGE_STATE.sortConfig);
   const [jobs, setJobs] = useState(() => ensureJobsStore().map(normalizeJobRecord).filter(Boolean));
   const searchInputRef = useRef(null);
+  const customQuestionInputRef = useRef(null);
   const tableSurfaceRef = useRef(null);
   const handledEditJobIdRef = useRef(null);
   const baselineJobForm = editingJob ? createFormFromJob(editingJob) : EMPTY_JOB_FORM;
@@ -366,15 +373,57 @@ export default function JobsPage() {
   const jobLocationType = String(jobForm.workplaceType || "").toLowerCase();
   const isRemote = jobLocationType === "remote";
   const isCityRequired = !isRemote;
-  const hasJobDescription = Boolean(
-    String(jobForm.jobDescription || "")
-      .replace(/<br\s*\/?>/gi, "")
-      .replace(/<\/(p|div|li|h1|h2|h3|h4|h5|h6)>/gi, " ")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/gi, " ")
-      .trim(),
-  );
+  const [isBenefitsBriefExpanded, setIsBenefitsBriefExpanded] = useState(false);
   const selectedBenefitLabels = useMemo(() => new Set(jobForm.benefitSelections ?? []), [jobForm.benefitSelections]);
+  const selectedQuestionKeys = useMemo(() => {
+    const keys = new Set();
+
+    (jobForm.questions ?? []).forEach((question) => {
+      const labelKey = normalizeQuestionKey(question.label);
+      const questionKey = normalizeQuestionKey(question.question);
+
+      if (labelKey) {
+        keys.add(labelKey);
+      }
+
+      if (questionKey) {
+        keys.add(questionKey);
+      }
+    });
+
+    return keys;
+  }, [jobForm.questions]);
+  const availableDefaultQuestions = useMemo(
+    () =>
+      DEFAULT_JOB_QUESTION_SUGGESTIONS.filter((question) => {
+        const labelKey = normalizeQuestionKey(question.label);
+        const questionKey = normalizeQuestionKey(question.question);
+
+        return !selectedQuestionKeys.has(labelKey) && !selectedQuestionKeys.has(questionKey);
+      }).sort((left, right) => {
+        const leftKey = normalizeQuestionKey(left.label);
+        const rightKey = normalizeQuestionKey(right.label);
+        const leftIndex = removedPresetQuestionLabels.indexOf(leftKey);
+        const rightIndex = removedPresetQuestionLabels.indexOf(rightKey);
+
+        if (leftIndex === -1 && rightIndex === -1) {
+          return 0;
+        }
+
+        if (leftIndex === -1) {
+          return -1;
+        }
+
+        if (rightIndex === -1) {
+          return 1;
+        }
+
+        return leftIndex - rightIndex;
+      }),
+    [removedPresetQuestionLabels, selectedQuestionKeys],
+  );
+  const primarySkillTags = useMemo(() => fromCommaList(jobForm.primarySkills), [jobForm.primarySkills]);
+  const secondarySkillTags = useMemo(() => fromCommaList(jobForm.secondarySkills), [jobForm.secondarySkills]);
   const fieldState = (fieldName) => (validationErrors[fieldName] ? FX_FIELD_STATES.ERROR : FX_FIELD_STATES.DEFAULT);
   const clearValidationErrors = (...fieldNames) => {
     setValidationErrors((current) => {
@@ -618,6 +667,13 @@ export default function JobsPage() {
     clearValidationErrors(name, name === "workplaceType" ? "city" : null, name === "workplaceType" ? "locality" : null);
   }
 
+  function clearSkillsField(fieldName) {
+    setJobForm((current) => ({
+      ...current,
+      [fieldName]: "",
+    }));
+  }
+
   function handleExperienceFieldChange(fieldName, value) {
     const nextFrom = fieldName === "experienceFrom" ? value : jobForm.experienceFrom;
     const nextTo = fieldName === "experienceTo" ? value : jobForm.experienceTo;
@@ -647,27 +703,120 @@ export default function JobsPage() {
     }
   }
 
-  function updateQuestion(questionId, field, value) {
-    setJobForm((current) => ({
-      ...current,
-      questions: current.questions.map((question) =>
-        question.id === questionId ? { ...question, [field]: value } : question,
-      ),
-    }));
-  }
-
   function addQuestion(question) {
+    const questionLabelKey = normalizeQuestionKey(question.label);
+
     setJobForm((current) => ({
       ...current,
       questions: [...current.questions, createQuestionItem(question.label, question.question, question.note)],
     }));
+
+    if (questionLabelKey) {
+      setRemovedPresetQuestionLabels((current) => current.filter((label) => label !== questionLabelKey));
+    }
   }
 
   function removeQuestion(questionId) {
+    const removedQuestion = jobForm.questions.find((question) => question.id === questionId);
+    if (removedQuestion) {
+      const removedLabelKey = normalizeQuestionKey(removedQuestion.label);
+      const isPresetQuestion = DEFAULT_JOB_QUESTION_SUGGESTIONS.some(
+        (question) =>
+          normalizeQuestionKey(question.label) === removedLabelKey ||
+          normalizeQuestionKey(question.question) === normalizeQuestionKey(removedQuestion.question),
+      );
+
+      if (isPresetQuestion && removedLabelKey) {
+        setRemovedPresetQuestionLabels((currentLabels) => {
+          const nextLabels = currentLabels.filter((label) => label !== removedLabelKey);
+          nextLabels.push(removedLabelKey);
+          return nextLabels;
+        });
+      }
+    }
+
     setJobForm((current) => ({
       ...current,
       questions: current.questions.filter((question) => question.id !== questionId),
     }));
+  }
+
+  function suggestCustomQuestion(nextValue) {
+    const text = String(nextValue ?? "").toLowerCase().trim();
+
+    if (!text) {
+      return "";
+    }
+
+    if (/(availability|join|start|immediately|notice)/.test(text)) {
+      return "We must fill this role immediately, how soon can you join us?";
+    }
+
+    if (/(salary|compensation|pay|ctc|package)/.test(text)) {
+      return "What are your salary expectations for this role?";
+    }
+
+    if (/(remote|onsite|on-site|hybrid|location|relocate|relocation)/.test(text)) {
+      return "Are you comfortable with the expected work setup and location?";
+    }
+
+    if (/(experience|background|hands-on|project|skills)/.test(text)) {
+      return "What relevant experience do you have for this role?";
+    }
+
+    if (/(team|collaboration|stakeholder|communication)/.test(text)) {
+      return "Can you describe a time you worked closely with a team to deliver a result?";
+    }
+
+    return "Tell us about your most relevant experience for this role.";
+  }
+
+  function readQuestionValue(nextValue) {
+    if (typeof nextValue === "string" || typeof nextValue === "number") {
+      return String(nextValue);
+    }
+
+    if (nextValue && typeof nextValue === "object") {
+      const resolvedValue = nextValue.target?.value ?? nextValue.currentTarget?.value ?? nextValue.value;
+      if (resolvedValue != null) {
+        return String(resolvedValue);
+      }
+    }
+
+    return "";
+  }
+
+  function handleCustomQuestionChange(nextValue) {
+    const resolvedValue = readQuestionValue(nextValue);
+    setCustomQuestionDraft(resolvedValue);
+    setCustomQuestionSuggestion(suggestCustomQuestion(resolvedValue));
+  }
+
+  function acceptCustomQuestionSuggestion() {
+    if (!customQuestionSuggestion) {
+      return;
+    }
+
+    setCustomQuestionDraft(customQuestionSuggestion);
+  }
+
+  function commitCustomQuestion(nextQuestion = customQuestionDraft) {
+    const resolvedQuestion = readQuestionValue(nextQuestion) || customQuestionDraft;
+    const trimmedQuestion = String(resolvedQuestion ?? "").trim();
+
+    if (!trimmedQuestion) {
+      return;
+    }
+
+    addQuestion({
+      label: "Custom",
+      question: trimmedQuestion,
+      note: "",
+    });
+
+    setCustomQuestionDraft("");
+    setCustomQuestionSuggestion("");
+    setIsCustomQuestionComposerOpen(false);
   }
 
   function updateRound(roundId, field, value) {
@@ -696,17 +845,91 @@ export default function JobsPage() {
   function autofillJobDescription() {
     const title = jobForm.title.trim() || "the role";
     const client = showClientInfo ? jobForm.client.trim() : "";
+    const roleIntro = `Join us as ${title}${client ? ` for ${client}` : ""}. This role keeps the hiring flow focused, structured, and easy to evaluate.`;
+    const roleHighlights = [
+      { label: "Screening context", body: "Shape clear screening context for the hiring team." },
+      { label: "Candidate communication", body: "Keep candidate communication practical and concise." },
+      { label: "Strong-fit candidates", body: "Surface strong-fit candidates faster." },
+    ];
+    const roleExpectations = [
+      {
+        label: "Recruiter-friendly language",
+        body: "Write and refine the job description with recruiter-friendly language.",
+      },
+      {
+        label: "Candidate-facing narrative",
+        body: "Translate hiring intent into a structured candidate-facing narrative.",
+      },
+      {
+        label: "Aligned signals",
+        body: "Align screening, interview, and evaluation signals around the role.",
+      },
+    ];
+    const primarySkills = [
+      "Communication",
+      "Role Fit",
+      "Candidate Screening",
+      "Stakeholder Management",
+      title,
+      client || null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const secondarySkills = [
+      "AI Collaboration",
+      "Reporting",
+      "Team Coordination",
+      "Process Design",
+      title,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const responsibilities = `<h2><strong>Responsibilities</strong></h2><ul><li><strong>Shape the role:</strong> Turn hiring intent into a clear candidate-facing brief.</li><li><strong>Guide screening:</strong> Keep recruiter conversations aligned to the role.</li><li><strong>Improve signal:</strong> Surface high-fit candidates faster with a structured workflow.</li></ul>`;
 
     setJobForm((current) => ({
       ...current,
-      jobDescription:
-        current.jobDescription ||
-        `<h1>About the Role</h1><p>Join us as ${title}${client ? ` for ${client}` : ""}. This role keeps the candidate flow focused, contextual, and easy to evaluate.</p><h2>Overview</h2><ul><li>Shape screening context for the hiring team</li><li>Keep recruiter conversations tight and useful</li><li>Surface strong-fit candidates faster</li></ul>`,
-      primarySkills: current.primarySkills || "Communication, Role Fit, Candidate Screening",
-      secondarySkills: current.secondarySkills || "AI Collaboration, Reporting, Team Coordination",
-      responsibilities:
-        current.responsibilities ||
-        `<ul><li>Turn hiring intent into clear screening context.</li><li>Keep candidate conversations aligned.</li><li>Surface the best-fit people faster.</li></ul>`,
+      jobDescription: `<h1><strong>About the Role</strong></h1><p><strong>${roleIntro}</strong></p><h2><strong>What You'll Do</strong></h2><ul>${roleHighlights
+        .map((item) => `<li><strong>${item.label}:</strong> ${item.body}</li>`)
+        .join("")}</ul><h2><strong>What Success Looks Like</strong></h2><ul>${roleExpectations
+        .map((item) => `<li><strong>${item.label}:</strong> ${item.body}</li>`)
+        .join("")}</ul><h2><strong>Why This Role Matters</strong></h2><p><strong>Recruiter-first delivery:</strong> This role helps recruiters move from context to action with less friction and a cleaner candidate experience.</p>`,
+      primarySkills,
+      secondarySkills,
+      responsibilities,
+    }));
+  }
+
+  function autofillPrimarySkills() {
+    const title = jobForm.title.trim() || "the role";
+    const client = showClientInfo ? jobForm.client.trim() : "";
+    setJobForm((current) => ({
+      ...current,
+      primarySkills: [
+        "Communication",
+        "Role Fit",
+        "Candidate Screening",
+        title,
+        client || null,
+      ]
+        .filter(Boolean)
+        .join(", "),
+    }));
+  }
+
+  function autofillSecondarySkills() {
+    const title = jobForm.title.trim() || "the role";
+    setJobForm((current) => ({
+      ...current,
+      secondarySkills: ["AI Collaboration", "Reporting", "Team Coordination", `${title} Execution`].join(", "),
+    }));
+  }
+
+  function autofillResponsibilities() {
+    const title = jobForm.title.trim() || "the role";
+    const client = showClientInfo ? jobForm.client.trim() : "";
+    setJobForm((current) => ({
+      ...current,
+      responsibilities: `<h2><strong>Responsibilities</strong></h2><ul><li><strong>Own the brief:</strong> Translate hiring intent for ${title}${client ? ` at ${client}` : ""} into a clear recruiting workflow.</li><li><strong>Guide the team:</strong> Keep screening and interview conversations aligned.</li><li><strong>Improve outcomes:</strong> Surface better-fit candidates with less manual effort.</li></ul>`,
     }));
   }
 
@@ -761,29 +984,30 @@ export default function JobsPage() {
     setJobForm((current) => ({
       ...current,
       questions: (() => {
-        const existingQuestions = current.questions.map((question) => question.question.trim().toLowerCase());
-        const nextSuggestion = DEFAULT_JOB_QUESTION_SUGGESTIONS.find(
-          (question) => !existingQuestions.includes(question.question.trim().toLowerCase()),
+        const existingQuestionKeys = new Set(
+          current.questions.flatMap((question) => [normalizeQuestionKey(question.label), normalizeQuestionKey(question.question)]),
         );
+        const nextSuggestions = DEFAULT_JOB_QUESTION_SUGGESTIONS.filter((question) => {
+          const labelKey = normalizeQuestionKey(question.label);
+          const questionKey = normalizeQuestionKey(question.question);
 
-        if (!nextSuggestion) {
+          return !existingQuestionKeys.has(labelKey) && !existingQuestionKeys.has(questionKey);
+        });
+
+        if (!nextSuggestions.length) {
           return current.questions;
         }
 
-        return [...current.questions, createQuestionItem(nextSuggestion.label, nextSuggestion.question, nextSuggestion.note)];
+        const nextSuggestionLabels = nextSuggestions.map((question) => normalizeQuestionKey(question.label));
+        setRemovedPresetQuestionLabels((currentLabels) =>
+          currentLabels.filter((label) => !nextSuggestionLabels.includes(label)),
+        );
+
+        return [
+          ...current.questions,
+          ...nextSuggestions.map((question) => createQuestionItem(question.label, question.question, question.note)),
+        ];
       })(),
-    }));
-  }
-
-  function autofillBenefits() {
-    const title = jobForm.title.trim() || "the role";
-
-    setJobForm((current) => ({
-      ...current,
-      companyBrief:
-        current.companyBrief ||
-        `At ${title}, candidates can expect a clear process, responsive feedback, and a practical conversation focused on fit.`,
-      benefitSelections: current.benefitSelections?.length ? current.benefitSelections : DEFAULT_BENEFIT_SELECTIONS,
     }));
   }
 
@@ -920,35 +1144,71 @@ export default function JobsPage() {
   }
 
   function renderBenefitItem(groupTitle, item) {
-    const Icon = item.icon;
     const isActive = selectedBenefitLabels.has(item.label);
+    const inputId = `benefit-${groupTitle}-${item.label}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const Icon = item.icon;
 
     return (
-      <button
+      <label
         key={`${groupTitle}-${item.label}`}
-        type="button"
-        onClick={() =>
-          setJobForm((current) => ({
-            ...current,
-            benefitSelections: toggleListValue(current.benefitSelections, item.label),
-          }))
-        }
-        className={`flex w-full items-center gap-[10px] rounded-[10px] border px-[12px] py-[10px] text-left transition-colors ${
-          isActive
-            ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-            : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
+        htmlFor={inputId}
+        className={`flex cursor-pointer items-center gap-[10px] rounded-[8px] px-[4px] py-[6px] transition-colors hover:bg-[var(--fx-surface-hover)] ${
+          isActive ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"
         }`}
       >
-        <span
-          className={`inline-flex size-[16px] shrink-0 items-center justify-center rounded-[4px] border ${
-            isActive ? "border-[var(--fx-primary)] bg-[var(--fx-primary)] text-white" : "border-[var(--fx-border)] text-transparent"
-          }`}
-        >
-          <Check className="size-[12px]" />
-        </span>
+        <Checkbox
+          id={inputId}
+          checked={isActive}
+          onCheckedChange={() =>
+            setJobForm((current) => ({
+              ...current,
+              benefitSelections: toggleListValue(current.benefitSelections, item.label),
+            }))
+          }
+          className="size-[16px] shrink-0 border-[color:color-mix(in_srgb,var(--fx-border)_84%,var(--fx-text)_16%)] data-[state=checked]:border-[var(--fx-primary)] data-[state=checked]:bg-[var(--fx-primary)]"
+        />
         {Icon ? <Icon className="size-[16px] shrink-0 text-[var(--fx-primary)]" /> : null}
-        <span className={`${FX_TYPOGRAPHY.body} font-medium text-[var(--fx-text)]`}>{item.label}</span>
-      </button>
+        <span className={`${FX_TYPOGRAPHY.body} font-medium`}>{item.label}</span>
+      </label>
+    );
+  }
+
+  function renderBenefitsBrief() {
+    const briefText = jobForm.companyBrief || DEFAULT_COMPANY_BRIEF;
+
+    return (
+      <div className="rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+        <div className="space-y-[8px]">
+          <h4 className={FX_TYPOGRAPHY.cardTitle}>Company Information in Brief</h4>
+          <div className="relative">
+            <p
+              className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]"
+              style={
+                isBenefitsBriefExpanded
+                  ? undefined
+                  : {
+                      display: "-webkit-box",
+                      WebkitLineClamp: 4,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }
+              }
+            >
+              {briefText}
+            </p>
+            {!isBenefitsBriefExpanded ? (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[32px] bg-gradient-to-t from-[var(--fx-surface)] to-transparent" />
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsBenefitsBriefExpanded((current) => !current)}
+            className="inline-flex text-[13px] leading-[20px] font-medium text-[var(--fx-primary)] hover:text-[var(--fx-primary)]"
+          >
+            {isBenefitsBriefExpanded ? "Show less" : "Read more..."}
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -960,6 +1220,29 @@ export default function JobsPage() {
           {description ? <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{description}</p> : null}
         </div>
         {action ? <div className="flex shrink-0 items-center gap-[8px]">{action}</div> : null}
+      </div>
+    );
+  }
+
+  function renderQuestionCard(question) {
+    return (
+      <div key={question.id} className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+        <div className="flex items-start justify-between gap-[12px]">
+          <span className="inline-flex rounded-full bg-[var(--fx-surface-subtle)] px-[10px] py-[4px] text-[12px] font-medium leading-[16px] text-[var(--fx-text-muted)]">
+            {question.label || "General"}
+          </span>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:text-[var(--fx-danger)]"
+            onClick={() => removeQuestion(question.id)}
+            aria-label="Remove question"
+          >
+            <Trash2 className="size-[16px]" />
+          </button>
+        </div>
+        <p className="mt-[10px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+          {question.question}
+        </p>
       </div>
     );
   }
@@ -1587,6 +1870,7 @@ export default function JobsPage() {
                         </div>
 
                         <div className="xl:col-span-4">
+                        {/* <div className="xl:col-span-4"> //[Sree] */}
                           <div className="flex flex-col gap-[8px]">
                             <FxFieldLabel required>Experience (Years)</FxFieldLabel>
                             <div className="grid grid-cols-2 gap-[8px]">
@@ -1620,10 +1904,10 @@ export default function JobsPage() {
                           </div>
                         </div>
 
-                        <div className="xl:col-span-3">
+                        <div className="xl:col-span-2">
                           <FxInput
                             name="positions"
-                            label="Positions"
+                            label="Openings"
                             min="1"
                             type="number"
                             value={jobForm.positions}
@@ -1650,7 +1934,7 @@ export default function JobsPage() {
                           />
                         </div>
 
-                        <div className="xl:col-span-2">
+                        <div className="xl:col-span-3">
                           <FxSelect
                             name="workplaceType"
                             options={WORKPLACE_TYPE_OPTIONS}
@@ -1711,8 +1995,9 @@ export default function JobsPage() {
                                 }))
                               }
                             />
-                            <span className={FX_TYPOGRAPHY.body}>
-                              Do not display compensation to candidates
+                            <span className={FX_TYPOGRAPHY.fieldLabel}>
+                              Keep compensation confidential
+                              {/* Do not display compensation to candidates */}
                             </span>
                           </label>
                         </div>
@@ -1780,7 +2065,7 @@ export default function JobsPage() {
                         Upload JD
                       </FxButton>
                       <FxAiButton onClick={autofillJobDescription}>
-                        Write JD with AI
+                        Generate JD
                       </FxAiButton>
                     </div>
                   </div>
@@ -1794,35 +2079,58 @@ export default function JobsPage() {
                   </div>
 
                   <div className="space-y-[12px]">
-                    <div className="flex flex-wrap items-center justify-end gap-[12px]">
-                      <FxAiButton onClick={autofillJobDescription} disabled={!hasJobDescription}>
-                        Retrieve Primary Skills from JD
-                      </FxAiButton>
+                    <div className="flex items-center justify-between gap-[12px]">
+                      <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Primary Skills</h4>
+                      <div className="flex items-center gap-[12px]">
+                        <button
+                          type="button"
+                          onClick={() => clearSkillsField("primarySkills")}
+                          disabled={!primarySkillTags.length}
+                          className="text-[13px] leading-[20px] font-normal text-[var(--fx-text-muted)] hover:text-[var(--fx-text)] disabled:pointer-events-none disabled:opacity-40"
+                          >
+                          Clear All
+                        </button>
+                        <FxAiButton onClick={autofillPrimarySkills}>
+                          Get Primary Skills
+                        </FxAiButton>
+                      </div>
                     </div>
                     <FxTagInput
-                      value={fromCommaList(jobForm.primarySkills)}
+                      value={primarySkillTags}
                       onChange={(nextValue) => handleSelectFieldChange("primarySkills", toCommaList(nextValue))}
                       placeholder="Add primary skills"
                     />
                   </div>
 
                   <div className="space-y-[12px]">
-                    <div className="flex flex-wrap items-center justify-end gap-[12px]">
-                      <FxAiButton onClick={autofillJobDescription} disabled={!hasJobDescription}>
-                        Retrieve Secondary Skills from JD
-                      </FxAiButton>
+                    <div className="flex items-center justify-between gap-[12px]">
+                      <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Secondary Skills</h4>
+                      <div className="flex items-center gap-[12px]">
+                        <button
+                          type="button"
+                          onClick={() => clearSkillsField("secondarySkills")}
+                          disabled={!secondarySkillTags.length}
+                          className="text-[13px] leading-[20px] font-normal text-[var(--fx-text-muted)] hover:text-[var(--fx-text)] disabled:pointer-events-none disabled:opacity-40"
+                          >
+                          Clear All
+                        </button>
+                        <FxAiButton onClick={autofillSecondarySkills}>
+                          Get Secondary Skills
+                        </FxAiButton>
+                      </div>
                     </div>
                     <FxTagInput
-                      value={fromCommaList(jobForm.secondarySkills)}
+                      value={secondarySkillTags}
                       onChange={(nextValue) => handleSelectFieldChange("secondarySkills", toCommaList(nextValue))}
                       placeholder="Add secondary skills"
                     />
                   </div>
 
                   <div className="space-y-[12px]">
-                    <div className="flex flex-wrap items-center justify-end gap-[12px]">
-                      <FxAiButton onClick={autofillJobDescription} disabled={!hasJobDescription}>
-                        Write Responsibilities with AI
+                    <div className="flex items-center justify-between gap-[12px]">
+                      <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Roles and Responsibilities</h4>
+                      <FxAiButton onClick={autofillResponsibilities}>
+                        Generate Responsibilities
                       </FxAiButton>
                     </div>
                     <FxRichTextEditor
@@ -1946,90 +2254,111 @@ export default function JobsPage() {
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
                     "Questionnaire",
-                    "Our AI Agent will collect answers for these questions.",
-                    <FxAiButton onClick={autofillQuestions}>
-                      Suggest Questions
-                    </FxAiButton>,
+                    null,
+                    null,
                   )}
-                  <div className="grid gap-[12px] md:grid-cols-2">
-                    {renderOptionCard({
-                      value: "cv_and_prescreen",
-                      title: "Ask both CV related questions and pre-screening",
-                      description: "Use candidate CV context first, then ask the focused screening questions below.",
-                      icon: ListChecks,
-                      groupValue: jobForm.questionFormat,
-                      onSelect: (value) =>
-                        setJobForm((current) => ({
-                          ...current,
-                          questionFormat: value,
-                        })),
-                    })}
-                    {renderOptionCard({
-                      value: "prescreen_only",
-                      title: "Ask only pre-screening questions",
-                      description: "Keep the flow shorter when the job needs quick candidate qualification.",
-                      icon: Sparkles,
-                      groupValue: jobForm.questionFormat,
-                      onSelect: (value) =>
-                        setJobForm((current) => ({
-                          ...current,
-                          questionFormat: value,
-                        })),
-                    })}
-                  </div>
+                  <RadioGroup
+                    value={jobForm.questionFormat}
+                    onValueChange={(value) =>
+                      setJobForm((current) => ({
+                        ...current,
+                        questionFormat: value,
+                      }))
+                    }
+                    className="grid gap-[12px] md:grid-cols-2"
+                  >
+                    <label
+                      htmlFor="question-format-cv-and-prescreen"
+                      className={`flex cursor-pointer items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
+                        jobForm.questionFormat === "cv_and_prescreen"
+                          ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                          : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
+                      }`}
+                    >
+                      <RadioGroupItem
+                        id="question-format-cv-and-prescreen"
+                        value="cv_and_prescreen"
+                        className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+                      />
+                      <span className="min-w-0 space-y-[4px]">
+                        <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                          Ask both CV related questions and pre-screening
+                        </span>
+                        <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                          Use candidate CV context first, then ask the focused screening questions below.
+                        </span>
+                      </span>
+                    </label>
+
+                    <label
+                      htmlFor="question-format-prescreen-only"
+                      className={`flex cursor-pointer items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
+                        jobForm.questionFormat === "prescreen_only"
+                          ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                          : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
+                      }`}
+                    >
+                      <RadioGroupItem
+                        id="question-format-prescreen-only"
+                        value="prescreen_only"
+                        className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+                      />
+                      <span className="min-w-0 space-y-[4px]">
+                        <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                          Ask only pre-screening questions
+                        </span>
+                        <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                          Only Pre-Screening Questions listed below will be asked by the AI Agent.
+                        </span>
+                      </span>
+                    </label>
+                  </RadioGroup>
 
                   <div className="space-y-[12px]">
                     <div className="flex items-center justify-between gap-[16px]">
-                      <div className="space-y-[4px]">
-                        <h4 className={FX_TYPOGRAPHY.button}>Pre-Screening Questions</h4>
-                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                          Keep these broad and recruiter-facing. The AI will collect answers for them.
-                        </p>
-                      </div>
+                      <h4 className={FX_TYPOGRAPHY.button}>Pre-Screening Questions</h4>
                     </div>
+                    <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                      Candidates will answer these questions during screening.
+                    </p>
 
                     <div className="space-y-[12px]">
-                      {jobForm.questions.map((question) => (
-                        <div key={question.id} className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
-                          <div className="flex items-start justify-between gap-[12px]">
-                            <span className="inline-flex rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
-                              {question.label || "Question"}
-                            </span>
-                            <button
-                              type="button"
-                              className="inline-flex items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:text-[var(--fx-danger)]"
-                              onClick={() => removeQuestion(question.id)}
-                              aria-label="Remove question"
-                            >
-                              <Trash2 className="size-[16px]" />
-                            </button>
-                          </div>
-                          <div className="mt-[12px] grid gap-[12px]">
-                            <FxInput
-                              label="Question"
-                              className="min-h-[40px]"
-                              value={question.question}
-                              onChange={(event) => updateQuestion(question.id, "question", event.target.value)}
-                              placeholder="How soon can you join?"
-                            />
-                          </div>
-                        </div>
-                      ))}
+                      {jobForm.questions.map((question) => renderQuestionCard(question))}
                     </div>
 
-                    <div className="flex flex-wrap gap-[8px]">
-                      {DEFAULT_JOB_QUESTION_SUGGESTIONS.map((question) => (
+                    <div className="space-y-[8px]">
+                      <h5 className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                        Default Pre-Screening Questions
+                      </h5>
+                      <div className="flex flex-wrap items-center gap-[8px]">
+                        {availableDefaultQuestions.map((question) => (
+                          <FxButton
+                            key={question.id}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addQuestion(question)}
+                          >
+                            <Plus className="size-[16px]" />
+                            {question.label}
+                          </FxButton>
+                        ))}
                         <FxButton
-                          key={question.id}
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => addQuestion(question)}
+                          className="font-medium text-[var(--fx-primary)]"
+                          onClick={() => {
+                            const nextQuestion = window.prompt("Add custom question");
+                            if (nextQuestion) {
+                              commitCustomQuestion(nextQuestion);
+                            }
+                          }}
                         >
                           <Plus className="size-[16px]" />
-                          {question.label}
+                          Custom Question
                         </FxButton>
-                      ))}
+                      </div>
                     </div>
                   </div>
                 </section>
@@ -2037,69 +2366,29 @@ export default function JobsPage() {
 
               {activeSheetStep === "benefits" ? (
                 <section className="space-y-[24px]">
-                  {renderSectionHeader(
-                    "Benefits",
-                    null,
-                    <FxAiButton onClick={autofillBenefits}>
-                      Suggest Benefits
-                    </FxAiButton>,
-                  )}
-
-                  <div className={`rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-bg-soft)]`}>
-                    <button
-                      type="button"
-                      onClick={() => setIsBenefitsBriefOpen((current) => !current)}
-                      className="flex w-full items-center justify-between gap-[16px] px-[16px] py-[14px] text-left"
-                    >
-                      <div className="space-y-[2px]">
-                        <h4 className={FX_TYPOGRAPHY.cardTitle}>Company Information in Brief</h4>
-                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                          Keep the recruiter-facing message short and candidate-friendly.
-                        </p>
-                      </div>
-                      {isBenefitsBriefOpen ? (
-                        <ChevronUp className="size-[16px] shrink-0 text-[var(--fx-text-muted)]" />
-                      ) : (
-                        <ChevronDown className="size-[16px] shrink-0 text-[var(--fx-text-muted)]" />
-                      )}
-                    </button>
-                    {isBenefitsBriefOpen ? (
-                      <div className="border-t border-[var(--fx-border)] px-[16px] py-[16px]">
-                        <FxInput
-                          textarea
-                          name="companyBrief"
-                          label="Brief"
-                          placeholder="At Jobhotspot, we keep hiring practical, responsive, and focused on fit."
-                          value={jobForm.companyBrief}
-                          onChange={handleJobFormChange}
-                          className="min-h-[120px]"
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="space-y-[12px]">
-                    <div className="flex items-center justify-between gap-[16px]">
+                  <div className="space-y-[16px]">
+                    {renderBenefitsBrief()}
+                    <div className="space-y-[12px]">
                       <h4 className={FX_TYPOGRAPHY.cardTitle}>Benefits</h4>
-                    </div>
-                    <div className="grid gap-[16px] lg:grid-cols-2 xl:grid-cols-3">
-                      {BENEFITS_GROUPS.map((group) => (
-                        <div key={group.title} className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
-                          <h5 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{group.title}</h5>
-                          <div className="space-y-[8px]">
-                            {group.items.map((item) => renderBenefitItem(group.title, item))}
+                      <div className="grid gap-[16px] lg:grid-cols-2 xl:grid-cols-3">
+                        {BENEFITS_GROUPS.map((group) => (
+                          <div key={group.title} className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+                            <h5 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{group.title}</h5>
+                            <div className="space-y-[8px]">
+                              {group.items.map((item) => renderBenefitItem(group.title, item))}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </section>
               ) : null}
 
-              {activeSheetStep === "settings" ? (
+              {activeSheetStep === "review" ? (
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
-                    "Settings",
+                    "Review",
                     "Only the essentials for the AI flow.",
                     <FxAiButton onClick={autofillSettings}>
                       Fill Defaults

@@ -5,7 +5,7 @@
 "use client";
 
 import { forwardRef, useMemo, useState } from "react";
-import { GripVertical, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import {
   FX_FIELD_STATES,
@@ -110,7 +110,6 @@ export const FxTagInput = forwardRef(function FxTagInput(
           className,
         )}
       >
-        <GripVertical className="size-[14px] shrink-0 text-[var(--fx-text-disabled)]" aria-hidden="true" />
         {tags.map((tag) => (
           <span
             key={tag}
