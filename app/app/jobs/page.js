@@ -1131,11 +1131,7 @@ export default function JobsPage() {
       if (nextStatus === "Published") {
         showSuccess("Job published", `${storedJob.title || "This job"} is now live.`);
       }
-      if (sheetReturnTo) {
-        router.replace(sheetReturnTo, { scroll: false });
-      } else {
-        router.push(ROUTES.JOB(storedJob.id));
-      }
+      router.replace(`${ROUTES.JOB(storedJob.id)}?tab=all`, { scroll: false });
       return storedJob;
     }
 

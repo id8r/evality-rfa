@@ -501,10 +501,23 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
                   </p>
                 </div>
                 <div className="mt-[16px] flex flex-wrap items-center justify-center gap-[8px]">
-                  <FxButton type="button" onClick={() => fileInputRef.current?.click()}>
+                  <FxButton
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                  >
                     Upload Resumes
                   </FxButton>
-                  <FxButton variant="outline" type="button" onClick={() => fileInputRef.current?.click()}>
+                  <FxButton
+                    variant="outline"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                  >
                     Choose Files
                   </FxButton>
                 </div>
