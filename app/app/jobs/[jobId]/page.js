@@ -9,7 +9,9 @@ import {
   ArrowLeft,
   MoreHorizontal,
   PencilLine,
+  PhoneCall,
   Plus,
+  Share2,
   Upload,
   Users,
 } from "lucide-react";
@@ -21,6 +23,7 @@ import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxTable } from "@/components/FxTable";
 import { FxTabs } from "@/components/FxTabs";
 import { showSuccess } from "@/components/FxToast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -433,13 +436,15 @@ function RecommendedCandidatesDrawer({ open, onOpenChange, candidates }) {
 
 function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSingleCandidate }) {
   const fileInputRef = useRef(null);
-  const [draft, setDraft] = useState({ name: "", email: "", phone: "" });
+  const [draft, setDraft] = useState({ name: "", email: "", phone: "", currentCompany: "", currentRole: "", experience: "" });
   const [isDragging, setIsDragging] = useState(false);
+  const [activeMode, setActiveMode] = useState("upload");
 
   useEffect(() => {
     if (!open) {
-      setDraft({ name: "", email: "", phone: "" });
+      setDraft({ name: "", email: "", phone: "", currentCompany: "", currentRole: "", experience: "" });
       setIsDragging(false);
+      setActiveMode("upload");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -448,7 +453,7 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
   }, [open]);
 
   function resetDraft() {
-    setDraft({ name: "", email: "", phone: "" });
+    setDraft({ name: "", email: "", phone: "", currentCompany: "", currentRole: "", experience: "" });
   }
 
   function handleFileSelection(event) {
@@ -467,103 +472,119 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
       <SheetContent size="xl">
         <SheetHeader
           title="Add Candidates"
-          description={`Add candidates to ${job?.title || "this job"} by uploading resumes or entering them one by one.`}
+          description={`Add candidates to ${job?.title || "this job"}.`}
         />
         <SheetBody>
-          <div className="grid gap-[16px] xl:grid-cols-[1.15fr_0.85fr]">
-            <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
-              <div className="space-y-[8px]">
-                <p className={FX_TYPOGRAPHY.cardTitle}>Upload resumes</p>
-                <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                  Drag and drop resumes here to add candidates to this job.
-                </p>
-              </div>
+          <div className="space-y-[16px]">
+            <FxTabs
+              tabs={[
+                { value: "upload", label: "Upload" },
+                { value: "manual", label: "Manual Entry" },
+              ]}
+              active={activeMode}
+              onChange={setActiveMode}
+              className="justify-start"
+              showUnderline
+            />
 
-              <div
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-                className={`mt-[16px] flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed px-[20px] py-[24px] text-center transition-colors ${
-                  isDragging
-                    ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-                    : "border-[var(--fx-border)] bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]"
-                }`}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="size-[28px] text-[var(--fx-primary)]" />
-                <div className="mt-[12px] space-y-[6px]">
-                  <p className={FX_TYPOGRAPHY.button}>Drop PDFs, DOCs, or DOCXs here</p>
-                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                    We&apos;ll create one candidate per file and place them in Unscreened.
+            {activeMode === "upload" ? (
+              <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
+                <div
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  className={`flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed px-[20px] py-[24px] text-center transition-colors ${
+                    isDragging
+                      ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                      : "border-[var(--fx-border)] bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]"
+                  }`}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="size-[28px] text-[var(--fx-primary)]" />
+                  <p className="mt-[12px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                    Upload resumes
                   </p>
+                  <div className="mt-[16px] flex items-center gap-[8px]">
+                    <FxButton
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                    >
+                      Upload
+                    </FxButton>
+                    <FxButton
+                      variant="outline"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                    >
+                      Browse
+                    </FxButton>
+                  </div>
+                  <p className="mt-[12px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                    Bulk or single resume.
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.txt"
+                    className="hidden"
+                    onChange={handleFileSelection}
+                  />
                 </div>
-                <div className="mt-[16px] flex flex-wrap items-center justify-center gap-[8px]">
-                  <FxButton
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      fileInputRef.current?.click();
-                    }}
-                  >
-                    Upload Resumes
-                  </FxButton>
-                  <FxButton
-                    variant="outline"
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      fileInputRef.current?.click();
-                    }}
-                  >
-                    Choose Files
-                  </FxButton>
+              </section>
+            ) : (
+              <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
+                <div className="grid gap-[16px] md:grid-cols-2">
+                  <FxInput
+                    label="Full Name"
+                    placeholder="Aarav Mehta"
+                    value={draft.name}
+                    onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                  />
+                  <FxInput
+                    label="Email"
+                    placeholder="aarav@example.com"
+                    value={draft.email}
+                    onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
+                  />
+                  <FxInput
+                    label="Phone"
+                    placeholder="+91 98765 43210"
+                    value={draft.phone}
+                    onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))}
+                  />
+                  <FxInput
+                    label="Current Company"
+                    placeholder="ThinkJS"
+                    value={draft.currentCompany || ""}
+                    onChange={(event) => setDraft((current) => ({ ...current, currentCompany: event.target.value }))}
+                  />
+                  <FxInput
+                    label="Current Role"
+                    placeholder="Frontend Engineer"
+                    value={draft.currentRole || ""}
+                    onChange={(event) => setDraft((current) => ({ ...current, currentRole: event.target.value }))}
+                  />
+                  <FxInput
+                    label="Experience (Years)"
+                    placeholder="4"
+                    type="number"
+                    min="0"
+                    value={draft.experience || ""}
+                    onChange={(event) => setDraft((current) => ({ ...current, experience: event.target.value }))}
+                  />
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.doc,.docx,.txt"
-                  className="hidden"
-                  onChange={handleFileSelection}
-                />
-              </div>
 
-              <p className={`${FX_TYPOGRAPHY.fieldHint} mt-[12px] text-[var(--fx-text-muted)]`}>
-                One resume becomes one candidate. This is a quick demo flow for now.
-              </p>
-            </section>
-
-            <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
-              <div className="space-y-[8px]">
-                <p className={FX_TYPOGRAPHY.cardTitle}>Add one by one</p>
-                <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                  Enter a candidate manually when you only have one person to add.
-                </p>
-              </div>
-
-              <div className="mt-[16px] space-y-[16px]">
-                <FxInput
-                  label="Candidate Name"
-                  placeholder="Aarav Mehta"
-                  value={draft.name}
-                  onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                />
-                <FxInput
-                  label="Email"
-                  placeholder="aarav@example.com"
-                  value={draft.email}
-                  onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
-                />
-                <FxInput
-                  label="Phone"
-                  placeholder="+91 98765 43210"
-                  value={draft.phone}
-                  onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))}
-                />
-                <div className="flex items-center gap-[8px]">
+                <div className="mt-[16px] flex items-center gap-[8px]">
                   <FxButton
                     type="button"
                     onClick={() => {
@@ -578,8 +599,8 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
                     Clear
                   </FxButton>
                 </div>
-              </div>
-            </section>
+              </section>
+            )}
           </div>
         </SheetBody>
         <SheetFooter
@@ -742,7 +763,7 @@ export default function JobDetailsPage({ params }) {
   );
 
   const createCandidateRecord = useCallback(
-    ({ name, email, phone, source }) => {
+    ({ name, email, phone, currentCompany, currentRole, experience, source }) => {
       const resolvedName = String(name ?? "").trim();
       const normalizedName = resolvedName || "Candidate";
       const slug = normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, ".");
@@ -756,6 +777,9 @@ export default function JobDetailsPage({ params }) {
         name: normalizedName,
         email: String(email ?? "").trim() || `${slug}@evality.ai`,
         phone: String(phone ?? "").trim() || "—",
+        currentCompany: String(currentCompany ?? "").trim() || "",
+        currentRole: String(currentRole ?? "").trim() || "",
+        experience: experience != null && experience !== "" ? Number(experience) : null,
         status: "unscreened",
         uploadedBy: source ?? "Manual entry",
         interested: "Maybe",
@@ -778,7 +802,7 @@ export default function JobDetailsPage({ params }) {
 
       const nextCandidates = nextFiles.map((file, index) =>
         createCandidateRecord({
-          name: normalizeUploadedCandidateName(file.name),
+        name: normalizeUploadedCandidateName(file.name),
           source: "Resume upload",
           email: `${String(file.name ?? `resume-${index + 1}`)
             .replace(/\.[^/.]+$/, "")
@@ -806,6 +830,9 @@ export default function JobDetailsPage({ params }) {
           name,
           email: draft.email,
           phone: draft.phone,
+          currentCompany: draft.currentCompany,
+          currentRole: draft.currentRole,
+          experience: draft.experience,
           source: "Manual entry",
         }),
       ]);
@@ -1086,43 +1113,55 @@ export default function JobDetailsPage({ params }) {
   }));
 
   const jobIdLabel = job?.id ?? jobId;
-  const jobStatusTone =
-    job?.status === "Published"
-      ? "bg-[color-mix(in_srgb,var(--fx-success)_16%,var(--fx-surface)_84%)] text-[var(--fx-success)]"
-      : "bg-[color-mix(in_srgb,var(--fx-warning)_14%,var(--fx-surface)_86%)] text-[var(--fx-warning)]";
+
+  function renderWorkspaceStatusDot() {
+    const isMissingEvaluationContext = job?.status === "Published" && !String(job?.evaluationContext ?? "").trim();
+    const toneClassName = isMissingEvaluationContext ? "bg-[var(--fx-danger)]" : "bg-[var(--fx-success)]";
+    const label = isMissingEvaluationContext ? "Published\nEvaluation context missing" : "Published";
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label={label}
+            className={`inline-flex size-[10px] shrink-0 rounded-full ring-2 ring-[var(--fx-surface)] ${toneClassName}`}
+          />
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={6} className="whitespace-pre-line">
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
 
   if (job?.status === "Draft") {
     return null;
   }
 
   return (
-    <FxProtectedAppPage
-      pageId="jobWorkspace"
-      title={false}
-      navbarLeading={
-        <Link href={ROUTES.JOBS} className={`inline-flex items-center gap-[8px] ${FX_TYPOGRAPHY.button} text-foreground hover:text-[var(--fx-text)]`}>
-          <ArrowLeft className="size-[16px]" />
-          Jobs
-        </Link>
-      }
-    >
-      <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px]`}>
+    <TooltipProvider delayDuration={0}>
+      <FxProtectedAppPage
+        pageId="jobWorkspace"
+        title={false}
+        navbarLeading={
+          <Link href={ROUTES.JOBS} className={`inline-flex items-center gap-[8px] ${FX_TYPOGRAPHY.button} text-foreground hover:text-[var(--fx-text)]`}>
+            <ArrowLeft className="size-[16px]" />
+            Jobs
+          </Link>
+        }
+      >
+        <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px]`}>
         {job ? (
           <>
             <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[24px]`}>
               <div className="flex flex-col gap-[20px] lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 space-y-[12px]">
-                  <div className="flex flex-wrap items-center gap-[8px]">
-                    <span className="rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-text-muted)]">
-                      Job ID {jobIdLabel}
-                    </span>
-                    <span className={`rounded-full px-[10px] py-[4px] text-[12px] font-medium ${jobStatusTone}`}>
-                      {job.status}
-                    </span>
-                  </div>
-
                   <div className="space-y-[6px]">
-                    <h1 className={`${FX_TYPOGRAPHY.h3} text-[var(--fx-text)]`}>{job.title}</h1>
+                    <div className="flex flex-wrap items-center gap-[10px]">
+                      {renderWorkspaceStatusDot()}
+                      <h1 className={`${FX_TYPOGRAPHY.h3} text-[var(--fx-text)]`}>{job.title}</h1>
+                    </div>
                     {showClientInfo && job.client ? (
                       <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{job.client}</p>
                     ) : null}
@@ -1132,9 +1171,11 @@ export default function JobDetailsPage({ params }) {
                 <div className="flex flex-wrap items-center gap-[8px]">
                   <FxAiButton onClick={() => setRecommendedOpen(true)}>Recommend Candidates</FxAiButton>
                   <FxButton variant="outline" size="sm" onClick={() => setCallPreviewOpen(true)}>
+                    <PhoneCall className="size-[16px]" />
                     Call Preview
                   </FxButton>
                   <FxButton variant="secondary" size="sm" onClick={handleShareJob}>
+                    <Share2 className="size-[16px]" />
                     Share Job
                   </FxButton>
                   <FxButton
@@ -1151,8 +1192,7 @@ export default function JobDetailsPage({ params }) {
                 </div>
               </div>
 
-              <div className="mt-[20px] grid gap-[16px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <MetaField label="Job ID" value={jobIdLabel} valueClassName="font-mono text-[13px]" />
+              <div className="mt-[20px] flex flex-wrap gap-x-[48px] gap-y-[12px]">
                 {showClientInfo && job.client ? <MetaField label="Client" value={job.client} /> : null}
                 <MetaField label="Domain / Department" value={`${job.domain} / ${job.department}`} />
                 <MetaField label="Experience" value={job.experience || "—"} />
@@ -1163,6 +1203,7 @@ export default function JobDetailsPage({ params }) {
                 <MetaField label="Publish Date" value={job.publishDate ? formatDate(job.publishDate) : "Draft"} />
                 <MetaField label="Question Format" value={job.questionFormat || "CV + AI pre-screening"} />
                 <MetaField label="Last Activity" value={formatRelativeTime(job.updatedAt)} />
+                <MetaField label="Job ID" value={jobIdLabel} valueClassName="font-mono text-[13px]" />
               </div>
             </div>
 
@@ -1254,28 +1295,29 @@ export default function JobDetailsPage({ params }) {
             </div>
           </section>
         )}
-      </section>
+        </section>
 
-      <RecommendedCandidatesDrawer
-        open={recommendedOpen}
-        onOpenChange={setRecommendedOpen}
-        candidates={recommendedCandidates}
-      />
-      <AddCandidatesDrawer
-        open={addCandidatesOpen}
-        onOpenChange={setAddCandidatesOpen}
-        job={job}
-        onUploadFiles={handleUploadCandidateFiles}
-        onAddSingleCandidate={handleAddSingleCandidate}
-      />
-      <CandidateMatchDrawer open={analysisOpen} onOpenChange={setAnalysisOpen} candidate={selectedCandidate} />
-      <CandidateActionDrawer
-        open={candidateActionOpen}
-        onOpenChange={setCandidateActionOpen}
-        candidate={selectedCandidate}
-        action={candidateAction}
-      />
-      <CallPreviewDrawer open={callPreviewOpen} onOpenChange={setCallPreviewOpen} job={job} />
-    </FxProtectedAppPage>
+        <RecommendedCandidatesDrawer
+          open={recommendedOpen}
+          onOpenChange={setRecommendedOpen}
+          candidates={recommendedCandidates}
+        />
+        <AddCandidatesDrawer
+          open={addCandidatesOpen}
+          onOpenChange={setAddCandidatesOpen}
+          job={job}
+          onUploadFiles={handleUploadCandidateFiles}
+          onAddSingleCandidate={handleAddSingleCandidate}
+        />
+        <CandidateMatchDrawer open={analysisOpen} onOpenChange={setAnalysisOpen} candidate={selectedCandidate} />
+        <CandidateActionDrawer
+          open={candidateActionOpen}
+          onOpenChange={setCandidateActionOpen}
+          candidate={selectedCandidate}
+          action={candidateAction}
+        />
+        <CallPreviewDrawer open={callPreviewOpen} onOpenChange={setCallPreviewOpen} job={job} />
+      </FxProtectedAppPage>
+    </TooltipProvider>
   );
 }

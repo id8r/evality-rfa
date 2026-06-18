@@ -686,11 +686,12 @@ export default function JobsPage() {
     requestSheetClose();
   }
 
-  function requestDeleteJob(job) {
+  function requestDeleteJob(job, { navigateToJobsTable = false } = {}) {
     setPendingAction({
       type: "delete-job",
       jobId: job.id,
       title: job.title,
+      navigateToJobsTable,
     });
   }
 
@@ -701,6 +702,10 @@ export default function JobsPage() {
 
     if (pendingAction.type === "delete-job") {
       handleDeleteJob(pendingAction.jobId);
+      if (pendingAction.navigateToJobsTable) {
+        resetJobSheetState();
+        router.replace(ROUTES.JOBS, { scroll: false });
+      }
     }
 
     if (pendingAction.type === "discard-sheet") {
@@ -2160,6 +2165,17 @@ export default function JobsPage() {
             descriptionClassName="text-[var(--fx-text)] font-medium"
             actions={(
               <>
+                {editingJob ? (
+                  <FxButton
+                    type="button"
+                    variant="ghost"
+                    className="text-[var(--fx-danger)] hover:bg-[color-mix(in_srgb,var(--fx-danger)_8%,var(--fx-surface)_92%)] hover:text-[var(--fx-danger)]"
+                    onClick={() => requestDeleteJob(editingJob, { navigateToJobsTable: true })}
+                  >
+                    <Trash2 className="size-[16px]" />
+                    Delete
+                  </FxButton>
+                ) : null}
                 <FxButton
                   type="button"
                   variant="ghost"
