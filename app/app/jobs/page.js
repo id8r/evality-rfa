@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   ArrowRight,
@@ -83,6 +84,7 @@ import {
   DEFAULT_COMPANY_BRIEF,
   DEFAULT_JOB_QUESTION_SUGGESTIONS,
   DEFAULT_JOB_SHEET_ROUNDS,
+  buildSalaryRangeLabel,
   normalizeJobRecord,
   serializeJobFormToRecord,
   validateJobForm,
@@ -161,6 +163,19 @@ function fromCommaList(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function stripHtmlContent(value) {
+  return String(value ?? "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/(p|div|li|h1|h2|h3|h4|h5|h6)>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+}
+
+function hasRichTextContent(value) {
+  return Boolean(stripHtmlContent(value));
 }
 
 function createEmptyJobForm() {
@@ -293,6 +308,29 @@ function formatExperienceSummary(fromValue, toValue) {
   return `${from || to} years`;
 }
 
+function formatReviewExperienceSummary(fromValue, toValue) {
+  const from = String(fromValue ?? "").trim();
+  const to = String(toValue ?? "").trim();
+
+  if (!from && !to) {
+    return "—";
+  }
+
+  if (from && to) {
+    return `${from}–${to} Years`;
+  }
+
+  return `${from || to} Year${String(from || to) === "1" ? "" : "s"}`;
+}
+
+function formatQuestionFormatLabel(value) {
+  if (value === "prescreen_only") {
+    return "Pre-Screening Only";
+  }
+
+  return "CV + Pre-Screening";
+}
+
 function fieldButtonClassName(isInteractive = false) {
   return `${FX_TYPOGRAPHY.metaLabel} font-normal text-[var(--fx-text-muted)] ${
     isInteractive ? "inline-flex cursor-pointer items-center gap-[8px] text-left hover:text-[var(--fx-text)]" : ""
@@ -327,6 +365,7 @@ function subscribeToWorkspaceTypeChange(onStoreChange) {
 }
 
 export default function JobsPage() {
+  const router = useRouter();
   const initialPageState = readStoredJobsPageState() ?? DEFAULT_PAGE_STATE;
   const [jobsViewMode, setJobsViewMode] = useState(() => {
     const demoExperience = readStoredDemoExperience();
@@ -377,6 +416,7 @@ export default function JobsPage() {
   const isRemote = jobLocationType === "remote";
   const isCityRequired = !isRemote;
   const [isBenefitsBriefExpanded, setIsBenefitsBriefExpanded] = useState(false);
+  const evaluationContextMissing = !stripHtmlContent(jobForm.evaluationContext);
   const selectedBenefitLabels = useMemo(() => new Set(jobForm.benefitSelections ?? []), [jobForm.benefitSelections]);
   const selectedQuestionKeys = useMemo(() => {
     const keys = new Set();
@@ -1042,7 +1082,7 @@ export default function JobsPage() {
     }));
   }
 
-  function commitJob(nextStatus = jobForm.status) {
+  function commitJob(nextStatus = jobForm.status, { navigateToWorkspace = false } = {}) {
     const validation = validateJobForm(jobForm, { includeClientInfo: showClientInfo });
 
     if (!validation.valid) {
@@ -1072,7 +1112,14 @@ export default function JobsPage() {
         ? currentJobs.map((job) => (job.id === storedJob.id ? storedJob : job))
         : [storedJob, ...currentJobs];
     });
+
+    if (navigateToWorkspace) {
+      router.push(ROUTES.JOB(storedJob.id));
+      return storedJob;
+    }
+
     resetJobSheetState();
+    return storedJob;
   }
 
   function handleSubmitJob(event) {
@@ -1085,7 +1132,7 @@ export default function JobsPage() {
   }
 
   function handlePublishJob() {
-    commitJob("Published");
+    commitJob("Published", { navigateToWorkspace: true });
   }
 
   function validateBasicDetailsStep() {
@@ -1246,6 +1293,45 @@ export default function JobsPage() {
     );
   }
 
+  function goToSheetStep(step) {
+    setActiveSheetStep(step);
+  }
+
+  function renderReviewSectionCard({ title, step, children }) {
+    return (
+      <div className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+        <div className="flex items-center justify-between gap-[12px]">
+          <h4 className={FX_TYPOGRAPHY.cardTitle}>{title}</h4>
+          <FxButton type="button" variant="outline" size="sm" onClick={() => goToSheetStep(step)}>
+            Edit
+          </FxButton>
+        </div>
+        <div className="space-y-[8px]">{children}</div>
+      </div>
+    );
+  }
+
+  function renderEvaluationMissingCard() {
+    return (
+      <div className="space-y-[12px] rounded-[16px] border border-[color:color-mix(in_srgb,var(--fx-warning)_36%,var(--fx-border)_64%)] bg-[color:color-mix(in_srgb,var(--fx-warning)_7%,var(--fx-surface)_93%)] p-[16px]">
+        <div className="space-y-[4px]">
+          <h4 className={FX_TYPOGRAPHY.cardTitle}>Evaluation Context Missing</h4>
+          <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+            Evaluation Context helps Evality assess candidate fit and prioritize stronger matches.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-[8px]">
+          <FxButton type="button" variant="outline" onClick={() => goToSheetStep("evaluation")}>
+            Go to Evaluation
+          </FxButton>
+          <FxButton type="button" onClick={handlePublishJob}>
+            Publish Anyway
+          </FxButton>
+        </div>
+      </div>
+    );
+  }
+
   function renderQuestionCard(question) {
     return (
       <div key={question.id} className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
@@ -1353,6 +1439,28 @@ export default function JobsPage() {
     { label: "Status", value: editingJob?.status ?? "Draft" },
   ];
   const [sheetSummaryTitleItem, ...sheetSummaryMetaItems] = sheetSummaryItems;
+
+  const reviewBasicSummary = {
+    title: jobForm.title || "—",
+    experience: formatReviewExperienceSummary(jobForm.experienceFrom, jobForm.experienceTo),
+    employmentType: jobForm.employmentType || "—",
+    workplaceType: jobForm.workplaceType || "—",
+    positions: `${Number(jobForm.positions) || 0} Position${Number(jobForm.positions) === 1 ? "" : "s"}`,
+    location: sheetSummaryLocation,
+    compensationRange: buildSalaryRangeLabel(jobForm.salaryMin, jobForm.salaryMax, jobForm.currency) || "—",
+    compensationVisibility: jobForm.hideCompensationFromCandidates
+      ? "Compensation hidden from candidates"
+      : "Compensation visible to candidates",
+  };
+  const reviewDescriptionStatus = hasRichTextContent(jobForm.jobDescription) ? "Description Added" : "Description Missing";
+  const reviewPrimarySkillCount = fromCommaList(jobForm.primarySkills).length;
+  const reviewSecondarySkillCount = fromCommaList(jobForm.secondarySkills).length;
+  const reviewQuestionMode = formatQuestionFormatLabel(jobForm.questionFormat);
+  const reviewQuestionCount = jobForm.questions?.length ?? 0;
+  const reviewBenefitsCount = jobForm.benefitSelections?.length ?? 0;
+  const reviewCompanyInfoStatus = hasRichTextContent(jobForm.companyBrief) ? "Company Information Added" : "Company Information Missing";
+  const reviewEvaluationStatus = stripHtmlContent(jobForm.evaluationContext) ? "Evaluation Context Configured" : "Evaluation Context Missing";
+  const reviewEvaluationRoundsCount = jobForm.evaluationRounds?.length ?? 0;
 
   const currentSheetStepIndex = JOB_SHEET_STEPS.findIndex((step) => step.value === activeSheetStep);
   const hasPreviousSheetStep = currentSheetStepIndex > 0;
@@ -2434,64 +2542,91 @@ export default function JobsPage() {
 
               {activeSheetStep === "review" ? (
                 <section className="space-y-[16px]">
-                  {renderSectionHeader(
-                    "Review",
-                    "Only the essentials for the AI flow.",
-                    <FxAiButton onClick={autofillSettings}>
-                      Fill Defaults
-                    </FxAiButton>,
-                  )}
-                  <div className="grid gap-[12px] md:grid-cols-2">
-                    {renderOptionCard({
-                      value: "call_with_email_backup",
-                      title: "Call + email backup",
-                      description: "AI calls first, then uses email if the call does not connect.",
-                      icon: Sparkles,
-                      groupValue: jobForm.preScreeningMode,
-                      onSelect: (value) =>
-                        setJobForm((current) => ({
-                          ...current,
-                          preScreeningMode: value,
-                        })),
-                    })}
-                    {renderOptionCard({
-                      value: "email_only",
-                      title: "Email backup only",
-                      description: "Keep communication lighter when email is enough.",
-                      icon: Mail,
-                      groupValue: jobForm.preScreeningMode,
-                      onSelect: (value) =>
-                        setJobForm((current) => ({
-                          ...current,
-                          preScreeningMode: value,
-                        })),
-                    })}
-                  </div>
+                  {renderSectionHeader("Review", "Final checkpoint before publishing.", null)}
 
-                  <div className="grid gap-[16px] md:grid-cols-2">
-                    <label className="flex w-full flex-col gap-[8px]" htmlFor="callingBackup">
-                      <FxFieldLabel>Fallback Channel</FxFieldLabel>
-                      <select
-                        id="callingBackup"
-                        name="callingBackup"
-                        className={`h-[40px] w-full border ${FX_COLORS.border} ${FX_RADIUS.xs} bg-[var(--fx-bg)] px-[16px] py-0 ${FX_TYPOGRAPHY.input} text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20`}
-                        value={jobForm.callingBackup}
-                        onChange={handleJobFormChange}
-                      >
-                        <option value="email">Email</option>
-                        <option value="whatsapp">WhatsApp</option>
-                        <option value="phone">Phone call</option>
-                      </select>
-                    </label>
-                    <FxInput
-                      textarea
-                      name="backupNotes"
-                      label="Backup Notes"
-                      placeholder="Add any fallback instructions for the recruiting team."
-                      value={jobForm.backupNotes}
-                      onChange={handleJobFormChange}
-                      className="min-h-[140px]"
-                    />
+                  <div className="grid gap-[16px] lg:grid-cols-2">
+                    {renderReviewSectionCard({
+                      title: "Basic Details",
+                      step: "basic",
+                      children: (
+                        <>
+                          <p className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{reviewBasicSummary.title}</p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                            {reviewBasicSummary.experience} | {reviewBasicSummary.employmentType} | {reviewBasicSummary.workplaceType}
+                          </p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">{reviewBasicSummary.positions}</p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">{reviewBasicSummary.location}</p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">{reviewBasicSummary.compensationRange}</p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                            {reviewBasicSummary.compensationVisibility}
+                          </p>
+                        </>
+                      ),
+                    })}
+
+                    {renderReviewSectionCard({
+                      title: "Job Description",
+                      step: "description",
+                      children: (
+                        <>
+                          <p className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                            {reviewDescriptionStatus}
+                          </p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                            Primary Skills: {reviewPrimarySkillCount}
+                          </p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                            Secondary Skills: {reviewSecondarySkillCount}
+                          </p>
+                        </>
+                      ),
+                    })}
+
+                    {renderReviewSectionCard({
+                      title: "Questionnaire",
+                      step: "questionnaire",
+                      children: (
+                        <>
+                          <p className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                            Mode: {reviewQuestionMode}
+                          </p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                            Questions: {reviewQuestionCount}
+                          </p>
+                        </>
+                      ),
+                    })}
+
+                    {renderReviewSectionCard({
+                      title: "Benefits",
+                      step: "benefits",
+                      children: (
+                        <>
+                          <p className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                            {reviewCompanyInfoStatus}
+                          </p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                            Benefits: {reviewBenefitsCount}
+                          </p>
+                        </>
+                      ),
+                    })}
+
+                    {renderReviewSectionCard({
+                      title: "Evaluation",
+                      step: "evaluation",
+                      children: (
+                        <>
+                          <p className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                            {reviewEvaluationStatus}
+                          </p>
+                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                            Interview Rounds: {reviewEvaluationRoundsCount}
+                          </p>
+                          {!evaluationContextMissing ? null : renderEvaluationMissingCard()}
+                        </>
+                      ),
+                    })}
                   </div>
                 </section>
               ) : null}
@@ -2504,16 +2639,22 @@ export default function JobsPage() {
                   <FxButton type="button" variant="outline" onClick={handlePreviousSheetStep}>
                     Back
                   </FxButton>
-                  <FxButton
-                    type="button"
-                    variant="secondary"
-                    className="gap-[8px]"
-                    onClick={handleNextSheetStep}
-                    disabled={!hasNextSheetStep}
-                  >
-                    Next
-                    <ArrowRight className="size-[16px]" />
-                  </FxButton>
+                  {activeSheetStep === "review" ? (
+                    <FxButton type="button" onClick={handlePublishJob}>
+                      Publish
+                    </FxButton>
+                  ) : (
+                    <FxButton
+                      type="button"
+                      variant="secondary"
+                      className="gap-[8px]"
+                      onClick={handleNextSheetStep}
+                      disabled={!hasNextSheetStep}
+                    >
+                      Next
+                      <ArrowRight className="size-[16px]" />
+                    </FxButton>
+                  )}
                 </>
               }
             />
