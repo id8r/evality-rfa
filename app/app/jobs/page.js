@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   ArrowUpDown,
   Archive,
@@ -48,7 +49,7 @@ import { FxRichTextEditor } from "@/components/FxRichTextEditor";
 import { FxSelect } from "@/components/FxSelect";
 import { FxTagInput } from "@/components/FxTagInput";
 import { FxTable } from "@/components/FxTable";
-import { showWarning } from "@/components/FxToast";
+import { showSuccess, showWarning } from "@/components/FxToast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,6 +63,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sheet,
   SheetBody,
@@ -69,7 +71,6 @@ import {
   SheetFooter,
   SheetHeader,
 } from "@/components/ui/sheet";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,6 +105,7 @@ import {
   writeStoredJobsViewMode,
 } from "@/lib/FxStore";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { cn } from "@/lib/FxUtils";
 
 const DEFAULT_PAGE_STATE = {
   searchTerm: "",
@@ -389,8 +391,6 @@ export default function JobsPage() {
   const [pendingAction, setPendingAction] = useState(null);
   const [isUploadJdOpen, setIsUploadJdOpen] = useState(false);
   const [isEvaluationContextOpen, setIsEvaluationContextOpen] = useState(false);
-  const [isEvaluationLeaveGuardOpen, setIsEvaluationLeaveGuardOpen] = useState(false);
-  const [pendingEvaluationNextStep, setPendingEvaluationNextStep] = useState(null);
   const [evaluationContextStep, setEvaluationContextStep] = useState(0);
   const [evaluationContextAnswers, setEvaluationContextAnswers] = useState({});
   const [evaluationContextPromptInclusions, setEvaluationContextPromptInclusions] = useState({});
@@ -402,6 +402,7 @@ export default function JobsPage() {
   const [selectedTab, setSelectedTab] = useState(initialPageState.selectedTab ?? DEFAULT_PAGE_STATE.selectedTab);
   const [sortConfig, setSortConfig] = useState(initialPageState.sortConfig ?? DEFAULT_PAGE_STATE.sortConfig);
   const [jobs, setJobs] = useState(() => ensureJobsStore().map(normalizeJobRecord).filter(Boolean));
+  const [sheetReturnTo, setSheetReturnTo] = useState("");
   const searchInputRef = useRef(null);
   const jobTitleInputRef = useRef(null);
   const customQuestionInputRef = useRef(null);
@@ -536,6 +537,14 @@ export default function JobsPage() {
   }, [jobsViewMode]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    setSheetReturnTo(new URLSearchParams(window.location.search).get("returnTo") ?? "");
+  }, []);
+
+  useEffect(() => {
     if (!isSheetOpen || !shouldFocusJobTitleOnOpen) {
       return;
     }
@@ -645,7 +654,7 @@ export default function JobsPage() {
     persistJobs(jobs.filter((job) => job.id !== jobId));
   }
 
-  function resetJobSheetState() {
+  function resetJobSheetState({ navigateBack = false } = {}) {
     setIsSheetOpen(false);
     setEditingJob(null);
     setJobForm(createEmptyJobForm());
@@ -653,6 +662,10 @@ export default function JobsPage() {
     setValidationErrors({});
     setPendingAction(null);
     setShouldFocusJobTitleOnOpen(false);
+
+    if (navigateBack && sheetReturnTo) {
+      router.replace(sheetReturnTo, { scroll: false });
+    }
   }
 
   function requestSheetClose() {
@@ -661,7 +674,7 @@ export default function JobsPage() {
       return;
     }
 
-    resetJobSheetState();
+    resetJobSheetState({ navigateBack: Boolean(sheetReturnTo) });
   }
 
   function handleSheetOpenChange(nextOpen) {
@@ -691,7 +704,7 @@ export default function JobsPage() {
     }
 
     if (pendingAction.type === "discard-sheet") {
-      resetJobSheetState();
+      resetJobSheetState({ navigateBack: Boolean(sheetReturnTo) });
     } else {
       setPendingAction(null);
     }
@@ -904,25 +917,21 @@ export default function JobsPage() {
   function autofillJobDescription() {
     const title = jobForm.title.trim() || "the role";
     const client = showClientInfo ? jobForm.client.trim() : "";
-    const roleIntro = `Join us as ${title}${client ? ` for ${client}` : ""}. This role keeps the hiring flow focused, structured, and easy to evaluate.`;
-    const roleHighlights = [
-      { label: "Screening context", body: "Shape clear screening context for the hiring team." },
-      { label: "Candidate communication", body: "Keep candidate communication practical and concise." },
-      { label: "Strong-fit candidates", body: "Surface strong-fit candidates faster." },
+    const roleIntro = `Join us as ${title}${client ? ` for ${client}` : ""}. This role helps recruiters keep hiring structured, practical, and easy to evaluate.`;
+    const coreResponsibilities = [
+      "Translate hiring intent into a clear candidate-facing brief.",
+      "Partner with recruiters and hiring managers to keep screening aligned.",
+      "Surface strong-fit candidates with less manual effort and clearer signals.",
     ];
-    const roleExpectations = [
-      {
-        label: "Recruiter-friendly language",
-        body: "Write and refine the job description with recruiter-friendly language.",
-      },
-      {
-        label: "Candidate-facing narrative",
-        body: "Translate hiring intent into a structured candidate-facing narrative.",
-      },
-      {
-        label: "Aligned signals",
-        body: "Align screening, interview, and evaluation signals around the role.",
-      },
+    const successSignals = [
+      "The job story is easy to read and reflects the real day-to-day work.",
+      "Screening questions and evaluation criteria are aligned to the role.",
+      "Candidates understand expectations, growth, and what success looks like.",
+    ];
+    const candidateProfile = [
+      "Strong communication and ownership.",
+      "Relevant hands-on experience for the role.",
+      "Comfort with a structured hiring process and practical next steps.",
     ];
     const primarySkills = [
       "Communication",
@@ -943,18 +952,37 @@ export default function JobsPage() {
     ]
       .filter(Boolean)
       .join(", ");
-    const responsibilities = `<h2><strong>Responsibilities</strong></h2><ul><li><strong>Shape the role:</strong> Turn hiring intent into a clear candidate-facing brief.</li><li><strong>Guide screening:</strong> Keep recruiter conversations aligned to the role.</li><li><strong>Improve signal:</strong> Surface high-fit candidates faster with a structured workflow.</li></ul>`;
+    const responsibilities = `<h2><strong>Roles and Responsibilities</strong></h2><ul><li><strong>Shape the role:</strong> Turn hiring intent into a clear candidate-facing brief.</li><li><strong>Guide screening:</strong> Keep recruiter conversations aligned to the role.</li><li><strong>Improve signal:</strong> Surface high-fit candidates faster with a structured workflow.</li></ul>`;
+    const interviewRounds =
+      jobForm.evaluationRounds.length > 0
+        ? jobForm.evaluationRounds
+        : [
+            createRoundItem("Round 1", "Screening", "Short AI-assisted review of baseline fit."),
+            createRoundItem("Round 2", "Hiring manager", "Check role depth, communication, and ownership."),
+            createRoundItem("Round 3", "Final decision", "Confirm readiness for next step."),
+          ];
 
     setJobForm((current) => ({
       ...current,
-      jobDescription: `<h1><strong>About the Role</strong></h1><p><strong>${roleIntro}</strong></p><h2><strong>What You'll Do</strong></h2><ul>${roleHighlights
-        .map((item) => `<li><strong>${item.label}:</strong> ${item.body}</li>`)
-        .join("")}</ul><h2><strong>What Success Looks Like</strong></h2><ul>${roleExpectations
-        .map((item) => `<li><strong>${item.label}:</strong> ${item.body}</li>`)
-        .join("")}</ul><h2><strong>Why This Role Matters</strong></h2><p><strong>Recruiter-first delivery:</strong> This role helps recruiters move from context to action with less friction and a cleaner candidate experience.</p>`,
+      jobDescription: [
+        `<h1>${title}</h1>`,
+        `<p>${roleIntro}</p>`,
+        `<h2>Role Overview</h2>`,
+        `<p>Build a clear, recruiter-friendly description that helps the team move quickly without losing signal.</p>`,
+        `<blockquote><p><strong>Why this matters:</strong> A readable job story helps recruiters, hiring managers, and candidates stay aligned from the first screen.</p></blockquote>`,
+        `<h2>Core Responsibilities</h2>`,
+        `<ul>${coreResponsibilities.map((item) => `<li>${item}</li>`).join("")}</ul>`,
+        `<h2>What Success Looks Like</h2>`,
+        `<ol>${successSignals.map((item) => `<li>${item}</li>`).join("")}</ol>`,
+        `<h3>Candidate Profile</h3>`,
+        `<ul>${candidateProfile.map((item) => `<li>${item}</li>`).join("")}</ul>`,
+        `<h3>Hiring Notes</h3>`,
+        `<p>Use this as a clean starting draft and tailor it to the specific role, team structure, and market context.</p>`,
+      ].join(""),
       primarySkills,
       secondarySkills,
       responsibilities,
+      evaluationRounds: interviewRounds,
     }));
   }
 
@@ -989,26 +1017,6 @@ export default function JobsPage() {
     setJobForm((current) => ({
       ...current,
       responsibilities: `<h2><strong>Responsibilities</strong></h2><ul><li><strong>Own the brief:</strong> Translate hiring intent for ${title}${client ? ` at ${client}` : ""} into a clear recruiting workflow.</li><li><strong>Guide the team:</strong> Keep screening and interview conversations aligned.</li><li><strong>Improve outcomes:</strong> Surface better-fit candidates with less manual effort.</li></ul>`,
-    }));
-  }
-
-  function autofillEvaluation() {
-    const title = jobForm.title.trim() || "the role";
-    const client = showClientInfo ? jobForm.client.trim() : "";
-
-    setJobForm((current) => ({
-      ...current,
-      evaluationContext:
-        current.evaluationContext ||
-        `Focus evaluation on practical fit for ${client ? `${title} at ${client}` : title}. Keep rounds lightweight, role-specific, and easy for recruiters to run.`,
-      evaluationRounds:
-        current.evaluationRounds.length > 0
-          ? current.evaluationRounds
-          : [
-              createRoundItem("Round 1", "Screening", "Short AI-assisted review of baseline fit."),
-              createRoundItem("Round 2", "Hiring manager", "Check role depth, communication, and ownership."),
-              createRoundItem("Round 3", "Final decision", "Confirm readiness for next step."),
-        ],
     }));
   }
 
@@ -1082,7 +1090,7 @@ export default function JobsPage() {
     }));
   }
 
-  function commitJob(nextStatus = jobForm.status, { navigateToWorkspace = false } = {}) {
+  function commitJob(nextStatus = jobForm.status, { navigateToWorkspace = false, navigateToJobsTable = false } = {}) {
     const validation = validateJobForm(jobForm, { includeClientInfo: showClientInfo });
 
     if (!validation.valid) {
@@ -1113,12 +1121,25 @@ export default function JobsPage() {
         : [storedJob, ...currentJobs];
     });
 
-    if (navigateToWorkspace) {
-      router.push(ROUTES.JOB(storedJob.id));
+    if (navigateToJobsTable) {
+      resetJobSheetState();
+      router.replace(ROUTES.JOBS, { scroll: false });
       return storedJob;
     }
 
-    resetJobSheetState();
+    if (navigateToWorkspace) {
+      if (nextStatus === "Published") {
+        showSuccess("Job published", `${storedJob.title || "This job"} is now live.`);
+      }
+      if (sheetReturnTo) {
+        router.replace(sheetReturnTo, { scroll: false });
+      } else {
+        router.push(ROUTES.JOB(storedJob.id));
+      }
+      return storedJob;
+    }
+
+    resetJobSheetState({ navigateBack: Boolean(sheetReturnTo) });
     return storedJob;
   }
 
@@ -1128,7 +1149,7 @@ export default function JobsPage() {
   }
 
   function handleSaveDraft() {
-    commitJob("Draft");
+    commitJob("Draft", { navigateToJobsTable: true });
   }
 
   function handlePublishJob() {
@@ -1172,15 +1193,15 @@ export default function JobsPage() {
       return validateBasicDetailsStep();
     }
 
-    if (activeSheetStep === "evaluation" && nextStep === "questionnaire") {
-      if (!String(jobForm.evaluationContext || "").trim()) {
-        setPendingEvaluationNextStep(nextStep);
-        setIsEvaluationLeaveGuardOpen(true);
-        return false;
-      }
-    }
-
     return true;
+  }
+
+  function formatDisplayLabel(value) {
+    return String(value ?? "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
   }
 
   function getSheetStepTabClassName(step) {
@@ -1221,7 +1242,7 @@ export default function JobsPage() {
       <label
         key={`${groupTitle}-${item.label}`}
         htmlFor={inputId}
-        className={`flex cursor-pointer items-center gap-[10px] rounded-[8px] px-[4px] py-[6px] transition-colors hover:bg-[var(--fx-surface-hover)] ${
+        className={`flex w-full cursor-pointer items-start gap-[10px] rounded-[8px] px-[4px] py-[6px] transition-colors hover:bg-[var(--fx-surface-hover)] ${
           isActive ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"
         }`}
       >
@@ -1234,10 +1255,10 @@ export default function JobsPage() {
               benefitSelections: toggleListValue(current.benefitSelections, item.label),
             }))
           }
-          className="size-[16px] shrink-0 border-[color:color-mix(in_srgb,var(--fx-border)_84%,var(--fx-text)_16%)] data-[state=checked]:border-[var(--fx-primary)] data-[state=checked]:bg-[var(--fx-primary)]"
+          className="mt-[2px] size-[16px] shrink-0 self-start border-[color:color-mix(in_srgb,var(--fx-border)_84%,var(--fx-text)_16%)] data-[state=checked]:border-[var(--fx-primary)] data-[state=checked]:bg-[var(--fx-primary)]"
         />
-        {Icon ? <Icon className="size-[16px] shrink-0 text-[var(--fx-primary)]" /> : null}
-        <span className={`${FX_TYPOGRAPHY.body} font-medium`}>{item.label}</span>
+        {Icon ? <Icon className="mt-[2px] size-[16px] shrink-0 self-start text-[var(--fx-primary)]" /> : null}
+        <span className={`${FX_TYPOGRAPHY.body} min-w-0 font-medium leading-[22px]`}>{item.label}</span>
       </label>
     );
   }
@@ -1281,11 +1302,11 @@ export default function JobsPage() {
     );
   }
 
-  function renderSectionHeader(title, description, action) {
+  function renderSectionHeader(title, description, action, titleClassName = "") {
     return (
       <div className="flex items-start justify-between gap-[16px]">
         <div className="space-y-[4px]">
-          <h3 className={FX_TYPOGRAPHY.cardTitle}>{title}</h3>
+          <h3 className={cn(FX_TYPOGRAPHY.cardTitle, titleClassName)}>{title}</h3>
           {description ? <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{description}</p> : null}
         </div>
         {action ? <div className="flex shrink-0 items-center gap-[8px]">{action}</div> : null}
@@ -1300,33 +1321,113 @@ export default function JobsPage() {
   function renderReviewSectionCard({ title, step, children }) {
     return (
       <div className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
-        <div className="flex items-center justify-between gap-[12px]">
-          <h4 className={FX_TYPOGRAPHY.cardTitle}>{title}</h4>
-          <FxButton type="button" variant="outline" size="sm" onClick={() => goToSheetStep(step)}>
+        <div className="flex items-start justify-between gap-[12px]">
+          <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>{title}</h4>
+          <FxButton type="button" variant="ghost" size="sm" className="text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]" onClick={() => goToSheetStep(step)}>
             Edit
           </FxButton>
         </div>
-        <div className="space-y-[8px]">{children}</div>
+        <div className="space-y-[4px]">{children}</div>
+      </div>
+    );
+  }
+
+  function renderReviewInlineSegments(segments, className = "") {
+    return (
+      <div className={`flex flex-wrap items-center gap-x-[8px] gap-y-[4px] ${className}`}>
+        {segments.map((segment, index) => (
+          <span key={index} className="flex items-center gap-[8px]">
+            {index > 0 ? <span className="text-[var(--fx-text-muted)]">|</span> : null}
+            {typeof segment === "string" ? (
+              <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{segment}</span>
+            ) : (
+              segment
+            )}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  function renderReviewStatusDot(isComplete) {
+    const label = isComplete ? "Complete" : "Needs review";
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label={label}
+            className={`size-[8px] shrink-0 rounded-full ${
+              isComplete ? "bg-[var(--fx-success)]" : "bg-[var(--fx-warning)]"
+            }`}
+          />
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={6}>
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  function renderReviewSummaryRow({ title, step, lines, complete, children }) {
+    return (
+      <div className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+        <div className="flex items-start justify-between gap-[12px]">
+          <div className="flex min-w-0 items-center gap-[8px]">
+            {renderReviewStatusDot(complete)}
+            <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>{title}</h4>
+          </div>
+
+          <FxButton type="button" variant="ghost" size="sm" className="text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]" onClick={() => goToSheetStep(step)}>
+            Edit
+          </FxButton>
+        </div>
+
+        <div className="space-y-[6px] text-[14px] leading-[22px] text-[var(--fx-text)]">
+          {lines.map((line, index) => (
+            <div key={index} className="text-[14px] leading-[22px] text-[var(--fx-text)]">
+              {line}
+            </div>
+          ))}
+        </div>
+
+        {children ? <div>{children}</div> : null}
       </div>
     );
   }
 
   function renderEvaluationMissingCard() {
     return (
-      <div className="space-y-[12px] rounded-[16px] border border-[color:color-mix(in_srgb,var(--fx-warning)_36%,var(--fx-border)_64%)] bg-[color:color-mix(in_srgb,var(--fx-warning)_7%,var(--fx-surface)_93%)] p-[16px]">
-        <div className="space-y-[4px]">
-          <h4 className={FX_TYPOGRAPHY.cardTitle}>Evaluation Context Missing</h4>
-          <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-            Evaluation Context helps Evality assess candidate fit and prioritize stronger matches.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-[8px]">
-          <FxButton type="button" variant="outline" onClick={() => goToSheetStep("evaluation")}>
-            Go to Evaluation
-          </FxButton>
-          <FxButton type="button" onClick={handlePublishJob}>
-            Publish Anyway
-          </FxButton>
+      <div className="rounded-[16px] border border-[color:color-mix(in_srgb,var(--fx-warning)_32%,var(--fx-border)_68%)] bg-[color:color-mix(in_srgb,var(--fx-warning)_8%,var(--fx-surface)_92%)] p-[16px]">
+        <div className="space-y-[12px]">
+          <div className="flex items-start justify-between gap-[12px]">
+            <div className="space-y-[4px]">
+              <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Evaluation</h4>
+              <p className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                Evaluation Context Missing
+              </p>
+              <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                Add context before publishing, or finish it later.
+              </p>
+            </div>
+            <FxButton type="button" variant="ghost" size="sm" className="text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]" onClick={() => goToSheetStep("evaluation")}>
+              Edit
+            </FxButton>
+          </div>
+          <div className="flex flex-wrap justify-end gap-[8px]">
+            <FxButton
+              type="button"
+              variant="outline"
+              className="border-[var(--fx-primary)] text-[var(--fx-primary)] hover:bg-[color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)]"
+              onClick={() => goToSheetStep("evaluation")}
+            >
+              Go to Evaluation
+            </FxButton>
+            <FxButton type="button" variant="destructive" onClick={handlePublishJob}>
+              Publish Anyway
+            </FxButton>
+          </div>
         </div>
       </div>
     );
@@ -1334,23 +1435,89 @@ export default function JobsPage() {
 
   function renderQuestionCard(question) {
     return (
-      <div key={question.id} className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
-        <div className="flex items-start justify-between gap-[12px]">
-          <span className="inline-flex rounded-full bg-[var(--fx-surface-subtle)] px-[10px] py-[4px] text-[12px] font-medium leading-[16px] text-[var(--fx-text-muted)]">
-            {question.label || "General"}
+      <div
+        key={question.id}
+        className="flex items-start justify-between gap-[12px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[14px] py-[12px]"
+      >
+        <div className="min-w-0 flex-1 space-y-[6px]">
+          <span className="block text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">
+            {formatDisplayLabel(question.label || "General")}
           </span>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:text-[var(--fx-danger)]"
-            onClick={() => removeQuestion(question.id)}
-            aria-label="Remove question"
-          >
-            <Trash2 className="size-[16px]" />
-          </button>
+          <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+            {question.question}
+          </p>
         </div>
-        <p className="mt-[10px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-          {question.question}
-        </p>
+        <button
+          type="button"
+          className="inline-flex items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:text-[var(--fx-danger)]"
+          onClick={() => removeQuestion(question.id)}
+          aria-label="Remove question"
+        >
+          <Trash2 className="size-[16px]" />
+        </button>
+      </div>
+    );
+  }
+
+  function renderInterviewProcessSection() {
+    return (
+      <div className="space-y-[12px]">
+        <div className="flex items-center justify-between gap-[16px]">
+          <div className="space-y-[4px]">
+            <h4 className={`text-[16px] leading-[24px] font-normal text-[var(--fx-text-muted)]`}>
+              Interview Process for this Role
+            </h4>
+            <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+              Keep the interview flow compact and role-specific.
+            </p>
+          </div>
+          <FxButton type="button" variant="outline" size="sm" onClick={addRound}>
+            <Plus className="size-[16px]" />
+            Add Round
+          </FxButton>
+        </div>
+        <div className="overflow-hidden rounded-[14px] border border-[var(--fx-border)] bg-[var(--fx-surface)]">
+          {jobForm.evaluationRounds.map((round, index) => (
+            <div
+              key={round.id}
+              className={`grid gap-[10px] px-[12px] py-[10px] md:grid-cols-[92px_minmax(0,1.2fr)_minmax(0,1fr)_auto] md:items-center ${
+                index > 0 ? "border-t border-[var(--fx-border)]" : ""
+              }`}
+            >
+              <div className="flex items-center">
+                <span className={`${FX_TYPOGRAPHY.fieldHint} whitespace-nowrap text-[var(--fx-text-muted)]`}>
+                  Round {index + 1}
+                </span>
+              </div>
+              <div className="flex items-center">
+                <input
+                  value={round.details}
+                  onChange={(event) => updateRound(round.id, "details", event.target.value)}
+                  placeholder="Details"
+                  className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
+                />
+              </div>
+              <div className="flex items-center">
+                <input
+                  value={round.note}
+                  onChange={(event) => updateRound(round.id, "note", event.target.value)}
+                  placeholder="Additional Info"
+                  className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
+                />
+              </div>
+              <div className="flex items-center md:justify-end">
+                <button
+                  type="button"
+                  className="inline-flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                  onClick={() => removeRound(round.id)}
+                  aria-label="Remove round"
+                >
+                  <Trash2 className="size-[16px]" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -1366,7 +1533,7 @@ export default function JobsPage() {
           <div className="space-y-[4px]">
             <h3 className="text-[16px] leading-[24px] font-medium text-[var(--fx-text)]">{prompt.title}</h3>
             <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-              Select all that apply. Evality will use these answers to generate the evaluation context.
+              Select the questions that apply and answer them. Evality will use these answers to generate the evaluation context.
             </p>
           </div>
           <label className="flex shrink-0 items-center gap-[8px] rounded-[999px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[10px] py-[6px]">
@@ -1448,19 +1615,68 @@ export default function JobsPage() {
     positions: `${Number(jobForm.positions) || 0} Position${Number(jobForm.positions) === 1 ? "" : "s"}`,
     location: sheetSummaryLocation,
     compensationRange: buildSalaryRangeLabel(jobForm.salaryMin, jobForm.salaryMax, jobForm.currency) || "—",
-    compensationVisibility: jobForm.hideCompensationFromCandidates
-      ? "Compensation hidden from candidates"
-      : "Compensation visible to candidates",
+    compensationVisibility: jobForm.hideCompensationFromCandidates ? "Salary hidden" : "Show Salary to Candidates",
   };
   const reviewDescriptionStatus = hasRichTextContent(jobForm.jobDescription) ? "Description Added" : "Description Missing";
   const reviewPrimarySkillCount = fromCommaList(jobForm.primarySkills).length;
   const reviewSecondarySkillCount = fromCommaList(jobForm.secondarySkills).length;
+  const reviewJobDescriptionRoundsCount = jobForm.evaluationRounds?.length ?? 0;
   const reviewQuestionMode = formatQuestionFormatLabel(jobForm.questionFormat);
   const reviewQuestionCount = jobForm.questions?.length ?? 0;
   const reviewBenefitsCount = jobForm.benefitSelections?.length ?? 0;
   const reviewCompanyInfoStatus = hasRichTextContent(jobForm.companyBrief) ? "Company Information Added" : "Company Information Missing";
   const reviewEvaluationStatus = stripHtmlContent(jobForm.evaluationContext) ? "Evaluation Context Configured" : "Evaluation Context Missing";
-  const reviewEvaluationRoundsCount = jobForm.evaluationRounds?.length ?? 0;
+  const reviewBasicComplete = Boolean(
+    jobForm.title?.trim() &&
+      jobForm.experienceFrom &&
+      jobForm.employmentType &&
+      jobForm.workplaceType &&
+      jobForm.positions &&
+      (!isCityRequired || jobForm.city?.trim()),
+  );
+  const reviewDescriptionComplete = reviewDescriptionStatus === "Description Added";
+  const reviewQuestionnaireComplete = reviewQuestionCount > 0;
+  const reviewBenefitsComplete = reviewBenefitsCount > 0;
+  const reviewEvaluationComplete = !evaluationContextMissing;
+  const reviewDescriptionStatusNode = (
+    <span className={reviewDescriptionComplete ? "text-[var(--fx-text)]" : "text-[var(--fx-warning)]"}>
+      {reviewDescriptionStatus}
+    </span>
+  );
+  const reviewBasicSummaryLine = (
+    <div className="flex flex-wrap items-center gap-x-[12px] gap-y-[6px]">
+      <p className="min-w-0 flex-1 text-[14px] leading-[22px] text-[var(--fx-text)]">
+        {reviewBasicSummary.experience} · {reviewBasicSummary.employmentType} · {reviewBasicSummary.workplaceType} · {reviewBasicSummary.positions} · {reviewBasicSummary.location}
+      </p>
+      <label className="flex shrink-0 items-center gap-[8px] whitespace-nowrap text-[14px] leading-[22px] text-[var(--fx-text)]">
+        <Checkbox
+          checked={!jobForm.hideCompensationFromCandidates}
+          onCheckedChange={(checked) =>
+            setJobForm((current) => ({
+              ...current,
+              hideCompensationFromCandidates: !Boolean(checked),
+            }))
+          }
+          className="mt-[2px]"
+        />
+        <span>Show Salary to Candidates</span>
+      </label>
+    </div>
+  );
+  const reviewJobDescriptionLine = renderReviewInlineSegments([
+    reviewDescriptionStatusNode,
+    `Primary Skills: ${reviewPrimarySkillCount}`,
+    `Secondary Skills: ${reviewSecondarySkillCount}`,
+    `Interview Rounds: ${reviewJobDescriptionRoundsCount}`,
+  ]);
+  const reviewQuestionnaireLine = renderReviewInlineSegments([
+    `Mode: ${reviewQuestionMode}`,
+    `Questions: ${reviewQuestionCount}`,
+  ]);
+  const jobTitleValue = jobForm.title?.trim() || "";
+  const jobCreationTitle = editingJob ? "Edit Job" : "Create Job";
+  const navbarTitle = isSheetOpen ? jobCreationTitle : "Jobs";
+  const showReturnToBackdrop = isSheetOpen && Boolean(sheetReturnTo) && sheetReturnTo.startsWith("/app/jobs/");
 
   const currentSheetStepIndex = JOB_SHEET_STEPS.findIndex((step) => step.value === activeSheetStep);
   const hasPreviousSheetStep = currentSheetStepIndex > 0;
@@ -1539,7 +1755,7 @@ export default function JobsPage() {
     setValidationErrors({});
   }
 
-  function getJobWorkspaceHref(jobId, tab = "unscreened") {
+  function getJobWorkspaceHref(jobId, tab = "all") {
     return `${ROUTES.JOB(jobId)}?tab=${tab}`;
   }
 
@@ -1679,18 +1895,37 @@ export default function JobsPage() {
 
   function renderStatusDot(job) {
     const isDraft = job.status === "Draft";
+    const isPublishedWithoutEvaluationContext =
+      job.status === "Published" && !stripHtmlContent(job.evaluationContext);
+    const label = isDraft
+      ? "Draft"
+      : isPublishedWithoutEvaluationContext
+        ? "Published\nEvaluation context missing"
+        : "Published";
+    const toneClassName = isDraft
+      ? "bg-[var(--fx-warning)]"
+      : isPublishedWithoutEvaluationContext
+        ? "bg-[var(--fx-danger)]"
+        : "bg-[var(--fx-success)]";
 
     return (
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
-            className={`inline-flex size-[8px] shrink-0 cursor-default rounded-full ${isDraft ? "bg-[var(--fx-warning)]" : "bg-[var(--fx-success)]"}`}
-            aria-label={isDraft ? "Draft" : "Published"}
+            className={`inline-flex size-[8px] shrink-0 cursor-default rounded-full ${toneClassName}`}
+            aria-label={label}
           />
         </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={10}>
-          {isDraft ? "Draft" : "Published"}
+        <TooltipContent side="top" sideOffset={6} className="max-w-[220px] whitespace-pre-line">
+          {isPublishedWithoutEvaluationContext ? (
+            <div className="space-y-[2px]">
+              <div className={FX_TYPOGRAPHY.button}>Published</div>
+              <div className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Evaluation context missing</div>
+            </div>
+          ) : (
+            label
+          )}
         </TooltipContent>
       </Tooltip>
     );
@@ -1712,7 +1947,7 @@ export default function JobsPage() {
           </button>
         ) : (
           <Link
-            href={getJobWorkspaceHref(job.id, "unscreened")}
+            href={getJobWorkspaceHref(job.id)}
             className={`block min-w-0 truncate text-[var(--fx-primary)] hover:text-[var(--fx-text)] ${FX_TYPOGRAPHY.clickableData}`}
             title={job.title}
           >
@@ -1783,9 +2018,18 @@ export default function JobsPage() {
   }));
 
   return (
-    <FxProtectedAppPage pageId="jobs" contentClassName="bg-[var(--fx-surface)]">
-      <TooltipProvider delayDuration={0}>
-        <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden`}>
+    <TooltipProvider delayDuration={0}>
+      <FxProtectedAppPage pageId="jobs" title={navbarTitle} contentClassName="bg-[var(--fx-surface)]">
+      <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden`}>
+        {showReturnToBackdrop ? (
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 top-[64px] z-[20] overflow-hidden">
+            <iframe
+              title="Job workspace background"
+              src={sheetReturnTo}
+              className="h-full w-full border-0 bg-[var(--fx-surface)]"
+            />
+          </div>
+        ) : null}
         <div className="flex min-h-0 flex-1 flex-col gap-[24px] overflow-hidden">
           <div className="grid min-w-0 flex-none grid-cols-[minmax(0,1fr)_auto] items-end gap-[16px]">
             <div className="flex min-w-0 items-end gap-[24px]">
@@ -1885,8 +2129,7 @@ export default function JobsPage() {
             ) : null}
           </div>
         </div>
-        </section>
-      </TooltipProvider>
+      </section>
 
       <div className="fixed bottom-[16px] right-[16px] z-20 flex items-center gap-[8px]">
         {SHOW_DEMO_CONTROLS ? (
@@ -1916,7 +2159,9 @@ export default function JobsPage() {
       <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent size="xl">
           <SheetHeader
-            title={editingJob ? PAGE_COPY.jobs.editCta : PAGE_COPY.jobs.createCta}
+            title={isSheetOpen ? jobCreationTitle : editingJob ? PAGE_COPY.jobs.editCta : PAGE_COPY.jobs.createCta}
+            description={jobTitleValue || (editingJob ? "Edit details for this job" : "Enter job details to get started")}
+            descriptionClassName="text-[var(--fx-text)] font-medium"
             actions={(
               <>
                 <FxButton
@@ -1936,6 +2181,7 @@ export default function JobsPage() {
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmitJob}>
             <SheetBody className="space-y-[24px]">
+              {/*
               <div className={`grid gap-[24px] rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-primary)_24%,var(--fx-border)_76%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_4%,var(--fx-surface)_96%)] p-[20px] md:grid-cols-[minmax(0,1.9fr)_auto]`}>
                 <div className="min-w-0 space-y-[6px]">
                   <p className={`${FX_TYPOGRAPHY.metaLabel} font-normal text-[var(--fx-text-muted)]`}>{sheetSummaryTitleItem.label}</p>
@@ -1952,6 +2198,7 @@ export default function JobsPage() {
                   </div>
                 </div>
               </div>
+              */}
 
               <div className="border-b border-[var(--fx-border)]">
                 <div className="flex gap-[24px] overflow-x-auto">
@@ -2140,7 +2387,7 @@ export default function JobsPage() {
                       <div className="space-y-[16px]">
                         <div className="flex items-center justify-between gap-[16px]">
                           <h3 className="text-[16px] leading-[24px] font-normal text-[var(--fx-text-muted)]">Compensation</h3>
-                          <label className="flex items-center gap-[10px] cursor-pointer select-none">
+                          <label className="flex cursor-pointer items-center gap-[10px] select-none">
                             <Checkbox
                               checked={Boolean(jobForm.hideCompensationFromCandidates)}
                               onCheckedChange={(checked) =>
@@ -2150,10 +2397,7 @@ export default function JobsPage() {
                                 }))
                               }
                             />
-                            <span className={FX_TYPOGRAPHY.fieldLabel}>
-                              Keep compensation confidential
-                              {/* Do not display compensation to candidates */}
-                            </span>
+                            <span className={FX_TYPOGRAPHY.fieldLabel}>Show Salary to Candidates</span>
                           </label>
                         </div>
                         <div className="grid gap-[24px] md:grid-cols-3">
@@ -2166,7 +2410,7 @@ export default function JobsPage() {
                               value={jobForm.salaryMin}
                               onChange={handleJobFormChange}
                               optional
-                              className={BASIC_FORM_CONTROL_CLASS}
+                              className={`text-right placeholder:text-right ${BASIC_FORM_CONTROL_CLASS}`}
                               stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                             />
                           </div>
@@ -2180,7 +2424,7 @@ export default function JobsPage() {
                               value={jobForm.salaryMax}
                               onChange={handleJobFormChange}
                               optional
-                              className={BASIC_FORM_CONTROL_CLASS}
+                              className={`text-right placeholder:text-right ${BASIC_FORM_CONTROL_CLASS}`}
                               stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                             />
                           </div>
@@ -2194,7 +2438,7 @@ export default function JobsPage() {
                               label="Currency"
                               placeholder="Currency"
                               optional
-                              className={BASIC_FORM_CONTROL_CLASS}
+                              className={`w-auto min-w-[96px] max-w-[120px] ${BASIC_FORM_CONTROL_CLASS}`}
                               stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                             />
                           </div>
@@ -2282,18 +2526,7 @@ export default function JobsPage() {
                   </div>
 
                   <div className="space-y-[12px]">
-                    <div className="flex items-center justify-between gap-[12px]">
-                      <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Roles and Responsibilities</h4>
-                      <FxAiButton onClick={autofillResponsibilities}>
-                        Generate Responsibilities
-                      </FxAiButton>
-                    </div>
-                    <FxRichTextEditor
-                      value={jobForm.responsibilities}
-                      onChange={(nextValue) => handleSelectFieldChange("responsibilities", nextValue)}
-                      placeholder="Add roles and responsibilities"
-                      minHeight={240}
-                    />
+                    {renderInterviewProcessSection()}
                   </div>
                 </section>
               ) : null}
@@ -2311,116 +2544,42 @@ export default function JobsPage() {
                     >
                       Generate Context
                     </FxAiButton>,
+                    "text-[var(--fx-text-muted)] font-normal",
                   )}
                   <FxInput
                     textarea
                     name="evaluationContext"
-                    placeholder="What should the AI pay attention to when screening candidates?"
+                    placeholder="What should the AI pay attention to when screening candidates? Keep it practical and concise."
                     value={jobForm.evaluationContext}
                     onChange={handleJobFormChange}
                     className="min-h-[152px]"
                     stackClassName="gap-[4px]"
                   />
-                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                    This context helps Evality evaluate candidate fit and prioritize stronger matches.
-                  </p>
-                  <div className="space-y-[12px]">
-                    <div className="flex items-center justify-between gap-[16px]">
-                      <div className="space-y-[4px]">
-                        <h4 className="text-[16px] leading-[24px] font-normal text-[var(--fx-text-muted)]">
-                          Interview Process for this Role
-                        </h4>
-                      </div>
-                      <FxButton type="button" variant="outline" size="sm" onClick={addRound}>
-                        <Plus className="size-[16px]" />
-                        Add Round
-                      </FxButton>
-                    </div>
-                    <FxTable
-                      density="compact"
-                      stickyHeader={false}
-                      scrollX={false}
-                      columns={[
-                        {
-                          key: "round",
-                          label: "Round",
-                          width: 180,
-                          minWidth: 160,
-                          cellClassName: "align-top",
-                        },
-                        {
-                          key: "stage",
-                          label: "Stage",
-                          width: 220,
-                          minWidth: 180,
-                          cellClassName: "align-top",
-                        },
-                        {
-                          key: "info",
-                          label: "Additional Information",
-                          minWidth: 280,
-                          grow: 1,
-                          cellClassName: "align-top",
-                        },
-                      ]}
-                      rows={jobForm.evaluationRounds.map((round, index) => ({
-                        id: round.id,
-                        round: (
-                          <input
-                            value={round.title}
-                            onChange={(event) => updateRound(round.id, "title", event.target.value)}
-                            placeholder={`Round ${index + 1}`}
-                            className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
-                          />
-                        ),
-                        stage: (
-                          <input
-                            value={round.details}
-                            onChange={(event) => updateRound(round.id, "details", event.target.value)}
-                            placeholder="Screening"
-                            className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
-                          />
-                        ),
-                        info: (
-                          <div className="flex items-center gap-[12px]">
-                            <input
-                              value={round.note}
-                              onChange={(event) => updateRound(round.id, "note", event.target.value)}
-                              placeholder="AI-assisted baseline fit"
-                              className="h-[40px] min-w-0 flex-1 rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
-                            />
-                            <button
-                              type="button"
-                              className="inline-flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[6px] border border-[var(--fx-border)] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
-                              onClick={() => removeRound(round.id)}
-                              aria-label="Remove round"
-                            >
-                              <Trash2 className="size-[16px]" />
-                            </button>
-                          </div>
-                        ),
-                      }))}
-                    />
-                  </div>
                 </section>
               ) : null}
 
               {activeSheetStep === "questionnaire" ? (
-                <section className="space-y-[16px]">
-                  {renderSectionHeader(
-                    "Questionnaire",
-                    null,
-                    null,
-                  )}
+                <section className="space-y-[24px]">
+                  <div className="space-y-[4px]">
+                    {renderSectionHeader(
+                      "Questionnaire",
+                      null,
+                      null,
+                    )}
+                    <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                      Candidates will answer these questions during AI-led pre-screening.
+                    </p>
+                  </div>
+
                   <RadioGroup
-                    value={jobForm.questionFormat}
+                    value={jobForm.questionFormat || "cv_and_prescreen"}
                     onValueChange={(value) =>
                       setJobForm((current) => ({
                         ...current,
                         questionFormat: value,
                       }))
                     }
-                    className="grid gap-[12px] md:grid-cols-2"
+                    className="mt-[16px] grid gap-[12px] md:grid-cols-2"
                   >
                     <label
                       htmlFor="question-format-cv-and-prescreen"
@@ -2469,51 +2628,43 @@ export default function JobsPage() {
                     </label>
                   </RadioGroup>
 
-                  <div className="space-y-[12px]">
+                  <div className="mt-[16px] space-y-[16px]">
                     <div className="flex items-center justify-between gap-[16px]">
                       <h4 className={FX_TYPOGRAPHY.button}>Pre-Screening Questions</h4>
                     </div>
-                    <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                      Candidates will answer these questions during screening.
-                    </p>
 
-                    <div className="space-y-[12px]">
+                    <div className="space-y-[10px]">
                       {jobForm.questions.map((question) => renderQuestionCard(question))}
                     </div>
 
-                    <div className="space-y-[8px]">
-                      <h5 className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                        Default Pre-Screening Questions
-                      </h5>
-                      <div className="flex flex-wrap items-center gap-[8px]">
-                        {availableDefaultQuestions.map((question) => (
-                          <FxButton
-                            key={question.id}
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addQuestion(question)}
-                          >
-                            <Plus className="size-[16px]" />
-                            {question.label}
-                          </FxButton>
-                        ))}
+                    <div className="flex flex-wrap items-center gap-[8px] pt-[2px]">
+                      {availableDefaultQuestions.map((question) => (
                         <FxButton
+                          key={question.id}
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="font-medium text-[var(--fx-primary)]"
-                          onClick={() => {
-                            const nextQuestion = window.prompt("Add custom question");
-                            if (nextQuestion) {
-                              commitCustomQuestion(nextQuestion);
-                            }
-                          }}
+                          onClick={() => addQuestion(question)}
                         >
                           <Plus className="size-[16px]" />
-                          Custom Question
+                          {question.label}
                         </FxButton>
-                      </div>
+                      ))}
+                      <FxButton
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="font-medium text-[var(--fx-primary)]"
+                        onClick={() => {
+                          const nextQuestion = window.prompt("Add custom question");
+                          if (nextQuestion) {
+                            commitCustomQuestion(nextQuestion);
+                          }
+                        }}
+                      >
+                        <Plus className="size-[16px]" />
+                        Custom Question
+                      </FxButton>
                     </div>
                   </div>
                 </section>
@@ -2522,111 +2673,79 @@ export default function JobsPage() {
               {activeSheetStep === "benefits" ? (
                 <section className="space-y-[24px]">
                   <div className="space-y-[16px]">
-                    {renderBenefitsBrief()}
-                    <div className="space-y-[12px]">
-                      <h4 className={FX_TYPOGRAPHY.cardTitle}>Benefits</h4>
-                      <div className="grid gap-[16px] lg:grid-cols-2 xl:grid-cols-3">
-                        {BENEFITS_GROUPS.map((group) => (
-                          <div key={group.title} className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
-                            <h5 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{group.title}</h5>
-                            <div className="space-y-[8px]">
-                              {group.items.map((item) => renderBenefitItem(group.title, item))}
-                            </div>
+                    <div className="space-y-[8px]">
+                      <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                        Check the benefits offered in the company. The AI agent will respond to candidate queries based on the details provided here.
+                      </p>
+                    </div>
+                    {/* Company info brief intentionally hidden for now.
+                    {renderBenefitsBrief()} */}
+                    <div className="grid gap-[16px] lg:grid-cols-2 xl:grid-cols-3">
+                      {BENEFITS_GROUPS.map((group) => (
+                        <div key={group.title} className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+                          <h5 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{group.title}</h5>
+                          <div className="space-y-[8px]">
+                            {group.items.map((item) => renderBenefitItem(group.title, item))}
                           </div>
-                        ))}
+                        </div>
+                      ))}
                       </div>
                     </div>
-                  </div>
                 </section>
               ) : null}
 
               {activeSheetStep === "review" ? (
                 <section className="space-y-[16px]">
-                  {renderSectionHeader("Review", "Final checkpoint before publishing.", null)}
+                  <div className="space-y-[4px]">
+                    <p className="text-[15px] leading-[22px] font-medium text-[color:color-mix(in_srgb,var(--fx-text)_72%,var(--fx-text-muted)_28%)]">
+                      Review your job before publishing.
+                    </p>
+                  </div>
 
-                  <div className="grid gap-[16px] lg:grid-cols-2">
-                    {renderReviewSectionCard({
+                  <div className="space-y-[12px]">
+                    {renderReviewSummaryRow({
                       title: "Basic Details",
                       step: "basic",
-                      children: (
-                        <>
-                          <p className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{reviewBasicSummary.title}</p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                            {reviewBasicSummary.experience} | {reviewBasicSummary.employmentType} | {reviewBasicSummary.workplaceType}
-                          </p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">{reviewBasicSummary.positions}</p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">{reviewBasicSummary.location}</p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">{reviewBasicSummary.compensationRange}</p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                            {reviewBasicSummary.compensationVisibility}
-                          </p>
-                        </>
-                      ),
+              complete: reviewBasicComplete,
+                      lines: [
+                        <p className="text-[15px] leading-[22px] font-medium text-[var(--fx-text)]">
+                          {reviewBasicSummary.title}
+                        </p>,
+                        reviewBasicSummaryLine,
+                      ],
                     })}
 
-                    {renderReviewSectionCard({
+                    {renderReviewSummaryRow({
                       title: "Job Description",
                       step: "description",
-                      children: (
-                        <>
-                          <p className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-                            {reviewDescriptionStatus}
-                          </p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                            Primary Skills: {reviewPrimarySkillCount}
-                          </p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                            Secondary Skills: {reviewSecondarySkillCount}
-                          </p>
-                        </>
-                      ),
+                      complete: reviewDescriptionComplete,
+                      lines: [reviewJobDescriptionLine],
                     })}
 
-                    {renderReviewSectionCard({
+                    {renderReviewSummaryRow({
                       title: "Questionnaire",
                       step: "questionnaire",
-                      children: (
-                        <>
-                          <p className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-                            Mode: {reviewQuestionMode}
-                          </p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                            Questions: {reviewQuestionCount}
-                          </p>
-                        </>
-                      ),
+                      complete: reviewQuestionnaireComplete,
+                      lines: [reviewQuestionnaireLine],
                     })}
 
-                    {renderReviewSectionCard({
+                    {renderReviewSummaryRow({
                       title: "Benefits",
                       step: "benefits",
-                      children: (
-                        <>
-                          <p className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-                            {reviewCompanyInfoStatus}
-                          </p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                            Benefits: {reviewBenefitsCount}
-                          </p>
-                        </>
-                      ),
+                      complete: reviewBenefitsComplete,
+                      lines: [`${reviewBenefitsCount} Benefits`],
                     })}
 
-                    {renderReviewSectionCard({
-                      title: "Evaluation",
-                      step: "evaluation",
-                      children: (
-                        <>
-                          <p className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-                            {reviewEvaluationStatus}
-                          </p>
-                          <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                            Interview Rounds: {reviewEvaluationRoundsCount}
-                          </p>
-                          {!evaluationContextMissing ? null : renderEvaluationMissingCard()}
-                        </>
-                      ),
-                    })}
+                    {evaluationContextMissing ? (
+                      renderEvaluationMissingCard()
+                    ) : (
+                      renderReviewSummaryRow({
+                        title: "Evaluation",
+                        step: "evaluation",
+                        complete: reviewEvaluationComplete,
+                        lines: [reviewEvaluationStatus],
+                      })
+                    )}
                   </div>
                 </section>
               ) : null}
@@ -2636,7 +2755,8 @@ export default function JobsPage() {
             <SheetFooter
               right={
                 <>
-                  <FxButton type="button" variant="outline" onClick={handlePreviousSheetStep}>
+                  <FxButton type="button" variant="ghost" className="gap-[8px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]" onClick={handlePreviousSheetStep}>
+                    <ArrowLeft className="size-[16px]" />
                     Back
                   </FxButton>
                   {activeSheetStep === "review" ? (
@@ -2686,38 +2806,6 @@ export default function JobsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isEvaluationLeaveGuardOpen} onOpenChange={setIsEvaluationLeaveGuardOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Evaluation context is empty</AlertDialogTitle>
-            <AlertDialogDescription>
-              Candidates&apos; AI scoring and the questionnaire flow may be impacted if you continue without
-              defining evaluation context.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              className={fxButtonClassName({ variant: "outline" })}
-              onClick={() => setIsEvaluationLeaveGuardOpen(false)}
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className={fxButtonClassName({ variant: "primary" })}
-              onClick={() => {
-                setIsEvaluationLeaveGuardOpen(false);
-                if (pendingEvaluationNextStep) {
-                  setActiveSheetStep(pendingEvaluationNextStep);
-                }
-                setPendingEvaluationNextStep(null);
-              }}
-            >
-              Continue anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <Dialog open={isUploadJdOpen} onOpenChange={setIsUploadJdOpen}>
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
@@ -2746,7 +2834,7 @@ export default function JobsPage() {
           <DialogHeader>
             <DialogTitle>Generate Context</DialogTitle>
             <DialogDescription>
-              Mark the prompts you want to use, answer the relevant ones, and generate the evaluation context.
+              Select the questions that apply to this role and answer them. Evality will generate the evaluation context from your selections.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-[16px]">
@@ -2784,7 +2872,8 @@ export default function JobsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </FxProtectedAppPage>
+      </FxProtectedAppPage>
+    </TooltipProvider>
   );
 }
 /* - - - - - - - - - - - - - - - - */

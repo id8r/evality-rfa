@@ -92,7 +92,7 @@ export function FxRichTextEditor({
   );
 
   useEffect(() => {
-    if (!editorRef.current || isFocused) {
+    if (!editorRef.current) {
       return;
     }
 
@@ -100,7 +100,7 @@ export function FxRichTextEditor({
     if (editorRef.current.innerHTML !== nextHtml) {
       editorRef.current.innerHTML = nextHtml;
     }
-  }, [currentValue, isFocused]);
+  }, [currentValue]);
 
   function updateValue(nextValue) {
     if (!isControlled) {

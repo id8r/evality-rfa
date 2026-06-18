@@ -3,20 +3,24 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   MoreHorizontal,
   PencilLine,
+  Plus,
+  Upload,
   Users,
 } from "lucide-react";
 
 import { FxAiButton } from "@/components/FxAiButton";
 import { FxButton } from "@/components/FxButton";
+import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxTable } from "@/components/FxTable";
 import { FxTabs } from "@/components/FxTabs";
+import { showSuccess } from "@/components/FxToast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,38 +36,40 @@ import {
   findStoredJob,
   readStoredCandidates,
   readStoredWorkspaceType,
+  upsertStoredJob,
+  writeStoredCandidates,
 } from "@/lib/FxStore";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 const PIPELINE_STAGES = [
+  { value: "all", label: "All" },
   { value: "unscreened", label: "Unscreened" },
   { value: "screened", label: "Pre-Screened" },
   { value: "shortlisted", label: "Shortlisted" },
   { value: "shared", label: "Sent to Client" },
-  { value: "rejected", label: "Rejected" },
 ];
 
 const EMPTY_STAGE_COPY = {
+  all: {
+    title: "No candidates yet",
+    body: "Start adding candidates to begin screening and evaluation for this role.",
+  },
   unscreened: {
-    title: "No unscreened candidates yet",
-    body: "Candidates enter this stage when fresh profiles land on the job.",
+    title: "No candidates yet",
+    body: "Start adding candidates to begin screening and evaluation for this role.",
   },
   screened: {
-    title: "No pre-screened candidates yet",
-    body: "Move candidates from Unscreened after AI or recruiter screening.",
+    title: "No candidates yet",
+    body: "Start adding candidates to begin screening and evaluation for this role.",
   },
   shortlisted: {
-    title: "No shortlisted candidates yet",
-    body: "Promote strong fits here once the screening pass is complete.",
+    title: "No candidates yet",
+    body: "Start adding candidates to begin screening and evaluation for this role.",
   },
   shared: {
-    title: "No candidates sent to client yet",
-    body: "Share shortlisted candidates with the client from this stage.",
-  },
-  rejected: {
-    title: "No rejected candidates yet",
-    body: "Rejected candidates appear here after review or client feedback.",
+    title: "No candidates yet",
+    body: "Start adding candidates to begin screening and evaluation for this role.",
   },
 };
 
@@ -95,6 +101,7 @@ function normalizeCandidate(candidate, job) {
     client: candidate.client ?? job?.client ?? job?.company ?? "",
     status: candidate.status ?? "unscreened",
     trustScore,
+    screeningOutcome: candidate.screeningOutcome ?? candidate.screeningStatus ?? candidate.callStatus ?? "",
     matchScore: candidate.matchScore != null ? Number(candidate.matchScore) : null,
     availabilityDays: candidate.availabilityDays != null ? Number(candidate.availabilityDays) : null,
     currentSalary: candidate.currentSalary != null ? Number(candidate.currentSalary) : null,
@@ -214,10 +221,10 @@ function MetaField({ label, value, valueClassName }) {
   );
 }
 
-function WorkspaceEmptyState({ title, body }) {
+function WorkspaceEmptyState({ title, body, action }) {
   return (
     <div className={`flex h-full min-h-[320px] items-center justify-center border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)] px-[24px] py-[24px]`}>
-      <div className="max-w-[420px] space-y-[16px] text-center">
+      <div className="max-w-[440px] space-y-[16px] text-center">
         <div className="mx-auto flex size-[48px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] text-[var(--fx-primary)]">
           <Users className="size-[22px]" />
         </div>
@@ -225,6 +232,7 @@ function WorkspaceEmptyState({ title, body }) {
           <p className={FX_TYPOGRAPHY.sectionTitle}>{title}</p>
           <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{body}</p>
         </div>
+        {action ? <div className="flex justify-center">{action}</div> : null}
       </div>
     </div>
   );
@@ -423,6 +431,153 @@ function RecommendedCandidatesDrawer({ open, onOpenChange, candidates }) {
   );
 }
 
+function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSingleCandidate }) {
+  const fileInputRef = useRef(null);
+  const [draft, setDraft] = useState({ name: "", email: "", phone: "" });
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setDraft({ name: "", email: "", phone: "" });
+      setIsDragging(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }, [open]);
+
+  function resetDraft() {
+    setDraft({ name: "", email: "", phone: "" });
+  }
+
+  function handleFileSelection(event) {
+    onUploadFiles(event.target.files);
+    event.target.value = "";
+  }
+
+  function handleDrop(event) {
+    event.preventDefault();
+    setIsDragging(false);
+    onUploadFiles(event.dataTransfer.files);
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="xl">
+        <SheetHeader
+          title="Add Candidates"
+          description={`Add candidates to ${job?.title || "this job"} by uploading resumes or entering them one by one.`}
+        />
+        <SheetBody>
+          <div className="grid gap-[16px] xl:grid-cols-[1.15fr_0.85fr]">
+            <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
+              <div className="space-y-[8px]">
+                <p className={FX_TYPOGRAPHY.cardTitle}>Upload resumes</p>
+                <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                  Drag and drop resumes here to add candidates to this job.
+                </p>
+              </div>
+
+              <div
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={`mt-[16px] flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed px-[20px] py-[24px] text-center transition-colors ${
+                  isDragging
+                    ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                    : "border-[var(--fx-border)] bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]"
+                }`}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="size-[28px] text-[var(--fx-primary)]" />
+                <div className="mt-[12px] space-y-[6px]">
+                  <p className={FX_TYPOGRAPHY.button}>Drop PDFs, DOCs, or DOCXs here</p>
+                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                    We&apos;ll create one candidate per file and place them in Unscreened.
+                  </p>
+                </div>
+                <div className="mt-[16px] flex flex-wrap items-center justify-center gap-[8px]">
+                  <FxButton type="button" onClick={() => fileInputRef.current?.click()}>
+                    Upload Resumes
+                  </FxButton>
+                  <FxButton variant="outline" type="button" onClick={() => fileInputRef.current?.click()}>
+                    Choose Files
+                  </FxButton>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.txt"
+                  className="hidden"
+                  onChange={handleFileSelection}
+                />
+              </div>
+
+              <p className={`${FX_TYPOGRAPHY.fieldHint} mt-[12px] text-[var(--fx-text-muted)]`}>
+                One resume becomes one candidate. This is a quick demo flow for now.
+              </p>
+            </section>
+
+            <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
+              <div className="space-y-[8px]">
+                <p className={FX_TYPOGRAPHY.cardTitle}>Add one by one</p>
+                <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                  Enter a candidate manually when you only have one person to add.
+                </p>
+              </div>
+
+              <div className="mt-[16px] space-y-[16px]">
+                <FxInput
+                  label="Candidate Name"
+                  placeholder="Aarav Mehta"
+                  value={draft.name}
+                  onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                />
+                <FxInput
+                  label="Email"
+                  placeholder="aarav@example.com"
+                  value={draft.email}
+                  onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
+                />
+                <FxInput
+                  label="Phone"
+                  placeholder="+91 98765 43210"
+                  value={draft.phone}
+                  onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))}
+                />
+                <div className="flex items-center gap-[8px]">
+                  <FxButton
+                    type="button"
+                    onClick={() => {
+                      onAddSingleCandidate(draft, resetDraft);
+                    }}
+                    disabled={!draft.name.trim()}
+                  >
+                    <Plus className="size-[16px]" />
+                    Add Candidate
+                  </FxButton>
+                  <FxButton type="button" variant="ghost" onClick={resetDraft}>
+                    Clear
+                  </FxButton>
+                </div>
+              </div>
+            </section>
+          </div>
+        </SheetBody>
+        <SheetFooter
+          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Bulk upload and manual entry update the current job immediately.</span>}
+          right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function CallPreviewDrawer({ open, onOpenChange, job }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -465,7 +620,8 @@ export default function JobDetailsPage({ params }) {
   const { jobId } = React.use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const job = normalizeJob(findStoredJob(jobId));
+  const [workspaceRefreshKey, setWorkspaceRefreshKey] = useState(0);
+  const job = useMemo(() => normalizeJob(findStoredJob(jobId)), [jobId, workspaceRefreshKey]);
   const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
   const showClientInfo = workspaceType === WORKSPACE_TYPES.CLIENTS || workspaceType === WORKSPACE_TYPES.BOTH;
 
@@ -475,6 +631,7 @@ export default function JobDetailsPage({ params }) {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [recommendedOpen, setRecommendedOpen] = useState(false);
+  const [addCandidatesOpen, setAddCandidatesOpen] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [callPreviewOpen, setCallPreviewOpen] = useState(false);
   const [candidateActionOpen, setCandidateActionOpen] = useState(false);
@@ -487,12 +644,21 @@ export default function JobDetailsPage({ params }) {
       (job ? findStoredCandidatesByJob(job.id) : [])
         .map((candidate) => normalizeCandidate(candidate, job))
         .filter(Boolean),
-    [job],
+    [job, workspaceRefreshKey],
   );
 
-  const candidateCounts = useMemo(() => getStoredPipelineCounts(candidateRows), [candidateRows]);
+  useEffect(() => {
+    if (job?.status === "Draft") {
+      router.replace(ROUTES.JOBS, { scroll: false });
+    }
+  }, [job?.status, router]);
+
+  const candidateCounts = useMemo(
+    () => ({ all: candidateRows.length, ...getStoredPipelineCounts(candidateRows) }),
+    [candidateRows],
+  );
   const pipelineCandidates = useMemo(
-    () => candidateRows.filter((candidate) => candidate.status === activeStage),
+    () => (activeStage === "all" ? candidateRows : candidateRows.filter((candidate) => candidate.status === activeStage)),
     [candidateRows, activeStage],
   );
 
@@ -524,6 +690,118 @@ export default function JobDetailsPage({ params }) {
       .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0))
       .slice(0, 6);
   }, [candidateRows, job?.id]);
+
+  const handleAddCandidates = useCallback(() => {
+    setAddCandidatesOpen(true);
+  }, []);
+
+  const refreshWorkspace = useCallback(() => {
+    setWorkspaceRefreshKey((current) => current + 1);
+  }, []);
+
+  const normalizeUploadedCandidateName = useCallback((fileName) => {
+    return String(fileName ?? "")
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase()) || "Candidate";
+  }, []);
+
+  const appendCandidatesToJob = useCallback(
+    (nextCandidates) => {
+      if (!job || !nextCandidates.length) {
+        return;
+      }
+
+      const storedCandidates = readStoredCandidates();
+      const currentJob = findStoredJob(job.id) ?? job;
+      const nextJob = {
+        ...currentJob,
+        unscreenedCount: (Number(currentJob.unscreenedCount) || 0) + nextCandidates.length,
+      };
+
+      writeStoredCandidates([...storedCandidates, ...nextCandidates]);
+      upsertStoredJob(nextJob);
+      refreshWorkspace();
+    },
+    [job, refreshWorkspace],
+  );
+
+  const createCandidateRecord = useCallback(
+    ({ name, email, phone, source }) => {
+      const resolvedName = String(name ?? "").trim();
+      const normalizedName = resolvedName || "Candidate";
+      const slug = normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, ".");
+      const now = new Date().toISOString();
+
+      return {
+        id: `cand-${job.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        jobId: job.id,
+        jobTitle: job.title ?? "",
+        client: job.client ?? job.company ?? "",
+        name: normalizedName,
+        email: String(email ?? "").trim() || `${slug}@evality.ai`,
+        phone: String(phone ?? "").trim() || "—",
+        status: "unscreened",
+        uploadedBy: source ?? "Manual entry",
+        interested: "Maybe",
+        availabilityDays: null,
+        currentSalary: null,
+        expectedSalary: null,
+        updatedAt: now,
+      };
+    },
+    [job],
+  );
+
+  const handleUploadCandidateFiles = useCallback(
+    (files) => {
+      const nextFiles = Array.from(files ?? []).filter(Boolean);
+
+      if (!nextFiles.length) {
+        return;
+      }
+
+      const nextCandidates = nextFiles.map((file, index) =>
+        createCandidateRecord({
+          name: normalizeUploadedCandidateName(file.name),
+          source: "Resume upload",
+          email: `${String(file.name ?? `resume-${index + 1}`)
+            .replace(/\.[^/.]+$/, "")
+            .replace(/[^a-z0-9]+/gi, ".")
+            .toLowerCase()}@evality.ai`,
+        }),
+      );
+
+      appendCandidatesToJob(nextCandidates);
+      showSuccess("Candidates added", `${nextCandidates.length} candidate${nextCandidates.length === 1 ? "" : "s"} added to ${job.title || "this job"}.`);
+    },
+    [appendCandidatesToJob, createCandidateRecord, job.title, normalizeUploadedCandidateName],
+  );
+
+  const handleAddSingleCandidate = useCallback(
+    (draft, resetDraft) => {
+      const name = String(draft.name ?? "").trim();
+
+      if (!name) {
+        return;
+      }
+
+      appendCandidatesToJob([
+        createCandidateRecord({
+          name,
+          email: draft.email,
+          phone: draft.phone,
+          source: "Manual entry",
+        }),
+      ]);
+
+      resetDraft();
+      showSuccess("Candidate added", `${name} was added to ${job.title || "this job"}.`);
+    },
+    [appendCandidatesToJob, createCandidateRecord, job.title],
+  );
 
   function handleStageChange(nextStage) {
     router.replace(`${ROUTES.JOB(jobId)}?tab=${nextStage}`, { scroll: false });
@@ -653,9 +931,9 @@ export default function JobDetailsPage({ params }) {
     {
       key: "actions",
       label: null,
-      width: 56,
-      minWidth: 56,
-      maxWidth: 56,
+      width: 72,
+      minWidth: 72,
+      maxWidth: 72,
       align: "center",
       cellClassName: "px-0 pr-0",
       required: true,
@@ -717,7 +995,7 @@ export default function JobDetailsPage({ params }) {
       </span>
     ),
     actions: (
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center justify-center gap-[4px]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -787,6 +1065,9 @@ export default function JobDetailsPage({ params }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {candidate.screeningOutcome === "Failed" ? (
+          <span className="text-[11px] leading-[16px] font-medium text-[var(--fx-danger)]">Failed</span>
+        ) : null}
       </div>
     ),
   }));
@@ -796,6 +1077,10 @@ export default function JobDetailsPage({ params }) {
     job?.status === "Published"
       ? "bg-[color-mix(in_srgb,var(--fx-success)_16%,var(--fx-surface)_84%)] text-[var(--fx-success)]"
       : "bg-[color-mix(in_srgb,var(--fx-warning)_14%,var(--fx-surface)_86%)] text-[var(--fx-warning)]";
+
+  if (job?.status === "Draft") {
+    return null;
+  }
 
   return (
     <FxProtectedAppPage
@@ -821,17 +1106,13 @@ export default function JobDetailsPage({ params }) {
                     <span className={`rounded-full px-[10px] py-[4px] text-[12px] font-medium ${jobStatusTone}`}>
                       {job.status}
                     </span>
-                    <span className="rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
-                      {job.priority}
-                    </span>
                   </div>
 
                   <div className="space-y-[6px]">
                     <h1 className={`${FX_TYPOGRAPHY.h3} text-[var(--fx-text)]`}>{job.title}</h1>
-                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                      {showClientInfo && job.client ? `${job.client} · ` : ""}
-                      {job.domain} · {job.department} · {job.location || "Location not set"}
-                    </p>
+                    {showClientInfo && job.client ? (
+                      <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{job.client}</p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -846,13 +1127,13 @@ export default function JobDetailsPage({ params }) {
                   <FxButton
                     variant="ghost"
                     size="sm"
-                    onClick={() => router.push(`${ROUTES.JOBS}?edit=${job.id}`)}
+                    onClick={() => {
+                      const returnTo = encodeURIComponent(`${ROUTES.JOB(jobId)}?tab=${activeStage}`);
+                      router.push(`${ROUTES.JOBS}?edit=${job.id}&returnTo=${returnTo}`);
+                    }}
                   >
                     <PencilLine className="size-[16px]" />
                     Edit Job
-                  </FxButton>
-                  <FxButton variant="ghost" size="sm" onClick={() => router.push(ROUTES.SETTINGS)}>
-                    Job Settings
                   </FxButton>
                 </div>
               </div>
@@ -874,43 +1155,50 @@ export default function JobDetailsPage({ params }) {
 
             <div className="flex min-h-0 flex-1 flex-col gap-[16px]">
               <div className="flex flex-col gap-[16px] lg:flex-row lg:items-end lg:justify-between">
-                <FxTabs
-                  tabs={PIPELINE_STAGES.map((stage) => ({
-                    value: stage.value,
-                    label: `${stage.label} (${candidateCounts[stage.value] || 0})`,
-                  }))}
-                  active={activeStage}
-                  onChange={handleStageChange}
-                  className="flex-1 justify-start"
-                  showUnderline
-                  showBorder={false}
-                />
+                <div className="min-w-0 flex-1">
+                  <FxTabs
+                    tabs={PIPELINE_STAGES.map((stage) => ({
+                      value: stage.value,
+                      label: `${stage.label} (${candidateCounts[stage.value] || 0})`,
+                    }))}
+                    active={activeStage}
+                    onChange={handleStageChange}
+                    className="w-full justify-start"
+                    showUnderline
+                    showBorder={false}
+                  />
+                </div>
 
-                <div className="w-full max-w-[256px] shrink-0">
-                  <div className={`flex h-[40px] items-center rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-text)_18%,var(--fx-border)_82%)] bg-[var(--fx-bg)] px-[16px]`}>
-                    <input
-                      ref={searchRef}
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Escape") {
-                          event.preventDefault();
+                <div className="flex shrink-0 flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-end">
+                  <div className="w-full max-w-[256px]">
+                    <div className={`flex h-[40px] items-center rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-text)_18%,var(--fx-border)_82%)] bg-[var(--fx-bg)] px-[16px]`}>
+                      <input
+                        ref={searchRef}
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            event.preventDefault();
 
-                          if (searchTerm) {
-                            setSearchTerm("");
-                            return;
+                            if (searchTerm) {
+                              setSearchTerm("");
+                              return;
+                            }
+
+                            event.currentTarget.blur();
                           }
-
-                          event.currentTarget.blur();
-                        }
-                      }}
-                      placeholder="Search candidates"
-                      className="h-full w-full min-w-0 bg-transparent text-[14px] leading-[22px] font-normal text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)]"
-                    />
-                    <kbd className="ml-[12px] inline-flex h-[24px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[8px] text-[12px] font-medium text-[var(--fx-text-muted)]">
-                      /
-                    </kbd>
+                        }}
+                        placeholder="Search candidates"
+                        className="h-full w-full min-w-0 bg-transparent text-[14px] leading-[22px] font-normal text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)]"
+                      />
+                      <kbd className="ml-[12px] inline-flex h-[24px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[8px] text-[12px] font-medium text-[var(--fx-text-muted)]">
+                        /
+                      </kbd>
+                    </div>
                   </div>
+                  <FxButton type="button" onClick={handleAddCandidates}>
+                    Add Candidates
+                  </FxButton>
                 </div>
               </div>
 
@@ -932,6 +1220,11 @@ export default function JobDetailsPage({ params }) {
                   <WorkspaceEmptyState
                     title={getStageCopy(activeStage, searchTerm).title}
                     body={getStageCopy(activeStage, searchTerm).body}
+                    action={
+                      <FxButton type="button" onClick={handleAddCandidates}>
+                        Add Candidates
+                      </FxButton>
+                    }
                   />
                 )}
               </div>
@@ -954,6 +1247,13 @@ export default function JobDetailsPage({ params }) {
         open={recommendedOpen}
         onOpenChange={setRecommendedOpen}
         candidates={recommendedCandidates}
+      />
+      <AddCandidatesDrawer
+        open={addCandidatesOpen}
+        onOpenChange={setAddCandidatesOpen}
+        job={job}
+        onUploadFiles={handleUploadCandidateFiles}
+        onAddSingleCandidate={handleAddSingleCandidate}
       />
       <CandidateMatchDrawer open={analysisOpen} onOpenChange={setAnalysisOpen} candidate={selectedCandidate} />
       <CandidateActionDrawer

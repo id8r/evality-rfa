@@ -61,6 +61,7 @@ function SheetHeader({
   className,
   title,
   description,
+  descriptionClassName = "",
   actions,
   leading,
   showClose = true,
@@ -78,7 +79,7 @@ function SheetHeader({
         {leading ? <div className="flex items-center gap-[8px]">{leading}</div> : null}
         {title ? <DialogPrimitive.Title className={FX_SHEET.title}>{title}</DialogPrimitive.Title> : null}
         {description ? (
-          <DialogPrimitive.Description className={cn(FX_SHEET.subtitle, "text-muted-foreground")}>
+          <DialogPrimitive.Description className={cn(FX_SHEET.subtitle, "text-muted-foreground", descriptionClassName)}>
             {description}
           </DialogPrimitive.Description>
         ) : null}
