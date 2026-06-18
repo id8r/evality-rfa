@@ -301,7 +301,7 @@ export function FxTable({
 
   function renderColGroup() {
     return (
-      <colgroup>
+      <colgroup key={visibleColumnsKey}>
         {visibleColumns.map((column) => (
           <col key={column.key} style={columnStylesByKey.get(column.key)} />
         ))}
@@ -410,7 +410,6 @@ export function FxTable({
         )}
       >
         <table
-          key={visibleColumnsKey}
           className={cn("w-full min-w-full table-fixed border-collapse relative isolate", stickyHeader ? "relative" : "")}
           style={{ minWidth: tableMinWidth }}
         >

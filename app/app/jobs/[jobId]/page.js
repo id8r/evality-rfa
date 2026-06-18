@@ -38,6 +38,7 @@ import {
   findStoredCandidatesByJob,
   findStoredJob,
   readStoredCandidates,
+  readStoredJobs,
   readStoredWorkspaceType,
   upsertStoredJob,
   writeStoredCandidates,
@@ -434,17 +435,27 @@ function RecommendedCandidatesDrawer({ open, onOpenChange, candidates }) {
   );
 }
 
-function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSingleCandidate }) {
+function AddCandidatesDrawer({
+  open,
+  onOpenChange,
+  job,
+  candidatePool,
+  onPickExistingCandidate,
+  onUploadFiles,
+  onAddSingleCandidate,
+}) {
   const fileInputRef = useRef(null);
   const [draft, setDraft] = useState({ name: "", email: "", phone: "", currentCompany: "", currentRole: "", experience: "" });
   const [isDragging, setIsDragging] = useState(false);
-  const [activeMode, setActiveMode] = useState("upload");
+  const [activeMode, setActiveMode] = useState("pick");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (!open) {
       setDraft({ name: "", email: "", phone: "", currentCompany: "", currentRole: "", experience: "" });
       setIsDragging(false);
-      setActiveMode("upload");
+      setActiveMode("pick");
+      setSearchTerm("");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -467,6 +478,20 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
     onUploadFiles(event.dataTransfer.files);
   }
 
+  const filteredCandidates = (candidatePool ?? []).filter((candidate) => {
+    const query = searchTerm.trim().toLowerCase();
+
+    if (!query) {
+      return true;
+    }
+
+    return [candidate.name, candidate.email, candidate.currentRole, candidate.currentCompany]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  });
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="xl">
@@ -478,6 +503,7 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
           <div className="space-y-[16px]">
             <FxTabs
               tabs={[
+                { value: "pick", label: "From Candidates" },
                 { value: "upload", label: "Upload" },
                 { value: "manual", label: "Manual Entry" },
               ]}
@@ -486,6 +512,54 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
               className="justify-start"
               showUnderline
             />
+
+            {activeMode === "pick" ? (
+              <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
+                <div className="flex items-start justify-between gap-[16px]">
+                  <div className="space-y-[4px]">
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Pick from candidates</p>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                      Add an existing candidate to this job without re-entering their details.
+                    </p>
+                  </div>
+                  <div className="w-full max-w-[280px]">
+                    <FxInput
+                      placeholder="Search candidates"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-[16px] space-y-[10px]">
+                  {filteredCandidates.length ? (
+                    filteredCandidates.map((candidate) => (
+                      <div
+                        key={candidate.id}
+                        className={`flex items-center justify-between gap-[12px] rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[16px] py-[14px]`}
+                      >
+                        <div className="min-w-0 space-y-[4px]">
+                          <p className={`${FX_TYPOGRAPHY.button} truncate text-[var(--fx-text)]`}>{candidate.name}</p>
+                          <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
+                            {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
+                          </p>
+                        </div>
+                        <FxButton type="button" variant="outline" size="sm" onClick={() => onPickExistingCandidate(candidate)}>
+                          Add to Job
+                        </FxButton>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={`rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px] text-center`}>
+                      <p className={FX_TYPOGRAPHY.button}>No candidates found</p>
+                      <p className={`${FX_TYPOGRAPHY.fieldHint} mt-[4px] text-[var(--fx-text-muted)]`}>
+                        Try another name or use upload/manual entry.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            ) : null}
 
             {activeMode === "upload" ? (
               <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
@@ -496,7 +570,7 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
                   }}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={handleDrop}
-                  className={`flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed px-[20px] py-[24px] text-center transition-colors ${
+                  className={`flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed px-[20px] py-[24px] text-center transition-colors ${
                     isDragging
                       ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
                       : "border-[var(--fx-border)] bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]"
@@ -541,7 +615,9 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
                   />
                 </div>
               </section>
-            ) : (
+            ) : null}
+
+            {activeMode === "manual" ? (
               <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
                 <div className="grid gap-[16px] md:grid-cols-2">
                   <FxInput
@@ -600,7 +676,7 @@ function AddCandidatesDrawer({ open, onOpenChange, job, onUploadFiles, onAddSing
                   </FxButton>
                 </div>
               </section>
-            )}
+            ) : null}
           </div>
         </SheetBody>
         <SheetFooter
@@ -646,7 +722,21 @@ function subscribeToWorkspaceTypeChange(onStoreChange) {
 
   return () => {
     window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener("fx-auth-change", onStoreChange);
+  window.removeEventListener("fx-auth-change", onStoreChange);
+  };
+}
+
+function subscribeToJobStoreChange(onStoreChange) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener("fx-storage-change", onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener("fx-storage-change", onStoreChange);
   };
 }
 
@@ -654,8 +744,22 @@ export default function JobDetailsPage({ params }) {
   const { jobId } = React.use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [workspaceRefreshKey, setWorkspaceRefreshKey] = useState(0);
-  const job = useMemo(() => normalizeJob(findStoredJob(jobId)), [jobId, workspaceRefreshKey]);
+  const jobSnapshot = useSyncExternalStore(
+    subscribeToJobStoreChange,
+    () => JSON.stringify(readStoredJobs().find((item) => item.id === jobId) ?? null),
+    () => "null",
+  );
+  const job = useMemo(() => {
+    if (!jobSnapshot || jobSnapshot === "null") {
+      return null;
+    }
+
+    try {
+      return normalizeJob(JSON.parse(jobSnapshot));
+    } catch {
+      return normalizeJob(findStoredJob(jobId));
+    }
+  }, [jobId, jobSnapshot]);
   const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
   const showClientInfo = workspaceType === WORKSPACE_TYPES.CLIENTS || workspaceType === WORKSPACE_TYPES.BOTH;
 
@@ -672,13 +776,14 @@ export default function JobDetailsPage({ params }) {
   const [candidateAction, setCandidateAction] = useState(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const searchRef = useRef(null);
+  const jobTitleText = job?.title || "this job";
 
   const candidateRows = useMemo(
     () =>
       (job ? findStoredCandidatesByJob(job.id) : [])
         .map((candidate) => normalizeCandidate(candidate, job))
         .filter(Boolean),
-    [job, workspaceRefreshKey],
+    [job],
   );
 
   useEffect(() => {
@@ -729,10 +834,6 @@ export default function JobDetailsPage({ params }) {
     setAddCandidatesOpen(true);
   }, []);
 
-  const refreshWorkspace = useCallback(() => {
-    setWorkspaceRefreshKey((current) => current + 1);
-  }, []);
-
   const normalizeUploadedCandidateName = useCallback((fileName) => {
     return String(fileName ?? "")
       .replace(/\.[^/.]+$/, "")
@@ -744,7 +845,7 @@ export default function JobDetailsPage({ params }) {
 
   const appendCandidatesToJob = useCallback(
     (nextCandidates) => {
-      if (!job || !nextCandidates.length) {
+      if (!job?.id || !nextCandidates.length) {
         return;
       }
 
@@ -757,13 +858,16 @@ export default function JobDetailsPage({ params }) {
 
       writeStoredCandidates([...storedCandidates, ...nextCandidates]);
       upsertStoredJob(nextJob);
-      refreshWorkspace();
     },
-    [job, refreshWorkspace],
+    [job],
   );
 
   const createCandidateRecord = useCallback(
-    ({ name, email, phone, currentCompany, currentRole, experience, source }) => {
+    ({ name, email, phone, currentCompany, currentRole, experience, source, baseCandidate = null }) => {
+      if (!job?.id) {
+        return null;
+      }
+
       const resolvedName = String(name ?? "").trim();
       const normalizedName = resolvedName || "Candidate";
       const slug = normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, ".");
@@ -775,21 +879,46 @@ export default function JobDetailsPage({ params }) {
         jobTitle: job.title ?? "",
         client: job.client ?? job.company ?? "",
         name: normalizedName,
-        email: String(email ?? "").trim() || `${slug}@evality.ai`,
-        phone: String(phone ?? "").trim() || "—",
-        currentCompany: String(currentCompany ?? "").trim() || "",
-        currentRole: String(currentRole ?? "").trim() || "",
-        experience: experience != null && experience !== "" ? Number(experience) : null,
+        email: String(email ?? baseCandidate?.email ?? "").trim() || `${slug}@evality.ai`,
+        phone: String(phone ?? baseCandidate?.phone ?? "").trim() || "—",
+        currentCompany: String(currentCompany ?? baseCandidate?.currentCompany ?? "").trim() || "",
+        currentRole: String(currentRole ?? baseCandidate?.currentRole ?? "").trim() || "",
+        experience: experience != null && experience !== "" ? Number(experience) : baseCandidate?.experience ?? null,
         status: "unscreened",
-        uploadedBy: source ?? "Manual entry",
-        interested: "Maybe",
-        availabilityDays: null,
-        currentSalary: null,
-        expectedSalary: null,
+        uploadedBy: source ?? baseCandidate?.uploadedBy ?? "Manual entry",
+        interested: baseCandidate?.interested ?? "Maybe",
+        availabilityDays: baseCandidate?.availabilityDays ?? null,
+        currentSalary: baseCandidate?.currentSalary ?? null,
+        expectedSalary: baseCandidate?.expectedSalary ?? null,
+        screeningOutcome: "",
         updatedAt: now,
       };
     },
     [job],
+  );
+
+  const handleAttachExistingCandidate = useCallback(
+    (candidate) => {
+      if (!candidate || !job) {
+        return;
+      }
+
+      appendCandidatesToJob([
+        createCandidateRecord({
+          name: candidate.name,
+          email: candidate.email,
+          phone: candidate.phone,
+          currentCompany: candidate.currentCompany,
+          currentRole: candidate.currentRole,
+          experience: candidate.experience,
+          source: "From candidates",
+          baseCandidate: candidate,
+        }),
+      ]);
+
+      showSuccess("Candidate added", `${candidate.name} was added to ${jobTitleText}.`);
+    },
+    [appendCandidatesToJob, createCandidateRecord, jobTitleText],
   );
 
   const handleUploadCandidateFiles = useCallback(
@@ -800,21 +929,23 @@ export default function JobDetailsPage({ params }) {
         return;
       }
 
-      const nextCandidates = nextFiles.map((file, index) =>
-        createCandidateRecord({
-        name: normalizeUploadedCandidateName(file.name),
+      const nextCandidates = nextFiles
+        .map((file, index) =>
+          createCandidateRecord({
+          name: normalizeUploadedCandidateName(file.name),
           source: "Resume upload",
           email: `${String(file.name ?? `resume-${index + 1}`)
             .replace(/\.[^/.]+$/, "")
             .replace(/[^a-z0-9]+/gi, ".")
             .toLowerCase()}@evality.ai`,
         }),
-      );
+        )
+        .filter(Boolean);
 
       appendCandidatesToJob(nextCandidates);
-      showSuccess("Candidates added", `${nextCandidates.length} candidate${nextCandidates.length === 1 ? "" : "s"} added to ${job.title || "this job"}.`);
+      showSuccess("Candidates added", `${nextCandidates.length} candidate${nextCandidates.length === 1 ? "" : "s"} added to ${jobTitleText}.`);
     },
-    [appendCandidatesToJob, createCandidateRecord, job.title, normalizeUploadedCandidateName],
+    [appendCandidatesToJob, createCandidateRecord, jobTitleText, normalizeUploadedCandidateName],
   );
 
   const handleAddSingleCandidate = useCallback(
@@ -838,9 +969,9 @@ export default function JobDetailsPage({ params }) {
       ]);
 
       resetDraft();
-      showSuccess("Candidate added", `${name} was added to ${job.title || "this job"}.`);
+      showSuccess("Candidate added", `${name} was added to ${jobTitleText}.`);
     },
-    [appendCandidatesToJob, createCandidateRecord, job.title],
+    [appendCandidatesToJob, createCandidateRecord, jobTitleText],
   );
 
   function handleStageChange(nextStage) {
@@ -1129,7 +1260,14 @@ export default function JobDetailsPage({ params }) {
           />
         </TooltipTrigger>
         <TooltipContent side="top" sideOffset={6} className="whitespace-pre-line">
-          {label}
+          {isMissingEvaluationContext ? (
+            <div className="space-y-[2px]">
+              <div>Published</div>
+              <div className="text-[var(--fx-danger)]">Evaluation context missing</div>
+            </div>
+          ) : (
+            label
+          )}
         </TooltipContent>
       </Tooltip>
     );
@@ -1302,13 +1440,15 @@ export default function JobDetailsPage({ params }) {
           onOpenChange={setRecommendedOpen}
           candidates={recommendedCandidates}
         />
-        <AddCandidatesDrawer
-          open={addCandidatesOpen}
-          onOpenChange={setAddCandidatesOpen}
-          job={job}
-          onUploadFiles={handleUploadCandidateFiles}
-          onAddSingleCandidate={handleAddSingleCandidate}
-        />
+      <AddCandidatesDrawer
+        open={addCandidatesOpen}
+        onOpenChange={setAddCandidatesOpen}
+        job={job}
+        candidatePool={recommendedCandidates}
+        onPickExistingCandidate={handleAttachExistingCandidate}
+        onUploadFiles={handleUploadCandidateFiles}
+        onAddSingleCandidate={handleAddSingleCandidate}
+      />
         <CandidateMatchDrawer open={analysisOpen} onOpenChange={setAnalysisOpen} candidate={selectedCandidate} />
         <CandidateActionDrawer
           open={candidateActionOpen}

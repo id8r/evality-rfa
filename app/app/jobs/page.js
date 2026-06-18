@@ -1922,7 +1922,7 @@ export default function JobsPage() {
           {isPublishedWithoutEvaluationContext ? (
             <div className="space-y-[2px]">
               <div className={FX_TYPOGRAPHY.button}>Published</div>
-              <div className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Evaluation context missing</div>
+              <div className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-danger)]`}>Evaluation context missing</div>
             </div>
           ) : (
             label

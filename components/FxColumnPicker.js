@@ -11,6 +11,7 @@ import { fxButtonClassName, fxIconButtonClassName } from "@/components/FxButton"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -55,6 +56,7 @@ export function FxColumnPicker({
   const pickerId = useId();
   const triggerRef = useRef(null);
   const [open, setOpen] = useState(false);
+  const suppressCloseRef = useRef(false);
   const visibleKeySet = new Set(visibleColumnKeys ?? []);
   const optionalColumns = columns.filter((column) => !isRequiredColumn(column));
 
@@ -70,20 +72,36 @@ export function FxColumnPicker({
     return () => cancelAnimationFrame(frameId);
   }, [open]);
 
+  function handleOpenChange(nextOpen) {
+    if (!nextOpen && suppressCloseRef.current) {
+      setOpen(true);
+      requestAnimationFrame(() => {
+        suppressCloseRef.current = false;
+      });
+      return;
+    }
+
+    setOpen(nextOpen);
+  }
+
   function toggleColumn(column) {
     if (isRequiredColumn(column)) {
       return;
     }
 
+    suppressCloseRef.current = true;
     const nextKeys = visibleKeySet.has(column.key)
       ? (visibleColumnKeys ?? []).filter((key) => key !== column.key)
       : [...(visibleColumnKeys ?? []), column.key];
 
     onVisibleColumnKeysChange?.(nextKeys);
+    requestAnimationFrame(() => {
+      suppressCloseRef.current = false;
+    });
   }
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         {buttonLabel ? (
           <button
@@ -130,10 +148,11 @@ export function FxColumnPicker({
             const checkboxId = `${pickerId}-${column.key}`;
 
             return (
-              <div
+              <DropdownMenuItem
                 key={column.key}
+                onSelect={(event) => event.preventDefault()}
                 className={cn(
-                  "flex min-h-[40px] select-none items-center gap-[10px] rounded-[6px] px-[8px] py-[8px] text-[14px] leading-[20px] text-[var(--fx-text)] outline-none hover:bg-accent",
+                  "min-h-[40px] gap-[10px] px-[8px] py-[8px] text-[14px] leading-[20px] text-[var(--fx-text)] outline-none hover:bg-accent focus:bg-accent",
                   itemClassName,
                 )}
               >
@@ -142,11 +161,12 @@ export function FxColumnPicker({
                   checked={isChecked}
                   onCheckedChange={() => toggleColumn(column)}
                   aria-label={columnLabel}
+                  onClick={(event) => event.stopPropagation()}
                 />
                 <label htmlFor={checkboxId} className="min-w-0 flex-1 cursor-pointer truncate">
                   {columnLabel}
                 </label>
-              </div>
+              </DropdownMenuItem>
             );
           })}
         </div>
