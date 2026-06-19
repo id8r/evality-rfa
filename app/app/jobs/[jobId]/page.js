@@ -60,7 +60,7 @@ import {
   writeStoredCandidates,
   updateStoredCandidate,
 } from "@/lib/FxStore";
-import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_COLORS, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 const PIPELINE_STAGES = [
@@ -1017,6 +1017,7 @@ export default function JobDetailsPage({ params }) {
     [filteredCandidates, selectedCandidateIds],
   );
   const selectedCount = selectedVisibleCandidates.length;
+  const selectedCountLabel = selectedCount === 1 ? "1 candidate selected" : `${selectedCount} candidates selected`;
   const bulkStage = activeStage === "all" ? "unscreened" : activeStage;
   const tableSortedColumnKey =
     sortConfig?.key === "name"
@@ -1756,10 +1757,11 @@ export default function JobDetailsPage({ params }) {
   const rows = sortedCandidates.map((candidate) => ({
     id: candidate.id,
     __fxRowSelectionMeta: {
+      // Fresh/unviewed candidates get a subtle left-edge cue in the selection column.
       isNew:
         !candidate.jobContext?.viewedAt &&
-        candidate.updatedAt &&
-        Date.now() - new Date(candidate.updatedAt).getTime() <= 2 * 24 * 60 * 60 * 1000,
+        (candidate.createdAt || candidate.updatedAt) &&
+        Date.now() - new Date(candidate.createdAt || candidate.updatedAt).getTime() <= 2 * 24 * 60 * 60 * 1000,
     },
     name: (
       <button
@@ -1820,7 +1822,7 @@ export default function JobDetailsPage({ params }) {
               <button
                 type="button"
                 className={cn(
-                  "inline-flex size-[32px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-primary)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface-raised)_90%)] hover:text-[var(--fx-primary)]",
+                  "inline-flex size-[32px] items-center justify-center rounded-[6px] border-0 bg-[var(--fx-surface-raised)] text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface-raised)_90%)] hover:text-[var(--fx-primary)]",
                   candidate.status !== "unscreened" ? "text-[var(--fx-text-muted)]" : "",
                 )}
                 aria-label={`Start AI pre-screening for ${candidate.name}`}
@@ -1837,7 +1839,7 @@ export default function JobDetailsPage({ params }) {
               </button>
             </span>
           </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={6}>
+          <TooltipContent side="bottom" sideOffset={8}>
             AI Pre-Screening
           </TooltipContent>
         </Tooltip>
@@ -1847,7 +1849,7 @@ export default function JobDetailsPage({ params }) {
               <button
                 type="button"
                 className={cn(
-                  "inline-flex size-[32px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface-raised)_90%)] hover:text-[var(--fx-primary)]",
+                  "inline-flex size-[32px] items-center justify-center rounded-[6px] border-0 bg-[var(--fx-surface-raised)] text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface-raised)_90%)] hover:text-[var(--fx-primary)]",
                   candidate.status !== "unscreened" ? "text-[var(--fx-text-muted)]" : "",
                 )}
                 aria-label={`Manual pre-screening for ${candidate.name}`}
@@ -1864,7 +1866,7 @@ export default function JobDetailsPage({ params }) {
               </button>
             </span>
           </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={6}>
+          <TooltipContent side="bottom" sideOffset={8}>
             Manual Pre-Screening
           </TooltipContent>
         </Tooltip>
@@ -2084,7 +2086,7 @@ export default function JobDetailsPage({ params }) {
           </Link>
         }
       >
-        <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px]`}>
+        <section className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col gap-[24px]">
         {job ? (
           <>
             <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[24px]`}>
@@ -2141,7 +2143,7 @@ export default function JobDetailsPage({ params }) {
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-[16px]">
-              <div className="flex flex-col gap-[16px] lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex items-center gap-[16px]">
                 <div className="min-w-0 flex-1">
                   <FxTabs
                     tabs={PIPELINE_STAGES.map((stage) => ({
@@ -2156,9 +2158,10 @@ export default function JobDetailsPage({ params }) {
                   />
                 </div>
 
-                <div className="flex shrink-0 flex-col gap-[12px] sm:flex-row sm:items-center sm:justify-end">
-                  <div className="w-full max-w-[256px]">
-                    <div className={`flex h-[40px] items-center rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-text)_18%,var(--fx-border)_82%)] bg-[var(--fx-bg)] px-[16px]`}>
+                <div className="flex shrink-0 flex-nowrap items-center justify-end gap-[12px]">
+                  <div className="flex flex-none items-center gap-[8px]">{bulkToolbarButtons}</div>
+                  <div className="w-[240px] flex-none">
+                    <div className={`flex h-[40px] items-center rounded-[6px] border border-[color:color-mix(in_srgb,var(--fx-text)_18%,var(--fx-border)_82%)] bg-[var(--fx-bg)] px-[16px]`}>
                       <input
                         ref={searchRef}
                         value={searchTerm}
@@ -2183,7 +2186,7 @@ export default function JobDetailsPage({ params }) {
                       </kbd>
                     </div>
                   </div>
-                  <FxButton type="button" onClick={handleAddCandidates}>
+                  <FxButton type="button" onClick={handleAddCandidates} className="shrink-0">
                     Add Candidates
                   </FxButton>
                 </div>
@@ -2192,14 +2195,14 @@ export default function JobDetailsPage({ params }) {
               <div className="min-h-0 flex-1 overflow-hidden">
                 {filteredCandidates.length ? (
                   <div className="flex h-full min-h-0 flex-col gap-[12px]">
-                    <div className={`flex min-h-[64px] flex-wrap items-center justify-between gap-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[16px] py-[12px]`}>
+                    {/* <div className={`flex min-h-[64px] flex-wrap items-center justify-between gap-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[16px] py-[12px]`}>
                       <div className="text-[14px] leading-[22px] font-medium text-[var(--fx-text-muted)]">
-                        {selectedCount} selected
+                        {selectedCountLabel}
                       </div>
                       <div className="flex flex-wrap items-center gap-[8px]">
                         {bulkToolbarButtons}
                       </div>
-                    </div>
+                    </div> */}
 
                     <FxTable
                       columns={tableColumns}

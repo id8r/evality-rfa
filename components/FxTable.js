@@ -1,16 +1,8 @@
 /* components/FxTable.js | Shared dense table primitive | Sree | 2026-06-13 */
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
 
 import { FxColumnPicker } from "@/components/FxColumnPicker";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FX_TABLE, TABLE_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn, readStoredJSON, writeStoredJSON } from "@/lib/FxUtils";
@@ -30,14 +22,14 @@ const TABLE_DENSITY = {
 const ROW_SELECTION_COLUMN = {
   key: "__fx_row_selection__",
   label: null,
-  width: 48,
-  minWidth: 48,
-  maxWidth: 48,
+  width: 64,
+  minWidth: 64,
+  maxWidth: 64,
   required: true,
   locked: true,
   hideable: false,
   align: "center",
-  cellClassName: "px-[8px] pr-0",
+  cellClassName: "px-0",
 };
 
 function toCssSize(value) {
@@ -266,7 +258,6 @@ export function FxTable({
   selectedRowKeys,
   defaultSelectedRowKeys = [],
   onSelectedRowKeysChange,
-  rowSelectionActions = {},
 }) {
   const densityClasses = TABLE_DENSITY[density] ?? TABLE_DENSITY.comfortable;
   const controlledVisibleColumnKeys = Array.isArray(visibleColumnKeys) ? visibleColumnKeys : null;
@@ -392,58 +383,21 @@ export function FxTable({
                   key={column.key}
                   className={cn(
                     FX_TABLE.headerCell,
-                    "relative bg-[var(--fx-table-header)]",
+                    "relative bg-[var(--fx-table-header)] px-0",
                     stickyHeader ? "sticky top-0 z-[50]" : "",
                     "sticky left-0 z-[70]",
                     headerCellClassName,
                   )}
                   style={columnStylesByKey.get(column.key)}
                 >
-                  <div className="flex items-center justify-center gap-[4px]">
+                  <div className="relative flex h-full items-center justify-center">
                     <Checkbox
                       checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
                       onCheckedChange={toggleVisibleRowSelection}
-                      aria-label="Select visible rows"
+                      aria-label="Selection state"
                       className="translate-y-[-1px]"
                     />
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex size-[24px] items-center justify-center rounded-[4px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
-                          aria-label="Selection actions"
-                        >
-                          <ChevronDown className="size-[14px]" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-[220px]">
-                        <DropdownMenuItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            updateSelectedRowKeys(visibleRowKeys);
-                          }}
-                        >
-                          Select All Visible
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            updateSelectedRowKeys([]);
-                          }}
-                        >
-                          Select None
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            rowSelectionActions.onSelectCurrentStage?.();
-                          }}
-                        >
-                          Select Current Stage
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {/* Selection chevron menu intentionally hidden for now. */}
                   </div>
                 </th>
               );
@@ -513,8 +467,8 @@ export function FxTable({
                     className={cn(
                       FX_TABLE.bodyCell,
                       densityClasses.bodyCell,
-                      "relative sticky left-0 z-[30] bg-inherit text-center",
-                      selectionMeta.isNew ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_6%,var(--fx-surface)_94%)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-[color-mix(in_srgb,var(--fx-primary)_30%,transparent_70%)] before:content-['']" : "",
+                      "relative sticky left-0 z-[30] bg-inherit px-0 text-center",
+                      selectionMeta.isNew ? "border-l-[3px] border-l-[color-mix(in_srgb,var(--fx-primary)_28%,white_72%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_5%,var(--fx-surface)_95%)]" : "",
                       column.cellClassName,
                       bodyCellClassName,
                     )}
