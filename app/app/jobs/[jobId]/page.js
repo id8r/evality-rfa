@@ -24,6 +24,7 @@ import {
   Download,
   Sparkles,
   Trash2,
+  UserRoundX,
   UserX,
   Upload,
   Users,
@@ -49,7 +50,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/sheet";
 import { ROUTES, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
-import { normalizeJobRecord } from "@/lib/FxJobSchema";
+import { DEFAULT_JOB_QUESTION_SUGGESTIONS, normalizeJobRecord } from "@/lib/FxJobSchema";
 import {
   findStoredCandidatesByJob,
   findStoredCandidate,
@@ -1413,11 +1414,45 @@ export default function JobDetailsPage({ params }) {
 
         updateSelectedCandidateStatus(
           candidate,
-          (current) => ({ ...current, status: "screened" }),
-          { fromStatus: candidate.status, toStatus: "screened" },
+          (current) => ({
+            ...current,
+            unscreenedFilterStatus: "in_queue",
+            jobContexts: {
+              ...(current.jobContexts ?? {}),
+              [job.id]: {
+                ...(current.jobContexts?.[job.id] ?? {}),
+                screeningModeOverride: "ai",
+                unscreenedFilterStatus: "in_queue",
+              },
+            },
+          }),
         );
       });
-      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved to pre-screening.`);
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved to pre-screening queue.`);
+      clearSelectedCandidates();
+    },
+    removeFromQueue: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        if (candidate.status !== "unscreened") {
+          return;
+        }
+
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({
+            ...current,
+            unscreenedFilterStatus: "pending",
+            jobContexts: {
+              ...(current.jobContexts ?? {}),
+              [job.id]: {
+                ...(current.jobContexts?.[job.id] ?? {}),
+                unscreenedFilterStatus: "pending",
+              },
+            },
+          }),
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} removed from pre-screening queue.`);
       clearSelectedCandidates();
     },
     removeFromJob: () => {
@@ -2060,9 +2095,28 @@ export default function JobDetailsPage({ params }) {
       </button>
     );
 
+    const nameLabel = activeStage === "unscreened" ? "Name" : "Candidate Name";
+    const matchScoreLabel = activeStage === "unscreened" ? "CV Match Score" : "JD Match Score";
+    const isUnscreenedStage = activeStage === "unscreened";
+
     const columnsByKey = {
-      name: { key: "name", label: sortLabel("name", "Candidate Name"), width: 220, minWidth: 200, maxWidth: 260, grow: 1, cellClassName: "text-[14px] leading-[22px] font-medium", required: true, locked: true, hideable: false },
-      matchScore: { key: "matchScore", label: sortLabel("matchScore", "JD Match Score"), width: 160, minWidth: 148, maxWidth: 168, align: "center" },
+      name: {
+        key: "name",
+        label: sortLabel("name", nameLabel),
+        width: isUnscreenedStage ? 240 : 220,
+        minWidth: isUnscreenedStage ? 220 : 200,
+        maxWidth: isUnscreenedStage ? undefined : 260,
+        grow: 1,
+        flexible: isUnscreenedStage,
+        cellClassName: "text-[14px] leading-[22px] font-medium",
+        required: true,
+        locked: true,
+        hideable: false,
+      },
+      matchScore: { key: "matchScore", label: sortLabel("matchScore", matchScoreLabel), width: isUnscreenedStage ? 148 : 160, minWidth: isUnscreenedStage ? 136 : 148, maxWidth: isUnscreenedStage ? 156 : 168, align: "center" },
+      experience: { key: "experience", label: "Experience", width: 104, minWidth: 92, maxWidth: 120, align: "center" },
+      phone: { key: "phone", label: "Phone", width: 176, minWidth: 156, maxWidth: isUnscreenedStage ? undefined : 184, grow: isUnscreenedStage ? 1 : undefined, flexible: isUnscreenedStage },
+      email: { key: "email", label: "Email", width: 240, minWidth: 220, maxWidth: isUnscreenedStage ? undefined : 260, grow: isUnscreenedStage ? 2 : undefined, flexible: isUnscreenedStage },
       interested: { key: "interested", label: "Interested", width: 112, minWidth: 104, maxWidth: 124, align: "center" },
       availability: { key: "availability", label: sortLabel("availabilityDays", "Availability"), width: 132, minWidth: 120, maxWidth: 148, align: "center" },
       currentSalary: { key: "currentSalary", label: sortLabel("currentSalary", "Current Salary"), width: 144, minWidth: 130, maxWidth: 156, align: "right" },
@@ -2070,13 +2124,13 @@ export default function JobDetailsPage({ params }) {
       screeningOutcome: { key: "screeningOutcome", label: "Pre-Screen", width: 132, minWidth: 120, maxWidth: 148, align: "center" },
       clientStatus: { key: "clientStatus", label: "Client Status", width: 156, minWidth: 144, maxWidth: 172, align: "center" },
       rejectionReason: { key: "rejectionReason", label: "Rejection Reason", width: 188, minWidth: 172, maxWidth: 220 },
-      actions: { key: "actions", label: "Actions", width: 88, minWidth: 80, maxWidth: 96, align: "left", required: true, locked: true, hideable: false },
-      menuActions: { key: "menuActions", label: null, width: 56, minWidth: 56, maxWidth: 56, align: "center", cellClassName: "px-0 pr-0", required: true, locked: true, hideable: false },
+      actions: { key: "actions", label: "Actions", width: 104, minWidth: 104, maxWidth: 104, align: "left", sticky: "right", required: true, locked: true, hideable: false },
+      menuActions: { key: "menuActions", label: null, width: 56, minWidth: 56, maxWidth: 56, align: "center", sticky: "right", cellClassName: "px-0 pr-0", required: true, locked: true, hideable: false },
     };
 
     const commonKeys = ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome"];
     const keysByStage = {
-      unscreened: [...commonKeys, "actions", "menuActions"],
+      unscreened: ["name", "matchScore", "experience", "phone", "email", "actions", "menuActions"],
       screened: [...commonKeys, "actions", "menuActions"],
       shortlisted: [...commonKeys, "actions", "menuActions"],
       shared: [...commonKeys, "clientStatus", "actions", "menuActions"],
@@ -2112,6 +2166,11 @@ export default function JobDetailsPage({ params }) {
       >
         {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
       </button>
+    ),
+    experience: (
+      <span className="inline-flex min-w-[64px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-normal text-[var(--fx-text)]">
+        {candidate.experience != null && candidate.experience !== "" ? `${candidate.experience}y` : "—"}
+      </span>
     ),
     phone: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.phone || "—"}</span>,
     email: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.email || "—"}</span>,
@@ -2241,9 +2300,9 @@ export default function JobDetailsPage({ params }) {
   const bulkToolbarButtons = (() => {
     if (bulkStage === "unscreened") {
       return [
-        renderBulkButton("ai-pre-screen", Sparkles, "Start AI Pre-Screening", bulkActionHandlers.startAiPreScreening, "accent"),
+        renderBulkButton("ai-pre-screen", Mail, "Start Pre-Screening", bulkActionHandlers.startAiPreScreening, "accent"),
+        renderBulkButton("remove-from-queue", UserRoundX, "Remove from Queue", bulkActionHandlers.removeFromQueue),
         renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob),
-        renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
         renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
@@ -2324,11 +2383,11 @@ export default function JobDetailsPage({ params }) {
 
                 <div className="flex flex-wrap items-center gap-[8px]">
                   <FxAiButton onClick={() => setRecommendedOpen(true)}>Recommend Candidates</FxAiButton>
-                  <FxButton variant="outline" size="sm" onClick={() => setCallPreviewOpen(true)}>
+                  <FxButton variant="ghost" size="sm" onClick={() => setCallPreviewOpen(true)}>
                     <PhoneCall className="size-[16px]" />
                     Call Preview
                   </FxButton>
-                  <FxButton variant="secondary" size="sm" onClick={handleShareJob}>
+                  <FxButton variant="ghost" size="sm" onClick={handleShareJob}>
                     <Share2 className="size-[16px]" />
                     Share Job
                   </FxButton>

@@ -1,6 +1,4 @@
-/*
-components/FxTabs.js | Shared tabs primitive | Sree | 2026-06-19
-*/
+/* components/FxTabs.js | Shared tabs primitive | Sree | 2026-06-19 */
 
 "use client";
 
@@ -134,3 +132,4 @@ export function FxTabs({
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
