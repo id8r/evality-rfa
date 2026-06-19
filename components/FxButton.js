@@ -25,9 +25,9 @@ const variantClasses = {
 };
 
 const sizeClasses = {
-  sm: `${FX_BUTTON_HEIGHT.sm} ${FX_BUTTON_PADDING_X.sm}`,
-  md: `${FX_BUTTON_HEIGHT.md} ${FX_BUTTON_PADDING_X.md}`,
-  lg: `${FX_BUTTON_HEIGHT.lg} ${FX_BUTTON_PADDING_X.lg}`,
+  sm: `${FX_BUTTON_HEIGHT.sm} ${FX_BUTTON_PADDING_X.sm} text-[13px] leading-[20px]`,
+  md: `${FX_BUTTON_HEIGHT.md} ${FX_BUTTON_PADDING_X.md} text-[14px] leading-[22px]`,
+  lg: `${FX_BUTTON_HEIGHT.lg} ${FX_BUTTON_PADDING_X.lg} text-[14px] leading-[22px]`,
 };
 
 const iconSizeClasses = {

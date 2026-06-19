@@ -174,12 +174,23 @@ export default function CandidatesPage() {
 
   function handleSort(key) {
     setSortConfig((current) => {
-      if (current.key === key) {
-        return { key, direction: current.direction === "asc" ? "desc" : "asc" };
+      if (current?.key === key) {
+        if (current.direction === "asc") {
+          return { key, direction: "desc" };
+        }
+
+        return null;
       }
 
       return { key, direction: key === "updatedAt" ? "desc" : "asc" };
     });
+  }
+
+  function getSortHeaderButtonClassName(key) {
+    return cn(
+      fieldButtonClassName(true),
+      sortConfig?.key === key ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
+    );
   }
 
   const counts = useMemo(() => {
@@ -219,6 +230,10 @@ export default function CandidatesPage() {
 
         return haystack.includes(query);
       });
+
+    if (!sortConfig) {
+      return [...nextCandidates];
+    }
 
     return [...nextCandidates].sort((left, right) => {
       const leftValue = left[sortConfig.key];
@@ -320,7 +335,7 @@ export default function CandidatesPage() {
       {
         key: "name",
         label: (
-          <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("name")}>
+          <button type="button" className={getSortHeaderButtonClassName("name")} onClick={() => handleSort("name")}>
             <span>Candidate</span>
             <ArrowUpDown className="size-[14px]" />
           </button>
@@ -335,7 +350,7 @@ export default function CandidatesPage() {
       {
         key: "jobTitle",
         label: (
-          <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("jobTitle")}>
+          <button type="button" className={getSortHeaderButtonClassName("jobTitle")} onClick={() => handleSort("jobTitle")}>
             <span>Role</span>
             <ArrowUpDown className="size-[14px]" />
           </button>
@@ -355,7 +370,7 @@ export default function CandidatesPage() {
       {
         key: "matchScore",
         label: (
-          <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("matchScore")}>
+          <button type="button" className={getSortHeaderButtonClassName("matchScore")} onClick={() => handleSort("matchScore")}>
             <span>Fit</span>
             <ArrowUpDown className="size-[14px]" />
           </button>
@@ -384,7 +399,7 @@ export default function CandidatesPage() {
       {
         key: "updatedAt",
         label: (
-          <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("updatedAt")}>
+          <button type="button" className={getSortHeaderButtonClassName("updatedAt")} onClick={() => handleSort("updatedAt")}>
             <span>Updated</span>
             <ArrowUpDown className="size-[14px]" />
           </button>
@@ -488,8 +503,8 @@ export default function CandidatesPage() {
                 stickyLastColumn
                 scrollX
                 className="h-full min-h-0"
-                sortedColumnKey={sortConfig.key}
-                sortedColumnDirection={sortConfig.direction}
+                sortedColumnKey={sortConfig?.key ?? null}
+                sortedColumnDirection={sortConfig?.direction ?? "asc"}
                 emptyMessage="No candidates match the current search."
                 enableColumnPicker
                 storageKey="fx-candidates-table-columns"

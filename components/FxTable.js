@@ -1,8 +1,17 @@
 /* components/FxTable.js | Shared dense table primitive | Sree | 2026-06-13 */
 
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 import { FxColumnPicker } from "@/components/FxColumnPicker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FX_TABLE, TABLE_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn, readStoredJSON, writeStoredJSON } from "@/lib/FxUtils";
 
@@ -17,6 +26,19 @@ const TABLE_DENSITY = {
   },
 };
 /* - - - - - - - - - - - - - - - - */
+
+const ROW_SELECTION_COLUMN = {
+  key: "__fx_row_selection__",
+  label: null,
+  width: 48,
+  minWidth: 48,
+  maxWidth: 48,
+  required: true,
+  locked: true,
+  hideable: false,
+  align: "center",
+  cellClassName: "px-[8px] pr-0",
+};
 
 function toCssSize(value) {
   return typeof value === "number" ? `${value}px` : value;
@@ -240,12 +262,19 @@ export function FxTable({
   enableColumnPicker = false,
   columnPickerProps = {},
   storageKey = null,
+  enableRowSelection = false,
+  selectedRowKeys,
+  defaultSelectedRowKeys = [],
+  onSelectedRowKeysChange,
+  rowSelectionActions = {},
 }) {
   const densityClasses = TABLE_DENSITY[density] ?? TABLE_DENSITY.comfortable;
   const controlledVisibleColumnKeys = Array.isArray(visibleColumnKeys) ? visibleColumnKeys : null;
   const [internalVisibleColumnKeys, setInternalVisibleColumnKeys] = useState(() =>
     getDefaultVisibleColumnKeys(columns, defaultVisibleColumnKeys),
   );
+  const controlledSelectedRowKeys = Array.isArray(selectedRowKeys) ? selectedRowKeys : null;
+  const [internalSelectedRowKeys, setInternalSelectedRowKeys] = useState(() => defaultSelectedRowKeys ?? []);
   const [isHydrated, setIsHydrated] = useState(!storageKey);
 
   useEffect(() => {
@@ -269,20 +298,29 @@ export function FxTable({
     () => columns.filter((column) => visibleColumnKeysState.includes(column.key)),
     [columns, visibleColumnKeysState],
   );
-  const visibleColumnsKey = useMemo(() => visibleColumns.map((column) => column.key).join(","), [visibleColumns]);
+  const renderColumns = useMemo(
+    () => (enableRowSelection ? [ROW_SELECTION_COLUMN, ...visibleColumns] : visibleColumns),
+    [enableRowSelection, visibleColumns],
+  );
+  const visibleColumnsKey = useMemo(() => renderColumns.map((column) => column.key).join(","), [renderColumns]);
   const tableMinWidth = useMemo(
-    () => getTableMinimumWidth(visibleColumns, minTableWidth),
-    [minTableWidth, visibleColumns],
+    () => getTableMinimumWidth(renderColumns, minTableWidth),
+    [minTableWidth, renderColumns],
   );
   const columnStylesByKey = useMemo(() => {
     const nextStyles = new Map();
 
-    visibleColumns.forEach((column) => {
+    renderColumns.forEach((column) => {
       nextStyles.set(column.key, getResolvedColumnStyle(column));
     });
 
     return nextStyles;
-  }, [visibleColumns]);
+  }, [renderColumns]);
+  const selectedRowKeysState = controlledSelectedRowKeys ?? internalSelectedRowKeys;
+  const selectedRowKeySet = useMemo(() => new Set(selectedRowKeysState), [selectedRowKeysState]);
+  const visibleRowKeys = useMemo(() => rows.map((row) => row.id).filter((key) => key != null), [rows]);
+  const allVisibleSelected = visibleRowKeys.length > 0 && visibleRowKeys.every((key) => selectedRowKeySet.has(key));
+  const someVisibleSelected = visibleRowKeys.some((key) => selectedRowKeySet.has(key));
 
   useEffect(() => {
     if (!isHydrated || controlledVisibleColumnKeys) {
@@ -304,10 +342,29 @@ export function FxTable({
     onVisibleColumnKeysChange?.(normalizedKeys);
   }
 
+  function updateSelectedRowKeys(nextKeys) {
+    const normalizedKeys = Array.from(new Set(nextKeys.filter((key) => key != null)));
+
+    if (!controlledSelectedRowKeys) {
+      setInternalSelectedRowKeys(normalizedKeys);
+    }
+
+    onSelectedRowKeysChange?.(normalizedKeys);
+  }
+
+  function toggleVisibleRowSelection() {
+    if (allVisibleSelected) {
+      updateSelectedRowKeys(selectedRowKeysState.filter((key) => !visibleRowKeys.includes(key)));
+      return;
+    }
+
+    updateSelectedRowKeys(Array.from(new Set([...selectedRowKeysState, ...visibleRowKeys])));
+  }
+
   function renderColGroup() {
     return (
       <colgroup key={visibleColumnsKey}>
-        {visibleColumns.map((column) => (
+        {renderColumns.map((column) => (
           <col key={column.key} style={columnStylesByKey.get(column.key)} />
         ))}
       </colgroup>
@@ -328,9 +385,72 @@ export function FxTable({
     return (
       <thead className={cn("bg-[var(--fx-table-header)]", TABLE_TYPOGRAPHY.header, headerClassName)}>
         <tr className={FX_TABLE.headerRowHeight}>
-          {visibleColumns.map((column, columnIndex) => {
-            const stickyPosition = getColumnStickyPosition(column, columnIndex, visibleColumns.length, stickyFirstColumn, stickyLastColumn);
-            const isLastColumn = columnIndex === visibleColumns.length - 1;
+          {renderColumns.map((column, columnIndex) => {
+            if (column.key === ROW_SELECTION_COLUMN.key) {
+              return (
+                <th
+                  key={column.key}
+                  className={cn(
+                    FX_TABLE.headerCell,
+                    "relative bg-[var(--fx-table-header)]",
+                    stickyHeader ? "sticky top-0 z-[50]" : "",
+                    "sticky left-0 z-[70]",
+                    headerCellClassName,
+                  )}
+                  style={columnStylesByKey.get(column.key)}
+                >
+                  <div className="flex items-center justify-center gap-[4px]">
+                    <Checkbox
+                      checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                      onCheckedChange={toggleVisibleRowSelection}
+                      aria-label="Select visible rows"
+                      className="translate-y-[-1px]"
+                    />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex size-[24px] items-center justify-center rounded-[4px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                          aria-label="Selection actions"
+                        >
+                          <ChevronDown className="size-[14px]" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-[220px]">
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            updateSelectedRowKeys(visibleRowKeys);
+                          }}
+                        >
+                          Select All Visible
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            updateSelectedRowKeys([]);
+                          }}
+                        >
+                          Select None
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            rowSelectionActions.onSelectCurrentStage?.();
+                          }}
+                        >
+                          Select Current Stage
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </th>
+              );
+            }
+
+            const stickyPosition = getColumnStickyPosition(column, columnIndex, renderColumns.length, stickyFirstColumn, stickyLastColumn);
+            const isLastColumn = columnIndex === renderColumns.length - 1;
             const isSortedColumn = sortedColumnKey === column.key;
 
             return (
@@ -339,8 +459,8 @@ export function FxTable({
                 aria-sort={isSortedColumn ? (sortedColumnDirection === "desc" ? "descending" : "ascending") : "none"}
                 className={cn(
                   FX_TABLE.headerCell,
-                  "relative bg-[var(--fx-table-header)]",
-                  isSortedColumn ? "relative bg-[color:color-mix(in_srgb,var(--fx-surface-hover)_28%,var(--fx-table-header)_72%)] text-[var(--fx-text)] after:pointer-events-none after:absolute after:inset-x-[12px] after:bottom-0 after:h-[2px] after:rounded-full after:bg-[var(--fx-primary)]" : "",
+                  "relative bg-[var(--fx-table-header)] transition-colors",
+                  isSortedColumn ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
                   getStickyHeaderClassName(stickyPosition, stickyHeader),
                   column.align === "right" ? "text-right" : "",
                   column.align === "center" ? "text-center" : "",
@@ -348,7 +468,7 @@ export function FxTable({
                 )}
                 style={columnStylesByKey.get(column.key)}
               >
-                <div className={cn("min-w-0", TABLE_TYPOGRAPHY.header, headerTextClassName, isLastColumn && columnPicker ? "pr-[40px]" : "")}>
+                <div className={cn("min-w-0", TABLE_TYPOGRAPHY.header, headerTextClassName, isSortedColumn ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]", isLastColumn && columnPicker ? "pr-[40px]" : "")}>
                   {column.label}
                 </div>
                 {isLastColumn && columnPicker ? (
@@ -369,23 +489,69 @@ export function FxTable({
     return (
       <tbody className={cn(bodyClassName)}>
         {rows.length ? (
-          rows.map((row, rowIndex) => (
-            <tr key={row.id ?? rowIndex} className={cn("relative z-0", FX_TABLE.row, densityClasses.row, rowClassName)}>
-              {visibleColumns.map((column, columnIndex) => {
-                const stickyPosition = getColumnStickyPosition(column, columnIndex, visibleColumns.length, stickyFirstColumn, stickyLastColumn);
+          rows.map((row, rowIndex) => {
+            const isSelected = selectedRowKeySet.has(row.id);
+
+            return (
+            <tr
+              key={row.id ?? rowIndex}
+              className={cn(
+                "relative z-0",
+                FX_TABLE.row,
+                densityClasses.row,
+                rowClassName,
+                isSelected ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_6%,var(--fx-surface)_94%)]" : "",
+              )}
+            >
+              {renderColumns.map((column, columnIndex) => {
+            if (column.key === ROW_SELECTION_COLUMN.key) {
+              const selectionMeta = row.__fxRowSelectionMeta ?? {};
+
+              return (
+                  <td
+                    key={column.key}
+                    className={cn(
+                      FX_TABLE.bodyCell,
+                      densityClasses.bodyCell,
+                      "relative sticky left-0 z-[30] bg-inherit text-center",
+                      selectionMeta.isNew ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_6%,var(--fx-surface)_94%)] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-[color-mix(in_srgb,var(--fx-primary)_30%,transparent_70%)] before:content-['']" : "",
+                      column.cellClassName,
+                      bodyCellClassName,
+                    )}
+                    style={columnStylesByKey.get(column.key)}
+                  >
+                      <div className="flex h-full items-center justify-center">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => {
+                            updateSelectedRowKeys(
+                              isSelected
+                                ? selectedRowKeysState.filter((key) => key !== row.id)
+                                : [...selectedRowKeysState, row.id],
+                            );
+                          }}
+                          aria-label={`Select row ${row.id}`}
+                          className="translate-y-[-1px]"
+                        />
+                      </div>
+                    </td>
+                  );
+                }
+
+                const stickyPosition = getColumnStickyPosition(column, columnIndex, renderColumns.length, stickyFirstColumn, stickyLastColumn);
 
                 return (
                   <td
                     key={column.key}
-                className={cn(
-                  FX_TABLE.bodyCell,
-                  densityClasses.bodyCell,
-                  isPrimaryTextColumn(column) ? TABLE_TYPOGRAPHY.primary : "",
-                  getStickyBodyClassName(stickyPosition),
-                  column.align === "right" ? "text-right" : "",
-                  column.align === "center" ? "text-center" : "",
-                  column.cellClassName,
-                  bodyCellClassName,
+                    className={cn(
+                      FX_TABLE.bodyCell,
+                      densityClasses.bodyCell,
+                      isPrimaryTextColumn(column) ? TABLE_TYPOGRAPHY.primary : "",
+                      getStickyBodyClassName(stickyPosition),
+                      column.align === "right" ? "text-right" : "",
+                      column.align === "center" ? "text-center" : "",
+                      column.cellClassName,
+                      bodyCellClassName,
                     )}
                     style={columnStylesByKey.get(column.key)}
                   >
@@ -403,10 +569,11 @@ export function FxTable({
                 );
               })}
             </tr>
-          ))
+          );
+          })
         ) : (
           <tr>
-            <td className={cn(FX_TABLE.emptyCell, emptyClassName)} colSpan={visibleColumns.length}>
+            <td className={cn(FX_TABLE.emptyCell, emptyClassName)} colSpan={renderColumns.length}>
               <div className={cn(TABLE_TYPOGRAPHY.empty, emptyTextClassName)}>{emptyMessage}</div>
             </td>
           </tr>

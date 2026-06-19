@@ -717,12 +717,23 @@ export default function JobsPage() {
 
   function handleSort(key) {
     setSortConfig((current) => {
-      if (current.key === key) {
-        return { key, direction: current.direction === "asc" ? "desc" : "asc" };
+      if (current?.key === key) {
+        if (current.direction === "asc") {
+          return { key, direction: "desc" };
+        }
+
+        return null;
       }
 
       return { key, direction: key === "updatedAt" ? "desc" : "asc" };
     });
+  }
+
+  function getSortHeaderButtonClassName(key) {
+    return cn(
+      fieldButtonClassName(true),
+      sortConfig?.key === key ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
+    );
   }
 
   function handleJobFormChange(event) {
@@ -1754,6 +1765,10 @@ export default function JobsPage() {
       );
     }
 
+    if (!sortConfig) {
+      return [...nextJobs];
+    }
+
     return [...nextJobs].sort((left, right) => {
       const leftValue = left[sortConfig.key];
       const rightValue = right[sortConfig.key];
@@ -1804,7 +1819,7 @@ export default function JobsPage() {
     {
       key: "title",
       label: (
-        <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("title")}>
+        <button type="button" className={getSortHeaderButtonClassName("title")} onClick={() => handleSort("title")}>
           <span>Job Title</span>
           <ArrowUpDown className="size-[14px]" />
         </button>
@@ -1822,7 +1837,7 @@ export default function JobsPage() {
           {
             key: "client",
             label: (
-              <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("client")}>
+              <button type="button" className={getSortHeaderButtonClassName("client")} onClick={() => handleSort("client")}>
                 <span>Client</span>
                 <ArrowUpDown className="size-[14px]" />
               </button>
@@ -1883,7 +1898,7 @@ export default function JobsPage() {
     {
       key: "lastActivity",
       label: (
-        <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("updatedAt")}>
+        <button type="button" className={getSortHeaderButtonClassName("updatedAt")} onClick={() => handleSort("updatedAt")}>
           <span>Last Activity</span>
           <ArrowUpDown className="size-[14px]" />
         </button>
@@ -2159,8 +2174,8 @@ export default function JobsPage() {
                 stickyLastColumn
                 scrollX
                 className="h-full min-h-0"
-                sortedColumnKey={sortConfig.key === "updatedAt" ? "lastActivity" : sortConfig.key}
-                sortedColumnDirection={sortConfig.direction}
+                sortedColumnKey={sortConfig?.key === "updatedAt" ? "lastActivity" : sortConfig?.key ?? null}
+                sortedColumnDirection={sortConfig?.direction ?? "asc"}
                 emptyMessage={PAGE_COPY.jobs.tableEmpty}
                 enableColumnPicker
                 storageKey={STORAGE_KEYS.JOBS_TABLE_COLUMNS}

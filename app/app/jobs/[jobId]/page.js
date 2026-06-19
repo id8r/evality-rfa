@@ -7,11 +7,22 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExtern
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowUpDown,
+  ArrowRight,
+  Ban,
+  Check,
+  Circle,
+  Minus,
   MoreHorizontal,
   PencilLine,
   PhoneCall,
   Plus,
+  RotateCcw,
   Share2,
+  Download,
+  Sparkles,
+  Trash2,
+  UserX,
   Upload,
   Users,
 } from "lucide-react";
@@ -28,20 +39,24 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/sheet";
 import { ROUTES, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
 import { normalizeJobRecord } from "@/lib/FxJobSchema";
 import {
   findStoredCandidatesByJob,
+  findStoredCandidate,
   findStoredJob,
   readStoredCandidates,
   readStoredJobs,
   readStoredWorkspaceType,
   upsertStoredJob,
   writeStoredCandidates,
+  updateStoredCandidate,
 } from "@/lib/FxStore";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
@@ -54,26 +69,38 @@ const PIPELINE_STAGES = [
   { value: "shared", label: "Sent to Client" },
 ];
 
+const PIPELINE_STAGE_SEQUENCE = PIPELINE_STAGES.filter((stage) => stage.value !== "all").map((stage) => stage.value);
+const PIPELINE_STAGE_COUNT_KEYS = {
+  unscreened: "unscreenedCount",
+  screened: "preScreenedCount",
+  shortlisted: "shortlistedCount",
+  shared: "sentToClientCount",
+};
+
 const EMPTY_STAGE_COPY = {
   all: {
     title: "No candidates yet",
     body: "Start adding candidates to begin screening and evaluation for this role.",
   },
   unscreened: {
-    title: "No candidates yet",
-    body: "Start adding candidates to begin screening and evaluation for this role.",
+    title: "No unscreened candidates yet",
+    body: "Add candidates to begin AI pre-screening for this role.",
   },
   screened: {
-    title: "No candidates yet",
-    body: "Start adding candidates to begin screening and evaluation for this role.",
+    title: "No pre-screened candidates yet",
+    body: "Move candidates through pre-screening to continue the shortlist workflow.",
   },
   shortlisted: {
-    title: "No candidates yet",
-    body: "Start adding candidates to begin screening and evaluation for this role.",
+    title: "No shortlisted candidates yet",
+    body: "Shortlist strong candidates to prepare them for client review.",
   },
   shared: {
-    title: "No candidates yet",
-    body: "Start adding candidates to begin screening and evaluation for this role.",
+    title: "No candidates sent to client yet",
+    body: "Candidates shared with the client will appear here.",
+  },
+  rejected: {
+    title: "No rejected candidates yet",
+    body: "Rejected candidates will be grouped here for this job.",
   },
 };
 
@@ -81,10 +108,65 @@ function normalizeJob(job) {
   return normalizeJobRecord(job);
 }
 
+function getPipelineCountKey(status) {
+  return PIPELINE_STAGE_COUNT_KEYS[status] ?? null;
+}
+
+function updateJobPipelineCounts(job, fromStatus, toStatus, removeFromJob = false) {
+  if (!job) {
+    return null;
+  }
+
+  const nextJob = {
+    ...job,
+    unscreenedCount: Number(job.unscreenedCount) || 0,
+    preScreenedCount: Number(job.preScreenedCount ?? job.screenedCount) || 0,
+    shortlistedCount: Number(job.shortlistedCount) || 0,
+    sentToClientCount: Number(job.sentToClientCount ?? job.sharedCount) || 0,
+    screenedCount: Number(job.preScreenedCount ?? job.screenedCount) || 0,
+    sharedCount: Number(job.sentToClientCount ?? job.sharedCount) || 0,
+  };
+
+  const decrementKey = getPipelineCountKey(fromStatus);
+  if (decrementKey) {
+    nextJob[decrementKey] = Math.max(0, Number(nextJob[decrementKey]) - 1);
+    if (decrementKey === "preScreenedCount") {
+      nextJob.screenedCount = nextJob[decrementKey];
+    }
+    if (decrementKey === "sentToClientCount") {
+      nextJob.sharedCount = nextJob[decrementKey];
+    }
+  }
+
+  const incrementKey = !removeFromJob ? getPipelineCountKey(toStatus) : null;
+  if (incrementKey && incrementKey !== decrementKey) {
+    nextJob[incrementKey] = Number(nextJob[incrementKey]) + 1;
+    if (incrementKey === "preScreenedCount") {
+      nextJob.screenedCount = nextJob[incrementKey];
+    }
+    if (incrementKey === "sentToClientCount") {
+      nextJob.sharedCount = nextJob[incrementKey];
+    }
+  }
+
+  return nextJob;
+}
+
+function getNextPipelineStage(status) {
+  const index = PIPELINE_STAGE_SEQUENCE.indexOf(status);
+
+  if (index < 0) {
+    return PIPELINE_STAGE_SEQUENCE[0];
+  }
+
+  return PIPELINE_STAGE_SEQUENCE[Math.min(index + 1, PIPELINE_STAGE_SEQUENCE.length - 1)];
+}
+
 function normalizeCandidate(candidate, job) {
   if (!candidate) {
     return null;
   }
+  const jobContext = candidate.jobContexts?.[job?.id] ?? null;
 
   const trustScore =
     candidate.trustScore ||
@@ -112,6 +194,7 @@ function normalizeCandidate(candidate, job) {
     expectedSalary: candidate.expectedSalary != null ? Number(candidate.expectedSalary) : null,
     email: candidate.email ?? "—",
     phone: candidate.phone ?? "—",
+    jobContext,
   };
 }
 
@@ -242,142 +325,222 @@ function WorkspaceEmptyState({ title, body, action }) {
   );
 }
 
-function CandidateMatchDrawer({ candidate, open, onOpenChange }) {
+function CandidateWorkspaceSheet({
+  open,
+  onOpenChange,
+  candidate,
+  job,
+  onMoveToNextStage,
+  onMarkNotInterested,
+  onReject,
+  onRemoveFromJob,
+  onSetScreeningMode,
+}) {
+  const screeningMode = candidate?.jobContext?.screeningModeOverride ?? "ai";
+  const isRejected = candidate?.status === "rejected";
+  const currentStageLabel = isRejected
+    ? "Rejected"
+    : PIPELINE_STAGES.find((stage) => stage.value === (candidate?.status ?? "unscreened"))?.label ?? "Unscreened";
+  const currentStageIndex = isRejected ? -1 : PIPELINE_STAGE_SEQUENCE.indexOf(candidate?.status ?? "unscreened");
+  const nextStageLabel = currentStageIndex >= 0 && currentStageIndex < PIPELINE_STAGE_SEQUENCE.length - 1
+    ? PIPELINE_STAGES.find((stage) => stage.value === PIPELINE_STAGE_SEQUENCE[currentStageIndex + 1])?.label
+    : null;
+  const candidateAnswers = (
+    [candidate?.screeningAnswers, candidate?.answers, candidate?.responses, candidate?.jobContext?.answers].find(
+      (value) => Array.isArray(value) && value.length,
+    ) ?? []
+  ).filter(Boolean);
+
+  const profileDetails = [
+    { label: "Current Role", value: candidate?.currentRole || candidate?.jobTitle || "—" },
+    { label: "Current Company", value: candidate?.currentCompany || candidate?.client || "—" },
+    { label: "Email", value: candidate?.email || "—" },
+    { label: "Phone", value: candidate?.phone || "—" },
+    { label: "Experience", value: candidate?.experience != null ? `${candidate.experience} years` : "—" },
+    { label: "Job", value: job?.title || "—" },
+  ];
+
+  const answers = [
+    { label: "Availability", value: candidate?.availabilityDays != null ? formatAvailability(candidate.availabilityDays) : "—" },
+    { label: "Current Salary", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "—" },
+    { label: "Expected Salary", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "—" },
+    { label: "Interested", value: candidate?.interested || "—" },
+    { label: "Screening Result", value: candidate?.screeningOutcome || "—" },
+    { label: "Notice Period", value: candidate?.jobContext?.noticePeriod || "Not captured" },
+  ];
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="xl">
         <SheetHeader
-          title="Match Analysis"
-          description="Fast AI context for why this candidate is worth a closer look."
+          title={candidate?.name || "Candidate"}
+          description={`${currentStageLabel} · ${candidate?.jobTitle || job?.title || "Candidate profile"} · Job-specific review and actions`}
         />
         <SheetBody>
           {candidate ? (
             <div className="space-y-[20px]">
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[20px]`}>
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
                 <div className="flex flex-wrap items-start justify-between gap-[16px]">
-                  <div className="space-y-[6px]">
-                    <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Candidate</p>
-                    <h3 className={FX_TYPOGRAPHY.sectionTitle}>{candidate.name}</h3>
-                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{candidate.email}</p>
+                  <div className="min-w-0 space-y-[8px]">
+                    <div className="flex flex-wrap items-center gap-[8px]">
+                      <p className={FX_TYPOGRAPHY.cardTitle}>{candidate.name}</p>
+                      {!candidate.jobContext?.viewedAt ? (
+                        <span className="inline-flex items-center rounded-full bg-[color:color-mix(in_srgb,var(--fx-primary)_12%,var(--fx-surface)_88%)] px-[8px] py-[3px] text-[12px] font-medium text-[var(--fx-primary)]">
+                          New
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                      {candidate.currentRole || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
+                    </p>
                   </div>
-                  <span className="rounded-full bg-[var(--fx-surface-selected)] px-[12px] py-[6px] text-[13px] font-medium text-[var(--fx-primary)]">
-                    {candidate.matchScore != null ? `${candidate.matchScore}% match` : "Match unavailable"}
-                  </span>
+                  <div className="flex items-center gap-[8px]">
+                    <span className="inline-flex items-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
+                      {candidate.matchScore != null ? `${candidate.matchScore}% JD match` : "Match unavailable"}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-text-muted)]">
+                      {currentStageLabel}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <div className="grid gap-[16px] md:grid-cols-2">
                 <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Matching skills</p>
-                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
-                    Strong signal on role-aligned skills, screening readiness, and likely interview fit.
-                  </p>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Resume / profile summary</p>
+                  <div className="mt-[12px] grid gap-[12px] sm:grid-cols-2">
+                    {profileDetails.map((item) => (
+                      <MetaField key={item.label} label={item.label} value={item.value} />
+                    ))}
+                  </div>
                 </div>
+
                 <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Missing skills</p>
-                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
-                    Use this drawer later to surface gaps that matter for the job context.
-                  </p>
-                </div>
-                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Experience fit</p>
-                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
-                    {candidate.availabilityDays != null ? `Available in ${formatAvailability(candidate.availabilityDays)}.` : "Availability not captured."}
-                  </p>
-                </div>
-                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Location fit</p>
-                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
-                    {candidate.phone !== "—" ? "No location mismatch signal captured in demo data." : "Location context will appear here."}
-                  </p>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Screening result</p>
+                  <div className="mt-[12px] grid gap-[12px] sm:grid-cols-2">
+                    {answers.map((item) => (
+                      <MetaField key={item.label} label={item.label} value={item.value} />
+                    ))}
+                  </div>
                 </div>
               </div>
 
               <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <p className={FX_TYPOGRAPHY.cardTitle}>AI reasoning</p>
+                <p className={FX_TYPOGRAPHY.cardTitle}>Interview journey</p>
+                <div className="mt-[12px] grid gap-[8px] md:grid-cols-4">
+                  {PIPELINE_STAGE_SEQUENCE.map((stage, index) => {
+                    const stageLabel = PIPELINE_STAGES.find((item) => item.value === stage)?.label ?? stage;
+                    const isActive = candidate.status === stage;
+                    const isComplete = currentStageIndex > index;
+
+                    return (
+                      <div
+                        key={stage}
+                        className={cn(
+                          "rounded-[12px] border px-[12px] py-[12px]",
+                          isActive
+                            ? "border-[var(--fx-primary)] bg-[color:color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)]"
+                            : isComplete
+                              ? "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)]"
+                              : "border-[var(--fx-border)] bg-[var(--fx-surface)]",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-[8px]">
+                          <span className={cn("text-[13px] leading-[20px] font-medium", isActive ? "text-[var(--fx-primary)]" : "text-[var(--fx-text)]")}>
+                            {stageLabel}
+                          </span>
+                          {isComplete ? <Check className="size-[14px] text-[var(--fx-success)]" /> : isActive ? <Circle className="size-[14px] text-[var(--fx-primary)]" /> : <Circle className="size-[14px] text-[var(--fx-text-disabled)]" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-[12px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                  Current stage: {currentStageLabel}
+                  {nextStageLabel ? ` · Next: ${nextStageLabel}` : ""}
+                </div>
+              </div>
+
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="flex items-start justify-between gap-[16px]">
+                  <div className="space-y-[4px]">
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Screening mode override</p>
+                    <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                      Workspace default comes from Settings. You can override it for this candidate.
+                    </p>
+                  </div>
+                </div>
+                <RadioGroup
+                  value={screeningMode}
+                  onValueChange={(value) => onSetScreeningMode?.(candidate, value)}
+                  className="mt-[12px] grid gap-[8px]"
+                >
+                  {[
+                    { value: "ai", label: "AI Screening" },
+                    { value: "manual", label: "Manual Interview" },
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className="flex cursor-pointer items-center gap-[12px] rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-[12px]"
+                    >
+                      <RadioGroupItem value={option.value} />
+                      <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{option.label}</span>
+                    </label>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <p className={FX_TYPOGRAPHY.cardTitle}>Candidate answers</p>
+                <div className="mt-[12px] grid gap-[8px] md:grid-cols-2">
+                  {candidateAnswers.length ? (
+                    candidateAnswers.map((answer, index) => (
+                      <div key={`${answer.question ?? index}`} className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{answer.question ?? `Question ${index + 1}`}</p>
+                        <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{answer.answer ?? answer.value ?? "—"}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="md:col-span-2">
+                      <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                        No screening answers captured yet. Review the candidate profile and move them through the job workflow first.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <p className={FX_TYPOGRAPHY.cardTitle}>Notes / activity</p>
                 <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
-                  This drawer will later explain why the candidate was recommended, what the model matched, and which
-                  screening signals influenced the score.
+                  {candidate.jobContext?.notes || candidate.notes || candidate.activity || "No notes or activity recorded yet."}
                 </p>
               </div>
             </div>
           ) : null}
         </SheetBody>
         <SheetFooter
-          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Future drawer content for match analysis.</span>}
-          right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
-        />
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-function CandidateActionDrawer({ open, onOpenChange, candidate, action }) {
-  const titleMap = {
-    resume: "View Resume",
-    questions: "Generate Interview Questions",
-    edit: "Edit Candidate Details",
-    notInterested: "Mark as Not Interested",
-    reject: "Reject Candidate",
-  };
-
-  const bodyMap = {
-    resume: "Resume preview for recruiter review.",
-    questions: "AI-generated interview questions for this candidate.",
-    edit: "Candidate details can be tuned here later.",
-    notInterested: "Capture this recruiter action for the demo flow.",
-    reject: "Capture this recruiter action for the demo flow.",
-  };
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="lg">
-        <SheetHeader title={titleMap[action] ?? "Candidate Action"} description={bodyMap[action] ?? ""} />
-        <SheetBody>
-          {candidate ? (
-            <div className="space-y-[16px]">
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[16px]`}>
-                <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Candidate</p>
-                <p className={FX_TYPOGRAPHY.sectionTitle}>{candidate.name}</p>
-                <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{candidate.email}</p>
-                <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{candidate.phone}</p>
-              </div>
-
-              {action === "resume" ? (
-                <div className={`space-y-[12px] rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Resume preview</p>
-                  <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                    Senior recruiting teams will see a compact resume summary here, including skills, experience, and role fit.
-                  </p>
-                </div>
-              ) : null}
-
-              {action === "questions" ? (
-                <div className="space-y-[12px]">
-                  {["Tell me about your recent role.", "What makes you a fit for this job?", "How soon can you join?"].map(
-                    (question) => (
-                      <div key={question} className={`rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[14px]`}>
-                        <p className={FX_TYPOGRAPHY.body}>{question}</p>
-                      </div>
-                    ),
-                  )}
-                </div>
-              ) : null}
-
-              {(action === "edit" || action === "notInterested" || action === "reject") ? (
-                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Demo action</p>
-                  <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
-                    This action will be wired to state updates later. For now it keeps the recruiter menu complete.
-                  </p>
-                </div>
-              ) : null}
+          left={
+            <span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+              Candidate actions update this job only.
+            </span>
+          }
+          right={(
+            <div className="flex flex-wrap items-center gap-[8px]">
+              <FxButton variant="outline" size="sm" onClick={() => candidate && onMoveToNextStage?.(candidate)}>
+                Move to Next Stage
+              </FxButton>
+              <FxButton variant="outline" size="sm" onClick={() => candidate && onMarkNotInterested?.(candidate)}>
+                Mark as Not Interested
+              </FxButton>
+              <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate)}>
+                Reject Candidate
+              </FxButton>
+              <FxButton variant="destructive" size="sm" onClick={() => candidate && onRemoveFromJob?.(candidate)}>
+                Remove from Job
+              </FxButton>
             </div>
-          ) : null}
-        </SheetBody>
-        <SheetFooter
-          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Recruiter action surface.</span>}
-          right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
+          )}
         />
       </SheetContent>
     </Sheet>
@@ -761,6 +924,11 @@ export default function JobDetailsPage({ params }) {
     }
   }, [jobId, jobSnapshot]);
   const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
+  const candidateSnapshot = useSyncExternalStore(
+    subscribeToJobStoreChange,
+    () => JSON.stringify(readStoredCandidates()),
+    () => "[]",
+  );
   const showClientInfo = workspaceType === WORKSPACE_TYPES.CLIENTS || workspaceType === WORKSPACE_TYPES.BOTH;
 
   const activeStage = PIPELINE_STAGES.some((stage) => stage.value === searchParams?.get("tab"))
@@ -770,11 +938,11 @@ export default function JobDetailsPage({ params }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [recommendedOpen, setRecommendedOpen] = useState(false);
   const [addCandidatesOpen, setAddCandidatesOpen] = useState(false);
-  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
   const [callPreviewOpen, setCallPreviewOpen] = useState(false);
-  const [candidateActionOpen, setCandidateActionOpen] = useState(false);
-  const [candidateAction, setCandidateAction] = useState(null);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const [sortConfig, setSortConfig] = useState(null);
   const searchRef = useRef(null);
   const jobTitleText = job?.title || "this job";
 
@@ -783,7 +951,7 @@ export default function JobDetailsPage({ params }) {
       (job ? findStoredCandidatesByJob(job.id) : [])
         .map((candidate) => normalizeCandidate(candidate, job))
         .filter(Boolean),
-    [job],
+    [candidateSnapshot, job],
   );
 
   useEffect(() => {
@@ -814,9 +982,442 @@ export default function JobDetailsPage({ params }) {
     });
   }, [pipelineCandidates, searchTerm]);
 
+  const sortedCandidates = useMemo(() => {
+    if (!sortConfig) {
+      return filteredCandidates;
+    }
+
+    return [...filteredCandidates].sort((left, right) => {
+      const leftValue = left[sortConfig.key];
+      const rightValue = right[sortConfig.key];
+
+      if (typeof leftValue === "number" && typeof rightValue === "number") {
+        return sortConfig.direction === "asc" ? leftValue - rightValue : rightValue - leftValue;
+      }
+
+      return sortConfig.direction === "asc"
+        ? String(leftValue ?? "").localeCompare(String(rightValue ?? ""))
+        : String(rightValue ?? "").localeCompare(String(leftValue ?? ""));
+    });
+  }, [filteredCandidates, sortConfig]);
+
+  useEffect(() => {
+    const visibleIds = new Set(filteredCandidates.map((candidate) => candidate.id));
+    setSelectedCandidateIds((current) => current.filter((candidateId) => visibleIds.has(candidateId)));
+  }, [filteredCandidates, activeStage]);
+
   const selectedCandidate = useMemo(
     () => candidateRows.find((candidate) => candidate.id === selectedCandidateId) ?? null,
     [candidateRows, selectedCandidateId],
+  );
+  const selectedVisibleCandidates = useMemo(
+    () => filteredCandidates.filter((candidate) => selectedCandidateIds.includes(candidate.id)),
+    [filteredCandidates, selectedCandidateIds],
+  );
+  const selectedCount = selectedVisibleCandidates.length;
+  const bulkStage = activeStage === "all" ? "unscreened" : activeStage;
+  const tableSortedColumnKey =
+    sortConfig?.key === "name"
+      ? "name"
+      : sortConfig?.key === "matchScore"
+        ? "matchScore"
+        : sortConfig?.key === "availabilityDays"
+          ? "availability"
+          : sortConfig?.key === "currentSalary"
+            ? "currentSalary"
+            : sortConfig?.key === "expectedSalary"
+              ? "expectedSalary"
+              : null;
+  const tableSortedColumnDirection = sortConfig?.direction ?? "asc";
+
+  const updateWorkspaceCandidate = useCallback(
+    (candidateId, updater, { fromStatus, toStatus, removeFromJob = false } = {}) => {
+      if (!job?.id || !candidateId) {
+        return null;
+      }
+
+      const currentCandidate = findStoredCandidate(candidateId);
+      if (!currentCandidate) {
+        return null;
+      }
+
+      const nextCandidate = updateStoredCandidate(candidateId, updater);
+      if (!nextCandidate) {
+        return null;
+      }
+
+      if (toStatus != null || removeFromJob) {
+        const currentJob = findStoredJob(job.id) ?? job;
+        const nextJob = updateJobPipelineCounts(currentJob, fromStatus ?? currentCandidate.status, toStatus, removeFromJob);
+
+        if (nextJob) {
+          upsertStoredJob({ ...nextJob, id: currentJob.id });
+        }
+      }
+
+      return nextCandidate;
+    },
+    [job],
+  );
+
+  const markCandidateViewed = useCallback(
+    (candidateId) => {
+      if (!job?.id || !candidateId) {
+        return;
+      }
+
+      updateWorkspaceCandidate(candidateId, (candidate) => ({
+        ...candidate,
+        jobContexts: {
+          ...(candidate.jobContexts ?? {}),
+          [job.id]: {
+            ...(candidate.jobContexts?.[job.id] ?? {}),
+            viewedAt: new Date().toISOString(),
+          },
+        },
+      }));
+    },
+    [job?.id, updateWorkspaceCandidate],
+  );
+
+  const handleOpenCandidateSheet = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      setSelectedCandidateId(candidate.id);
+      setCandidateSheetOpen(true);
+      markCandidateViewed(candidate.id);
+    },
+    [markCandidateViewed],
+  );
+
+  const handleMoveCandidateToNextStage = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      const nextStage = candidate.status === "rejected" ? "unscreened" : getNextPipelineStage(candidate.status);
+
+      updateWorkspaceCandidate(
+        candidate.id,
+        (current) => ({
+          ...current,
+          status: nextStage,
+        }),
+        { fromStatus: candidate.status, toStatus: nextStage },
+      );
+
+      showSuccess("Candidate moved", `${candidate.name} moved to ${PIPELINE_STAGES.find((stage) => stage.value === nextStage)?.label ?? "next stage"}.`);
+    },
+    [updateWorkspaceCandidate],
+  );
+
+  const handleMarkCandidateNotInterested = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      updateWorkspaceCandidate(candidate.id, (current) => ({ ...current, interested: "No" }));
+      showSuccess("Candidate updated", `${candidate.name} was marked as not interested.`);
+    },
+    [updateWorkspaceCandidate],
+  );
+
+  const handleRejectCandidate = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      updateWorkspaceCandidate(
+        candidate.id,
+        (current) => ({
+          ...current,
+          status: "rejected",
+        }),
+        { fromStatus: candidate.status, toStatus: "rejected" },
+      );
+      showSuccess("Candidate rejected", `${candidate.name} was moved to the rejected state.`);
+    },
+    [updateWorkspaceCandidate],
+  );
+
+  const handleRemoveCandidateFromJob = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      updateWorkspaceCandidate(
+        candidate.id,
+        (current) => ({
+          ...current,
+          jobId: null,
+          jobTitle: current.jobTitle ?? job?.title ?? "",
+        }),
+        { fromStatus: candidate.status, removeFromJob: true },
+      );
+      showSuccess("Candidate removed", `${candidate.name} was detached from ${jobTitleText}.`);
+    },
+    [job?.title, jobTitleText, updateWorkspaceCandidate],
+  );
+
+  const handleSetCandidateScreeningMode = useCallback(
+    (candidate, screeningModeOverride) => {
+      if (!candidate || !job?.id) {
+        return;
+      }
+
+      updateWorkspaceCandidate(candidate.id, (current) => ({
+        ...current,
+        jobContexts: {
+          ...(current.jobContexts ?? {}),
+          [job.id]: {
+            ...(current.jobContexts?.[job.id] ?? {}),
+            screeningModeOverride,
+          },
+        },
+      }));
+    },
+    [job?.id, updateWorkspaceCandidate],
+  );
+
+  const handleSelectCurrentStageCandidates = useCallback(() => {
+    setSelectedCandidateIds(pipelineCandidates.map((candidate) => candidate.id));
+  }, [pipelineCandidates]);
+
+  const clearSelectedCandidates = useCallback(() => {
+    setSelectedCandidateIds([]);
+  }, []);
+
+  const updateSelectedCandidateStatus = useCallback(
+    (candidate, updater, options, message) => {
+      if (!candidate) {
+        return;
+      }
+
+      updateWorkspaceCandidate(candidate.id, updater, options);
+      return message;
+    },
+    [updateWorkspaceCandidate],
+  );
+
+  const bulkSelectedVisibleCandidates = selectedVisibleCandidates;
+
+  const bulkActionHandlers = {
+    startAiPreScreening: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        if (candidate.status !== "unscreened") {
+          return;
+        }
+
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({ ...current, status: "screened" }),
+          { fromStatus: candidate.status, toStatus: "screened" },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved to pre-screening.`);
+      clearSelectedCandidates();
+    },
+    removeFromPreScreeningQueue: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        if (candidate.status !== "unscreened") {
+          return;
+        }
+
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({
+            ...current,
+            jobContexts: {
+              ...(current.jobContexts ?? {}),
+              [job.id]: {
+                ...(current.jobContexts?.[job.id] ?? {}),
+                preScreeningQueueState: "removed",
+              },
+            },
+          }),
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} removed from the pre-screening queue.`);
+      clearSelectedCandidates();
+    },
+    removeFromJob: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({
+            ...current,
+            jobId: null,
+            jobTitle: current.jobTitle ?? job?.title ?? "",
+          }),
+          { fromStatus: candidate.status, removeFromJob: true },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} removed from ${jobTitleText}.`);
+      clearSelectedCandidates();
+    },
+    markNotInterested: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        updateSelectedCandidateStatus(candidate, (current) => ({ ...current, interested: "No" }));
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} marked as not interested.`);
+      clearSelectedCandidates();
+    },
+    reject: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({ ...current, status: "rejected" }),
+          { fromStatus: candidate.status, toStatus: "rejected" },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} rejected.`);
+      clearSelectedCandidates();
+    },
+    moveToShortlisted: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        if (candidate.status !== "screened") {
+          return;
+        }
+
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({ ...current, status: "shortlisted" }),
+          { fromStatus: candidate.status, toStatus: "shortlisted" },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved to shortlisted.`);
+      clearSelectedCandidates();
+    },
+    moveToSentToClient: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        if (!["screened", "shortlisted"].includes(candidate.status)) {
+          return;
+        }
+
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({ ...current, status: "shared" }),
+          { fromStatus: candidate.status, toStatus: "shared" },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} sent to client.`);
+      clearSelectedCandidates();
+    },
+    moveBackToShortlisted: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        if (candidate.status !== "shared") {
+          return;
+        }
+
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({ ...current, status: "shortlisted" }),
+          { fromStatus: candidate.status, toStatus: "shortlisted" },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved back to shortlisted.`);
+      clearSelectedCandidates();
+    },
+    restoreCandidate: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        if (candidate.status !== "rejected") {
+          return;
+        }
+
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({ ...current, status: "unscreened" }),
+          { fromStatus: candidate.status, toStatus: "unscreened" },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} rejected candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} restored.`);
+      clearSelectedCandidates();
+    },
+  };
+
+  const handleDownloadCandidateResume = useCallback((candidate) => {
+    if (!candidate) {
+      return;
+    }
+
+    const resumeText = [
+      candidate.name,
+      candidate.jobTitle || job?.title || "",
+      candidate.currentRole || "",
+      candidate.currentCompany || "",
+      candidate.email || "—",
+      candidate.phone || "—",
+      `JD Match Score: ${candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}`,
+      `Trust Score: ${candidate.trustScore || "—"}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const blob = new Blob([resumeText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${candidate.name.replace(/\s+/g, "-").toLowerCase()}-resume.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [job?.title]);
+
+  const handleBulkDownloadResumes = useCallback(() => {
+    const selectedCandidates = selectedVisibleCandidates.length ? selectedVisibleCandidates : filteredCandidates;
+
+    if (!selectedCandidates.length) {
+      return;
+    }
+
+    const blob = new Blob(
+      [
+        selectedCandidates
+          .map(
+            (candidate) =>
+              [
+                candidate.name,
+                candidate.jobTitle || job?.title || "",
+                candidate.currentRole || "",
+                candidate.currentCompany || "",
+                candidate.email || "—",
+                candidate.phone || "—",
+                `JD Match Score: ${candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}`,
+                `Trust Score: ${candidate.trustScore || "—"}`,
+              ]
+                .filter(Boolean)
+                .join("\n"),
+          )
+          .join("\n\n---\n\n"),
+      ],
+      { type: "text/plain;charset=utf-8" },
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${job?.id || "candidates"}-resumes.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [filteredCandidates, job?.id, job?.title, selectedVisibleCandidates]);
+
+  const handleStartPrescreening = useCallback(
+    (candidate, screeningModeOverride) => {
+      if (!candidate) {
+        return;
+      }
+
+      if (screeningModeOverride) {
+        handleSetCandidateScreeningMode(candidate, screeningModeOverride);
+      }
+
+      handleMoveCandidateToNextStage(candidate);
+    },
+    [handleMoveCandidateToNextStage, handleSetCandidateScreeningMode],
   );
 
   const recommendedCandidates = useMemo(() => {
@@ -828,7 +1429,7 @@ export default function JobDetailsPage({ params }) {
       .map((candidate) => normalizeCandidate(candidate, findStoredJob(candidate.jobId)))
       .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0))
       .slice(0, 6);
-  }, [candidateRows, job?.id]);
+  }, [candidateRows, candidateSnapshot, job?.id]);
 
   const handleAddCandidates = useCallback(() => {
     setAddCandidatesOpen(true);
@@ -891,6 +1492,14 @@ export default function JobDetailsPage({ params }) {
         currentSalary: baseCandidate?.currentSalary ?? null,
         expectedSalary: baseCandidate?.expectedSalary ?? null,
         screeningOutcome: "",
+        jobContexts: {
+          ...(baseCandidate?.jobContexts ?? {}),
+          [job.id]: {
+            ...(baseCandidate?.jobContexts?.[job.id] ?? {}),
+            viewedAt: null,
+            screeningModeOverride: baseCandidate?.jobContexts?.[job.id]?.screeningModeOverride ?? "ai",
+          },
+        },
         updatedAt: now,
       };
     },
@@ -978,32 +1587,25 @@ export default function JobDetailsPage({ params }) {
     router.replace(`${ROUTES.JOB(jobId)}?tab=${nextStage}`, { scroll: false });
   }
 
-  function handleOpenMatchAnalysis(candidate) {
-    setSelectedCandidateId(candidate.id);
-    setAnalysisOpen(true);
+  function handleSort(key) {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        if (current.direction === "asc") {
+          return { key, direction: "desc" };
+        }
+
+        return null;
+      }
+
+      return { key, direction: key === "matchScore" ? "desc" : "asc" };
+    });
   }
 
-  function handleOpenCandidateAction(candidate, action) {
-    setSelectedCandidateId(candidate.id);
-    setCandidateAction(action);
-    setCandidateActionOpen(true);
-  }
-
-  function handleDownloadResume(candidate) {
-    const resumeText = [
-      candidate.name,
-      candidate.email,
-      candidate.phone,
-      `JD Match Score: ${candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}`,
-      `Trust Score: ${candidate.trustScore || "—"}`,
-    ].join("\n");
-    const blob = new Blob([resumeText], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${candidate.name.replace(/\s+/g, "-").toLowerCase()}-resume.txt`;
-    link.click();
-    URL.revokeObjectURL(url);
+  function getSortHeaderButtonClassName(key) {
+    return cn(
+      "inline-flex cursor-pointer items-center gap-[8px] text-left",
+      sortConfig?.key === key ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
+    );
   }
 
   async function handleShareJob() {
@@ -1036,7 +1638,12 @@ export default function JobDetailsPage({ params }) {
   const tableColumns = [
     {
       key: "name",
-      label: "Candidate Name",
+      label: (
+        <button type="button" className={getSortHeaderButtonClassName("name")} onClick={() => handleSort("name")}>
+          <span>Candidate Name</span>
+          <ArrowUpDown className="size-[14px]" />
+        </button>
+      ),
       width: 300,
       minWidth: 240,
       grow: 2,
@@ -1047,7 +1654,12 @@ export default function JobDetailsPage({ params }) {
     },
     {
       key: "matchScore",
-      label: "JD Match Score",
+      label: (
+        <button type="button" className={getSortHeaderButtonClassName("matchScore")} onClick={() => handleSort("matchScore")}>
+          <span>JD Match Score</span>
+          <ArrowUpDown className="size-[14px]" />
+        </button>
+      ),
       width: 136,
       minWidth: 120,
       maxWidth: 152,
@@ -1074,7 +1686,12 @@ export default function JobDetailsPage({ params }) {
     },
     {
       key: "availability",
-      label: "Availability",
+      label: (
+        <button type="button" className={getSortHeaderButtonClassName("availability")} onClick={() => handleSort("availabilityDays")}>
+          <span>Availability</span>
+          <ArrowUpDown className="size-[14px]" />
+        </button>
+      ),
       width: 136,
       minWidth: 120,
       maxWidth: 152,
@@ -1083,7 +1700,12 @@ export default function JobDetailsPage({ params }) {
     },
     {
       key: "currentSalary",
-      label: "Current Salary",
+      label: (
+        <button type="button" className={getSortHeaderButtonClassName("currentSalary")} onClick={() => handleSort("currentSalary")}>
+          <span>Current Salary</span>
+          <ArrowUpDown className="size-[14px]" />
+        </button>
+      ),
       width: 144,
       minWidth: 128,
       maxWidth: 160,
@@ -1092,7 +1714,12 @@ export default function JobDetailsPage({ params }) {
     },
     {
       key: "expectedSalary",
-      label: "Expectation",
+      label: (
+        <button type="button" className={getSortHeaderButtonClassName("expectedSalary")} onClick={() => handleSort("expectedSalary")}>
+          <span>Expectation</span>
+          <ArrowUpDown className="size-[14px]" />
+        </button>
+      ),
       width: 136,
       minWidth: 120,
       maxWidth: 152,
@@ -1101,10 +1728,22 @@ export default function JobDetailsPage({ params }) {
     },
     {
       key: "actions",
+      label: "Actions",
+      width: 112,
+      minWidth: 104,
+      maxWidth: 120,
+      align: "center",
+      cellClassName: "px-0 pr-0",
+      required: true,
+      locked: true,
+      hideable: false,
+    },
+    {
+      key: "menuActions",
       label: null,
-      width: 72,
-      minWidth: 72,
-      maxWidth: 72,
+      width: 56,
+      minWidth: 56,
+      maxWidth: 56,
       align: "center",
       cellClassName: "px-0 pr-0",
       required: true,
@@ -1113,20 +1752,27 @@ export default function JobDetailsPage({ params }) {
     },
   ];
 
-  const rows = filteredCandidates.map((candidate) => ({
+  const rows = sortedCandidates.map((candidate) => ({
     id: candidate.id,
+    __fxRowSelectionMeta: {
+      isNew:
+        !candidate.jobContext?.viewedAt &&
+        candidate.updatedAt &&
+        Date.now() - new Date(candidate.updatedAt).getTime() <= 2 * 24 * 60 * 60 * 1000,
+    },
     name: (
-      <Link
-        href={ROUTES.CANDIDATE(candidate.id)}
-        className="block truncate text-[14px] leading-[22px] font-medium text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
-      >
-        {candidate.name}
-      </Link>
+      <button
+          type="button"
+          className="block min-w-0 truncate text-left text-[14px] leading-[22px] font-medium text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
+          onClick={() => handleOpenCandidateSheet(candidate)}
+        >
+          {candidate.name}
+        </button>
     ),
     matchScore: (
       <button
         type="button"
-        onClick={() => handleOpenMatchAnalysis(candidate)}
+        onClick={() => handleOpenCandidateSheet(candidate)}
         className="inline-flex min-w-[64px] items-center justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface-selected)_84%)]"
       >
         {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
@@ -1166,12 +1812,42 @@ export default function JobDetailsPage({ params }) {
       </span>
     ),
     actions: (
+      <div className="flex items-center justify-center gap-[4px]">
+        <button
+          type="button"
+          className={cn(
+            "inline-flex size-[28px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-primary)] transition-colors hover:bg-[var(--fx-surface-hover)]",
+            candidate.status !== "unscreened" ? "opacity-50" : "",
+          )}
+          aria-label={`Start AI pre-screening for ${candidate.name}`}
+          title="Start AI Pre-Screening"
+          disabled={candidate.status !== "unscreened"}
+          onClick={() => handleStartPrescreening(candidate, "ai")}
+        >
+          <Sparkles className="size-[14px]" />
+        </button>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex size-[28px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-text)] transition-colors hover:bg-[var(--fx-surface-hover)]",
+            candidate.status !== "unscreened" ? "opacity-50" : "",
+          )}
+          aria-label={`Manual pre-screening for ${candidate.name}`}
+          title="Manual Pre-Screening"
+          disabled={candidate.status !== "unscreened"}
+          onClick={() => handleStartPrescreening(candidate, "manual")}
+        >
+          <PencilLine className="size-[14px]" />
+        </button>
+      </div>
+    ),
+    menuActions: (
       <div className="flex flex-col items-center justify-center gap-[4px]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="inline-flex size-[32px] items-center justify-center rounded-[8px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+              className="inline-flex size-[28px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
               aria-label={`Open actions for ${candidate.name}`}
             >
               <MoreHorizontal className="size-[16px]" />
@@ -1181,7 +1857,15 @@ export default function JobDetailsPage({ params }) {
             <DropdownMenuItem
               onSelect={(event) => {
                 event.preventDefault();
-                handleOpenCandidateAction(candidate, "resume");
+                handleOpenCandidateSheet(candidate);
+              }}
+            >
+              Open Candidate
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                handleOpenCandidateSheet(candidate);
               }}
             >
               View Resume
@@ -1189,50 +1873,27 @@ export default function JobDetailsPage({ params }) {
             <DropdownMenuItem
               onSelect={(event) => {
                 event.preventDefault();
-                handleOpenMatchAnalysis(candidate);
-              }}
-            >
-              View Screening Results / View Match Analysis
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                handleOpenCandidateAction(candidate, "questions");
-              }}
-            >
-              Generate Interview Questions
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                handleOpenCandidateAction(candidate, "edit");
-              }}
-            >
-              Edit Candidate Details
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                handleOpenCandidateAction(candidate, "notInterested");
-              }}
-            >
-              Mark as Not Interested
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                handleOpenCandidateAction(candidate, "reject");
-              }}
-            >
-              Reject Candidate
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={async (event) => {
-                event.preventDefault();
-                handleDownloadResume(candidate);
+                handleDownloadCandidateResume(candidate);
               }}
             >
               Download Resume
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={async (event) => {
+                event.preventDefault();
+                handleRemoveCandidateFromJob(candidate);
+              }}
+            >
+              Remove from Job
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                handleRejectCandidate(candidate);
+              }}
+            >
+              Reject Candidate
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -1282,6 +1943,7 @@ export default function JobDetailsPage({ params }) {
           <button
             type="button"
             aria-label="Failed"
+            onClick={() => handleOpenCandidateSheet(candidate)}
             className="inline-flex size-[8px] shrink-0 rounded-full bg-[var(--fx-danger)]"
           />
         </TooltipTrigger>
@@ -1294,6 +1956,83 @@ export default function JobDetailsPage({ params }) {
       </Tooltip>
     );
   }
+
+  const renderBulkButton = (key, Icon, label, onClick, tone = "neutral") => (
+    <FxButton
+      key={key}
+      variant="ghost"
+      size="sm"
+      disabled={selectedCount === 0}
+      onClick={onClick}
+      className={cn(
+        "h-[36px] rounded-[6px] px-[12px] text-[12px] leading-[18px] font-medium shadow-none",
+        tone === "accent"
+          ? "border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-primary)] hover:bg-[var(--fx-surface-hover)]"
+          : tone === "danger"
+            ? "border border-[color-mix(in_srgb,var(--fx-danger)_24%,var(--fx-border)_76%)] bg-[var(--fx-surface-raised)] text-[var(--fx-danger)] hover:bg-[color-mix(in_srgb,var(--fx-danger)_8%,var(--fx-surface-raised)_92%)]"
+            : "border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]",
+      )}
+    >
+      {Icon ? <Icon className="size-[14px]" /> : null}
+      {label}
+    </FxButton>
+  );
+
+  const bulkToolbarButtons = (() => {
+    if (bulkStage === "unscreened") {
+      return [
+        renderBulkButton("ai-pre-screen", Sparkles, "Start AI Pre-Screening", bulkActionHandlers.startAiPreScreening, "accent"),
+        renderBulkButton("remove-from-queue", Minus, "Remove from Pre-Screening Queue", bulkActionHandlers.removeFromPreScreeningQueue),
+        renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob),
+        renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
+        renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
+        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+      ];
+    }
+
+    if (bulkStage === "screened") {
+      return [
+        renderBulkButton("shortlisted", ArrowRight, "Move to Shortlisted", bulkActionHandlers.moveToShortlisted, "accent"),
+        renderBulkButton("sent-to-client", ArrowRight, "Move to Sent to Client", bulkActionHandlers.moveToSentToClient),
+        renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
+        renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
+        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+      ];
+    }
+
+    if (bulkStage === "shortlisted") {
+      return [
+        renderBulkButton("sent-to-client", ArrowRight, "Move to Sent to Client", bulkActionHandlers.moveToSentToClient, "accent"),
+        renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
+        renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
+        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+      ];
+    }
+
+    if (bulkStage === "shared") {
+      return [
+        renderBulkButton("back-to-shortlisted", ArrowLeft, "Move back to Shortlisted", bulkActionHandlers.moveBackToShortlisted, "accent"),
+        renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
+        renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
+        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+      ];
+    }
+
+    if (bulkStage === "rejected") {
+      return [
+        renderBulkButton("restore", RotateCcw, "Restore Candidate", bulkActionHandlers.restoreCandidate, "secondary"),
+        renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob),
+        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+      ];
+    }
+
+    return [
+      renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
+      renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
+      renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob),
+      renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+    ];
+  })();
 
   if (job?.status === "Draft") {
     return null;
@@ -1418,26 +2157,43 @@ export default function JobDetailsPage({ params }) {
 
               <div className="min-h-0 flex-1 overflow-hidden">
                 {filteredCandidates.length ? (
-                  <FxTable
-                    columns={tableColumns}
-                    rows={rows}
-                    stickyHeader
-                    stickyFirstColumn
-                    stickyLastColumn
-                    scrollX
-                    emptyMessage="No candidates in this stage yet."
-                    enableColumnPicker
-                    storageKey={STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}
-                  />
+                  <div className="flex h-full min-h-0 flex-col gap-[12px]">
+                    <div className={`flex min-h-[64px] flex-wrap items-center justify-between gap-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface-subtle)] px-[16px] py-[12px]`}>
+                      <div className="text-[14px] leading-[22px] font-medium text-[var(--fx-text-muted)]">
+                        {selectedCount} selected
+                      </div>
+                      <div className="flex flex-wrap items-center gap-[8px]">
+                        {bulkToolbarButtons}
+                      </div>
+                    </div>
+
+                    <FxTable
+                      columns={tableColumns}
+                      rows={rows}
+                      sortedColumnKey={tableSortedColumnKey}
+                      sortedColumnDirection={tableSortedColumnDirection}
+                      stickyHeader
+                      stickyFirstColumn
+                      stickyLastColumn
+                      scrollX
+                      emptyMessage="No candidates in this stage yet."
+                      enableColumnPicker
+                      storageKey={STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}
+                      enableRowSelection
+                      selectedRowKeys={selectedCandidateIds}
+                      onSelectedRowKeysChange={setSelectedCandidateIds}
+                      rowSelectionActions={{ onSelectCurrentStage: handleSelectCurrentStageCandidates }}
+                    />
+                  </div>
                 ) : (
                   <WorkspaceEmptyState
                     title={getStageCopy(activeStage, searchTerm).title}
                     body={getStageCopy(activeStage, searchTerm).body}
-                    action={
+                    action={searchTerm.trim() ? null : (
                       <FxButton type="button" onClick={handleAddCandidates}>
                         Add Candidates
                       </FxButton>
-                    }
+                    )}
                   />
                 )}
               </div>
@@ -1470,12 +2226,16 @@ export default function JobDetailsPage({ params }) {
         onUploadFiles={handleUploadCandidateFiles}
         onAddSingleCandidate={handleAddSingleCandidate}
       />
-        <CandidateMatchDrawer open={analysisOpen} onOpenChange={setAnalysisOpen} candidate={selectedCandidate} />
-        <CandidateActionDrawer
-          open={candidateActionOpen}
-          onOpenChange={setCandidateActionOpen}
+        <CandidateWorkspaceSheet
+          open={candidateSheetOpen}
+          onOpenChange={setCandidateSheetOpen}
           candidate={selectedCandidate}
-          action={candidateAction}
+          job={job}
+          onMoveToNextStage={handleMoveCandidateToNextStage}
+          onMarkNotInterested={handleMarkCandidateNotInterested}
+          onReject={handleRejectCandidate}
+          onRemoveFromJob={handleRemoveCandidateFromJob}
+          onSetScreeningMode={handleSetCandidateScreeningMode}
         />
         <CallPreviewDrawer open={callPreviewOpen} onOpenChange={setCallPreviewOpen} job={job} />
       </FxProtectedAppPage>

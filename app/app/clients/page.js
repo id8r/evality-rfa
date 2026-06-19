@@ -235,6 +235,10 @@ export default function ClientsPage() {
         return haystack.includes(query);
       });
 
+    if (!sortConfig) {
+      return [...nextClients];
+    }
+
     return [...nextClients].sort((left, right) => {
       const leftMetrics = getClientMetrics(left, jobRows, candidateRows);
       const rightMetrics = getClientMetrics(right, jobRows, candidateRows);
@@ -259,12 +263,23 @@ export default function ClientsPage() {
 
   function handleSort(key) {
     setSortConfig((current) => {
-      if (current.key === key) {
-        return { key, direction: current.direction === "asc" ? "desc" : "asc" };
+      if (current?.key === key) {
+        if (current.direction === "asc") {
+          return { key, direction: "desc" };
+        }
+
+        return null;
       }
 
       return { key, direction: key === "updatedAt" ? "desc" : "asc" };
     });
+  }
+
+  function getSortHeaderButtonClassName(key) {
+    return cn(
+      "inline-flex cursor-pointer items-center gap-[8px] text-left",
+      sortConfig?.key === key ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
+    );
   }
 
   function handleCreateClient() {
@@ -390,7 +405,7 @@ export default function ClientsPage() {
       {
         key: "name",
         label: (
-          <button type="button" className="inline-flex cursor-pointer items-center gap-[8px] text-left text-[var(--fx-text-muted)] hover:text-[var(--fx-text)]" onClick={() => handleSort("name")}>
+          <button type="button" className={getSortHeaderButtonClassName("name")} onClick={() => handleSort("name")}>
             <span>Client</span>
             <ArrowUpDown className="size-[14px]" />
           </button>
@@ -420,7 +435,7 @@ export default function ClientsPage() {
       {
         key: "candidates",
         label: (
-          <button type="button" className="inline-flex cursor-pointer items-center gap-[8px] text-left text-[var(--fx-text-muted)] hover:text-[var(--fx-text)]" onClick={() => handleSort("candidates")}>
+          <button type="button" className={getSortHeaderButtonClassName("candidates")} onClick={() => handleSort("candidates")}>
             <span>Candidates</span>
             <ArrowUpDown className="size-[14px]" />
           </button>
@@ -448,7 +463,7 @@ export default function ClientsPage() {
       {
         key: "updatedAt",
         label: (
-          <button type="button" className="inline-flex cursor-pointer items-center gap-[8px] text-left text-[var(--fx-text-muted)] hover:text-[var(--fx-text)]" onClick={() => handleSort("updatedAt")}>
+          <button type="button" className={getSortHeaderButtonClassName("updatedAt")} onClick={() => handleSort("updatedAt")}>
             <span>Last Activity</span>
             <ArrowUpDown className="size-[14px]" />
           </button>
@@ -548,8 +563,8 @@ export default function ClientsPage() {
                 stickyLastColumn
                 scrollX
                 className="h-full min-h-0"
-                sortedColumnKey={sortConfig.key}
-                sortedColumnDirection={sortConfig.direction}
+                sortedColumnKey={sortConfig?.key ?? null}
+                sortedColumnDirection={sortConfig?.direction ?? "asc"}
                 emptyMessage="No clients match the current search."
                 enableColumnPicker
                 storageKey="fx-clients-table-columns"
@@ -563,8 +578,8 @@ export default function ClientsPage() {
                 stickyLastColumn
                 scrollX
                 className="h-full min-h-0"
-                sortedColumnKey={sortConfig.key}
-                sortedColumnDirection={sortConfig.direction}
+                sortedColumnKey={sortConfig?.key ?? null}
+                sortedColumnDirection={sortConfig?.direction ?? "asc"}
                 emptyMessage="No clients to display."
                 enableColumnPicker
                 storageKey="fx-clients-table-columns"
