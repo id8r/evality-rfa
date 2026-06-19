@@ -222,6 +222,8 @@ export function FxTable({
   scrollX = true,
   minTableWidth,
   density = "comfortable",
+  sortedColumnKey = null,
+  sortedColumnDirection = "asc",
   emptyMessage = "No rows to display.",
   headerClassName,
   bodyClassName,
@@ -329,13 +331,16 @@ export function FxTable({
           {visibleColumns.map((column, columnIndex) => {
             const stickyPosition = getColumnStickyPosition(column, columnIndex, visibleColumns.length, stickyFirstColumn, stickyLastColumn);
             const isLastColumn = columnIndex === visibleColumns.length - 1;
+            const isSortedColumn = sortedColumnKey === column.key;
 
             return (
               <th
                 key={column.key}
+                aria-sort={isSortedColumn ? (sortedColumnDirection === "desc" ? "descending" : "ascending") : "none"}
                 className={cn(
                   FX_TABLE.headerCell,
-                  "bg-[var(--fx-table-header)]",
+                  "relative bg-[var(--fx-table-header)]",
+                  isSortedColumn ? "relative bg-[color:color-mix(in_srgb,var(--fx-surface-hover)_28%,var(--fx-table-header)_72%)] text-[var(--fx-text)] after:pointer-events-none after:absolute after:inset-x-[12px] after:bottom-0 after:h-[2px] after:rounded-full after:bg-[var(--fx-primary)]" : "",
                   getStickyHeaderClassName(stickyPosition, stickyHeader),
                   column.align === "right" ? "text-right" : "",
                   column.align === "center" ? "text-center" : "",
@@ -343,16 +348,14 @@ export function FxTable({
                 )}
                 style={columnStylesByKey.get(column.key)}
               >
-                <div className={cn("min-w-0", TABLE_TYPOGRAPHY.header, headerTextClassName)}>
-                  {isLastColumn && columnPicker ? (
-                    <div className={cn("flex items-center gap-[8px]", column.align === "right" ? "justify-end" : "justify-between")}>
-                      {column.label ? <span className="min-w-0 truncate">{column.label}</span> : null}
-                      {columnPicker}
-                    </div>
-                  ) : (
-                    column.label
-                  )}
+                <div className={cn("min-w-0", TABLE_TYPOGRAPHY.header, headerTextClassName, isLastColumn && columnPicker ? "pr-[40px]" : "")}>
+                  {column.label}
                 </div>
+                {isLastColumn && columnPicker ? (
+                  <div className="pointer-events-auto absolute right-[8px] top-1/2 -translate-y-1/2">
+                    {columnPicker}
+                  </div>
+                ) : null}
               </th>
             );
           })}

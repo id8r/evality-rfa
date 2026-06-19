@@ -548,6 +548,8 @@ export default function ClientsPage() {
                 stickyLastColumn
                 scrollX
                 className="h-full min-h-0"
+                sortedColumnKey={sortConfig.key}
+                sortedColumnDirection={sortConfig.direction}
                 emptyMessage="No clients match the current search."
                 enableColumnPicker
                 storageKey="fx-clients-table-columns"
@@ -561,6 +563,8 @@ export default function ClientsPage() {
                 stickyLastColumn
                 scrollX
                 className="h-full min-h-0"
+                sortedColumnKey={sortConfig.key}
+                sortedColumnDirection={sortConfig.direction}
                 emptyMessage="No clients to display."
                 enableColumnPicker
                 storageKey="fx-clients-table-columns"

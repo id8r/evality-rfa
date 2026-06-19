@@ -899,23 +899,39 @@ export default function JobsPage() {
   function updateRound(roundId, field, value) {
     setJobForm((current) => ({
       ...current,
-      evaluationRounds: current.evaluationRounds.map((round) =>
-        round.id === roundId ? { ...round, [field]: value } : round,
-      ),
+      evaluationRounds: current.evaluationRounds.map((round, index, rounds) => {
+        const isLockedRound = index === 0 || index === rounds.length - 1;
+
+        if (round.id !== roundId || isLockedRound) {
+          return round;
+        }
+
+        return { ...round, [field]: value };
+      }),
     }));
   }
 
   function addRound() {
     setJobForm((current) => ({
       ...current,
-      evaluationRounds: [...current.evaluationRounds, createRoundItem("Round", "", "")],
+      evaluationRounds:
+        current.evaluationRounds.length >= 2
+          ? [
+              ...current.evaluationRounds.slice(0, -1),
+              createRoundItem("Round", "", ""),
+              current.evaluationRounds[current.evaluationRounds.length - 1],
+            ]
+          : [...current.evaluationRounds, createRoundItem("Round", "", "")],
     }));
   }
 
   function removeRound(roundId) {
     setJobForm((current) => ({
       ...current,
-      evaluationRounds: current.evaluationRounds.filter((round) => round.id !== roundId),
+      evaluationRounds: current.evaluationRounds.filter((round, index, rounds) => {
+        const isLockedRound = index === 0 || index === rounds.length - 1;
+        return round.id !== roundId || isLockedRound;
+      }),
     }));
   }
 
@@ -1461,6 +1477,8 @@ export default function JobsPage() {
   }
 
   function renderInterviewProcessSection() {
+    const rounds = jobForm.evaluationRounds;
+
     return (
       <div className="space-y-[12px]">
         <div className="flex items-center justify-between gap-[16px]">
@@ -1478,7 +1496,10 @@ export default function JobsPage() {
           </FxButton>
         </div>
         <div className="overflow-hidden rounded-[14px] border border-[var(--fx-border)] bg-[var(--fx-surface)]">
-          {jobForm.evaluationRounds.map((round, index) => (
+          {rounds.map((round, index) => {
+            const isLockedRound = index === 0 || index === rounds.length - 1;
+
+            return (
             <div
               key={round.id}
               className={`grid gap-[10px] px-[12px] py-[10px] md:grid-cols-[92px_minmax(0,1.2fr)_minmax(0,1fr)_auto] md:items-center ${
@@ -1491,33 +1512,48 @@ export default function JobsPage() {
                 </span>
               </div>
               <div className="flex items-center">
-                <input
-                  value={round.details}
-                  onChange={(event) => updateRound(round.id, "details", event.target.value)}
-                  placeholder="Details"
-                  className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
-                />
+                {isLockedRound ? (
+                  <span className="block min-w-0 truncate text-[14px] leading-[22px] text-[var(--fx-text)]">
+                    {round.details || "Details"}
+                  </span>
+                ) : (
+                  <input
+                    value={round.details}
+                    onChange={(event) => updateRound(round.id, "details", event.target.value)}
+                    placeholder="Details"
+                    className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
+                  />
+                )}
               </div>
               <div className="flex items-center">
-                <input
-                  value={round.note}
-                  onChange={(event) => updateRound(round.id, "note", event.target.value)}
-                  placeholder="Additional Info"
-                  className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
-                />
+                {isLockedRound ? (
+                  <span className="block min-w-0 truncate text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                    {round.note || "Additional Info"}
+                  </span>
+                ) : (
+                  <input
+                    value={round.note}
+                    onChange={(event) => updateRound(round.id, "note", event.target.value)}
+                    placeholder="Additional Info"
+                    className="h-[40px] w-full rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none focus:border-[var(--fx-primary)] focus:ring-2 focus:ring-[var(--fx-primary)]/20"
+                  />
+                )}
               </div>
               <div className="flex items-center md:justify-end">
-                <button
-                  type="button"
-                  className="inline-flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
-                  onClick={() => removeRound(round.id)}
-                  aria-label="Remove round"
-                >
-                  <Trash2 className="size-[16px]" />
-                </button>
+                {!isLockedRound ? (
+                  <button
+                    type="button"
+                    className="inline-flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                    onClick={() => removeRound(round.id)}
+                    aria-label="Remove round"
+                  >
+                    <Trash2 className="size-[16px]" />
+                  </button>
+                ) : null}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -2123,6 +2159,8 @@ export default function JobsPage() {
                 stickyLastColumn
                 scrollX
                 className="h-full min-h-0"
+                sortedColumnKey={sortConfig.key === "updatedAt" ? "lastActivity" : sortConfig.key}
+                sortedColumnDirection={sortConfig.direction}
                 emptyMessage={PAGE_COPY.jobs.tableEmpty}
                 enableColumnPicker
                 storageKey={STORAGE_KEYS.JOBS_TABLE_COLUMNS}

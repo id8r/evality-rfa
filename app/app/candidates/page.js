@@ -488,6 +488,8 @@ export default function CandidatesPage() {
                 stickyLastColumn
                 scrollX
                 className="h-full min-h-0"
+                sortedColumnKey={sortConfig.key}
+                sortedColumnDirection={sortConfig.direction}
                 emptyMessage="No candidates match the current search."
                 enableColumnPicker
                 storageKey="fx-candidates-table-columns"
