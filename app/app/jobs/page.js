@@ -49,6 +49,7 @@ import { FxRichTextEditor } from "@/components/FxRichTextEditor";
 import { FxSelect } from "@/components/FxSelect";
 import { FxTagInput } from "@/components/FxTagInput";
 import { FxTable } from "@/components/FxTable";
+import { FxTabs } from "@/components/FxTabs";
 import { showSuccess, showWarning } from "@/components/FxToast";
 import {
   AlertDialog,
@@ -829,6 +830,54 @@ export default function JobsPage() {
     }));
   }
 
+  function handleQuestionCountChange(event) {
+    const rawValue = event.target.value;
+    const nextCount = Math.max(0, Number.parseInt(rawValue || "0", 10) || 0);
+
+    setJobForm((current) => {
+      const currentQuestions = Array.isArray(current.questions) ? current.questions : [];
+
+      if (nextCount <= currentQuestions.length) {
+        return {
+          ...current,
+          questions: currentQuestions.slice(0, nextCount),
+        };
+      }
+
+      const nextQuestions = [...currentQuestions];
+      const usedKeys = new Set(
+        nextQuestions.flatMap((question) => [
+          normalizeQuestionKey(question.label),
+          normalizeQuestionKey(question.question),
+        ]),
+      );
+
+      const availableQuestions = DEFAULT_JOB_QUESTION_SUGGESTIONS.filter((question) => {
+        const labelKey = normalizeQuestionKey(question.label);
+        const questionKey = normalizeQuestionKey(question.question);
+
+        return !usedKeys.has(labelKey) && !usedKeys.has(questionKey);
+      });
+
+      while (nextQuestions.length < nextCount) {
+        const template = availableQuestions.shift();
+
+        if (template) {
+          nextQuestions.push(createQuestionItem(template.label, template.question, template.note));
+          continue;
+        }
+
+        const index = nextQuestions.length + 1;
+        nextQuestions.push(createQuestionItem(`Custom ${index}`, `Question ${index}`, ""));
+      }
+
+      return {
+        ...current,
+        questions: nextQuestions,
+      };
+    });
+  }
+
   function suggestCustomQuestion(nextValue) {
     const text = String(nextValue ?? "").toLowerCase().trim();
 
@@ -1412,13 +1461,15 @@ export default function JobsPage() {
           </FxButton>
         </div>
 
-        <div className="space-y-[6px] text-[14px] leading-[22px] text-[var(--fx-text)]">
-          {lines.map((line, index) => (
-            <div key={index} className="text-[14px] leading-[22px] text-[var(--fx-text)]">
-              {line}
-            </div>
-          ))}
-        </div>
+        {lines.length ? (
+          <div className="space-y-[6px] text-[14px] leading-[22px] text-[var(--fx-text)]">
+            {lines.map((line, index) => (
+              <div key={index} className="text-[14px] leading-[22px] text-[var(--fx-text)]">
+                {line}
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {children ? <div>{children}</div> : null}
       </div>
@@ -1909,9 +1960,9 @@ export default function JobsPage() {
     {
       key: "actions",
       label: "",
-      width: 64,
-      minWidth: 64,
-      maxWidth: 64,
+      width: 56,
+      minWidth: 56,
+      maxWidth: 56,
       align: "right",
       required: true,
       locked: true,
@@ -2084,27 +2135,20 @@ export default function JobsPage() {
         ) : null}
         <div className="flex min-h-0 flex-1 flex-col gap-[24px] overflow-hidden">
           <div className="grid min-w-0 flex-none grid-cols-[minmax(0,1fr)_auto] items-end gap-[16px]">
-            <div className="flex min-w-0 items-end gap-[24px]">
-              <button
-                type="button"
-                className={`relative cursor-pointer pb-[8px] ${selectedTab === "active" ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"} ${FX_TYPOGRAPHY.button}`}
-                onClick={() => setSelectedTab("active")}
-              >
-                {PAGE_COPY.jobs.activeTab} ({activeCount})
-                {selectedTab === "active" ? <span className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
-              </button>
-              <button
-                type="button"
-                className={`relative cursor-pointer pb-[8px] ${selectedTab === "archived" ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"} ${FX_TYPOGRAPHY.button}`}
-                onClick={() => setSelectedTab("archived")}
-              >
-                {PAGE_COPY.jobs.archivedTab} ({archivedCount})
-                {selectedTab === "archived" ? <span className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
-              </button>
-            </div>
+            <FxTabs
+              variant="stage"
+              items={[
+                { value: "active", label: PAGE_COPY.jobs.activeTab, count: activeCount },
+                { value: "archived", label: PAGE_COPY.jobs.archivedTab, count: archivedCount },
+              ]}
+              value={selectedTab}
+              onValueChange={setSelectedTab}
+              className="w-full"
+              showBorder={false}
+            />
 
             <div className="flex min-w-0 shrink-0 items-center gap-[12px] justify-self-end">
-              <div className="w-full max-w-[320px] min-w-0">
+              <div className="w-full max-w-[200px] min-w-0">
                 <FxInput
                   ref={searchInputRef}
                   aria-label="Search jobs"
@@ -2381,6 +2425,20 @@ export default function JobsPage() {
                             onChange={handleJobFormChange}
                             state={fieldState("positions")}
                             validationMessage={validationErrors.positions}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-2">
+                          <FxInput
+                            name="questionCount"
+                            label="Pre-Screen Questions"
+                            min="0"
+                            type="number"
+                            value={jobForm.questions?.length ?? 0}
+                            onChange={handleQuestionCountChange}
+                            optional
                             className={BASIC_FORM_CONTROL_CLASS}
                             stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                           />
@@ -2693,44 +2751,10 @@ export default function JobsPage() {
                     </label>
                   </RadioGroup>
 
-                  <div className="mt-[16px] space-y-[16px]">
-                    <div className="flex items-center justify-between gap-[16px]">
-                      <h4 className={FX_TYPOGRAPHY.button}>Pre-Screening Questions</h4>
-                    </div>
-
-                    <div className="space-y-[10px]">
-                      {jobForm.questions.map((question) => renderQuestionCard(question))}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-[8px] pt-[2px]">
-                      {availableDefaultQuestions.map((question) => (
-                        <FxButton
-                          key={question.id}
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addQuestion(question)}
-                        >
-                          <Plus className="size-[16px]" />
-                          {question.label}
-                        </FxButton>
-                      ))}
-                      <FxButton
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="font-medium text-[var(--fx-primary)]"
-                        onClick={() => {
-                          const nextQuestion = window.prompt("Add custom question");
-                          if (nextQuestion) {
-                            commitCustomQuestion(nextQuestion);
-                          }
-                        }}
-                      >
-                        <Plus className="size-[16px]" />
-                        Custom Question
-                      </FxButton>
-                    </div>
+                  <div className="mt-[16px] rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[16px] py-[14px]">
+                    <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">
+                      {jobForm.questions?.length ?? 0} pre-screen question{(jobForm.questions?.length ?? 0) === 1 ? "" : "s"} configured in Basic Details.
+                    </p>
                   </div>
                 </section>
               ) : null}
@@ -2771,34 +2795,29 @@ export default function JobsPage() {
                     {renderReviewSummaryRow({
                       title: "Basic Details",
                       step: "basic",
-              complete: reviewBasicComplete,
-                      lines: [
-                        <p className="text-[15px] leading-[22px] font-medium text-[var(--fx-text)]">
-                          {reviewBasicSummary.title}
-                        </p>,
-                        reviewBasicSummaryLine,
-                      ],
+                      complete: reviewBasicComplete,
+                      lines: reviewBasicComplete ? [] : ["Required role details are still missing."],
                     })}
 
                     {renderReviewSummaryRow({
                       title: "Job Description",
                       step: "description",
                       complete: reviewDescriptionComplete,
-                      lines: [reviewJobDescriptionLine],
+                      lines: reviewDescriptionComplete ? [] : ["Add a job description before publishing."],
                     })}
 
                     {renderReviewSummaryRow({
                       title: "Questionnaire",
                       step: "questionnaire",
                       complete: reviewQuestionnaireComplete,
-                      lines: [reviewQuestionnaireLine],
+                      lines: reviewQuestionnaireComplete ? [] : ["Set at least 1 pre-screen question."],
                     })}
 
                     {renderReviewSummaryRow({
                       title: "Benefits",
                       step: "benefits",
                       complete: reviewBenefitsComplete,
-                      lines: [`${reviewBenefitsCount} Benefits`],
+                      lines: reviewBenefitsComplete ? [] : ["Select the benefits you want candidates to see."],
                     })}
 
                     {evaluationContextMissing ? (
@@ -2808,7 +2827,7 @@ export default function JobsPage() {
                         title: "Evaluation",
                         step: "evaluation",
                         complete: reviewEvaluationComplete,
-                        lines: [reviewEvaluationStatus],
+                        lines: [],
                       })
                     )}
                   </div>

@@ -1,6 +1,6 @@
 /* components/FxTable.js | Shared dense table primitive | Sree | 2026-06-13 */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { FxColumnPicker } from "@/components/FxColumnPicker";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,9 +22,9 @@ const TABLE_DENSITY = {
 const ROW_SELECTION_COLUMN = {
   key: "__fx_row_selection__",
   label: null,
-  width: 64,
-  minWidth: 64,
-  maxWidth: 64,
+  width: 56,
+  minWidth: 56,
+  maxWidth: 56,
   required: true,
   locked: true,
   hideable: false,
@@ -87,9 +87,9 @@ function isCompactCountColumn(column) {
 function getFallbackColumnDimensions(column) {
   if (isActionColumn(column)) {
     return {
-      width: 64,
-      minWidth: 64,
-      maxWidth: 64,
+      width: 56,
+      minWidth: 56,
+      maxWidth: 56,
     };
   }
 
@@ -97,7 +97,6 @@ function getFallbackColumnDimensions(column) {
     return {
       width: 280,
       minWidth: 240,
-      maxWidth: 360,
     };
   }
 
@@ -105,7 +104,6 @@ function getFallbackColumnDimensions(column) {
     return {
       width: 96,
       minWidth: 80,
-      maxWidth: 120,
     };
   }
 
@@ -113,25 +111,30 @@ function getFallbackColumnDimensions(column) {
     return {
       width: 180,
       minWidth: 140,
-      maxWidth: 260,
     };
   }
 
   return {
     width: 160,
     minWidth: 140,
-    maxWidth: 220,
   };
 }
 
 function getResolvedColumnStyle(column) {
   const fallbackDimensions = getFallbackColumnDimensions(column);
 
-  return {
+  const style = {
     width: toCssSize(column.width ?? fallbackDimensions.width),
     minWidth: toCssSize(column.minWidth ?? fallbackDimensions.minWidth),
-    maxWidth: toCssSize(column.maxWidth ?? fallbackDimensions.maxWidth),
   };
+
+  const resolvedMaxWidth = column.maxWidth ?? fallbackDimensions.maxWidth;
+
+  if (resolvedMaxWidth != null) {
+    style.maxWidth = toCssSize(resolvedMaxWidth);
+  }
+
+  return style;
 }
 
 function getColumnMinimumWidth(column) {
@@ -230,6 +233,7 @@ export function FxTable({
   columns,
   rows,
   className,
+  surfaceClassName,
   stickyHeader = false,
   stickyFirstColumn = false,
   stickyLastColumn = false,
@@ -267,6 +271,9 @@ export function FxTable({
   const controlledSelectedRowKeys = Array.isArray(selectedRowKeys) ? selectedRowKeys : null;
   const [internalSelectedRowKeys, setInternalSelectedRowKeys] = useState(() => defaultSelectedRowKeys ?? []);
   const [isHydrated, setIsHydrated] = useState(!storageKey);
+  const [hasOverflowLeft, setHasOverflowLeft] = useState(false);
+  const [hasOverflowRight, setHasOverflowRight] = useState(false);
+  const scrollContainerRef = useRef(null);
 
   useEffect(() => {
     if (controlledVisibleColumnKeys) {
@@ -322,6 +329,42 @@ export function FxTable({
       writeStoredJSON(storageKey, visibleColumnKeysState);
     }
   }, [controlledVisibleColumnKeys, isHydrated, storageKey, visibleColumnKeysState]);
+
+  useEffect(() => {
+    if (!scrollX) {
+      setHasOverflowLeft(false);
+      setHasOverflowRight(false);
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    function updateScrollIndicators() {
+      const maxScrollLeft = container.scrollWidth - container.clientWidth;
+      const nextHasOverflow = maxScrollLeft > 4;
+
+      setHasOverflowLeft(container.scrollLeft > 4);
+      setHasOverflowRight(nextHasOverflow && container.scrollLeft < maxScrollLeft - 4);
+    }
+
+    updateScrollIndicators();
+
+    container.addEventListener("scroll", updateScrollIndicators, { passive: true });
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateScrollIndicators();
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      container.removeEventListener("scroll", updateScrollIndicators);
+      resizeObserver.disconnect();
+    };
+  }, [rows, scrollX, tableMinWidth, visibleColumnsKey]);
 
   function updateVisibleColumnKeys(nextKeys) {
     const normalizedKeys = normalizeColumnKeys(columns, nextKeys);
@@ -406,6 +449,7 @@ export function FxTable({
             const stickyPosition = getColumnStickyPosition(column, columnIndex, renderColumns.length, stickyFirstColumn, stickyLastColumn);
             const isLastColumn = columnIndex === renderColumns.length - 1;
             const isSortedColumn = sortedColumnKey === column.key;
+            const isLastUtilityColumn = isLastColumn && columnPicker && isActionColumn(column);
 
             return (
               <th
@@ -414,6 +458,7 @@ export function FxTable({
                 className={cn(
                   FX_TABLE.headerCell,
                   "relative bg-[var(--fx-table-header)] transition-colors",
+                  isLastUtilityColumn ? "px-0" : "",
                   isSortedColumn ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
                   getStickyHeaderClassName(stickyPosition, stickyHeader),
                   column.align === "right" ? "text-right" : "",
@@ -422,11 +467,14 @@ export function FxTable({
                 )}
                 style={columnStylesByKey.get(column.key)}
               >
-                <div className={cn("min-w-0", TABLE_TYPOGRAPHY.header, headerTextClassName, isSortedColumn ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]", isLastColumn && columnPicker ? "pr-[40px]" : "")}>
+                <div className={cn("min-w-0", TABLE_TYPOGRAPHY.header, headerTextClassName, isSortedColumn ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]", isLastColumn && columnPicker && !isLastUtilityColumn ? "pr-[40px]" : "")}>
                   {column.label}
                 </div>
                 {isLastColumn && columnPicker ? (
-                  <div className="pointer-events-auto absolute right-[8px] top-1/2 -translate-y-1/2">
+                  <div className={cn(
+                    "pointer-events-auto absolute top-1/2 -translate-y-1/2",
+                    isLastUtilityColumn ? "left-1/2 -translate-x-1/2" : "right-[8px]",
+                  )}>
                     {columnPicker}
                   </div>
                 ) : null}
@@ -540,8 +588,10 @@ export function FxTable({
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
       <div
+        ref={scrollContainerRef}
         className={cn(
           FX_TABLE.container,
+          surfaceClassName,
           "relative min-h-0 flex-1",
           stickyHeader ? "h-full" : "",
           scrollX ? "overflow-auto" : "overflow-hidden",
@@ -555,6 +605,25 @@ export function FxTable({
           {renderHeader()}
           {renderBody()}
         </table>
+
+        {scrollX ? (
+          <>
+            <div
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute inset-y-0 left-0 w-[24px] bg-gradient-to-r from-[var(--fx-bg-soft)] to-transparent transition-opacity duration-150",
+                hasOverflowLeft ? "opacity-100" : "opacity-0",
+              )}
+            />
+            <div
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute inset-y-0 right-0 w-[24px] bg-gradient-to-l from-[var(--fx-bg-soft)] to-transparent transition-opacity duration-150",
+                hasOverflowRight ? "opacity-100" : "opacity-0",
+              )}
+            />
+          </>
+        ) : null}
       </div>
     </div>
   );

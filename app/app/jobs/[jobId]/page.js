@@ -14,6 +14,7 @@ import {
   Circle,
   Minus,
   MoreHorizontal,
+  Mail,
   PencilLine,
   Phone,
   PhoneCall,
@@ -36,6 +37,7 @@ import { FxTable } from "@/components/FxTable";
 import { FxTabs } from "@/components/FxTabs";
 import { showSuccess } from "@/components/FxToast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -117,12 +119,36 @@ const CLIENT_STATUS_OPTIONS = [
   "Dropped Off",
 ];
 
+const UNSCREENED_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "pending", label: "Pending" },
+  { key: "in_queue", label: "In Pre-Screening Queue" },
+  { key: "in_progress", label: "In Progress" },
+  { key: "processing", label: "Processing" },
+  { key: "rescheduled", label: "Rescheduled" },
+  { key: "failed", label: "Failed" },
+];
+
 function getClientOutcomeStage(status) {
   if (status === "Rejected" || status === "Dropped Off") {
     return "rejected";
   }
 
   return "shared";
+}
+
+function normalizeUnscreenedFilterStatus(candidate, jobContext) {
+  const explicitStatus = String(candidate.unscreenedFilterStatus ?? jobContext?.unscreenedFilterStatus ?? "").trim().toLowerCase();
+
+  if (UNSCREENED_FILTERS.some((item) => item.key === explicitStatus)) {
+    return explicitStatus;
+  }
+
+  if (String(candidate.screeningOutcome ?? "").trim().toLowerCase() === "failed") {
+    return "failed";
+  }
+
+  return "pending";
 }
 
 function normalizeJob(job) {
@@ -219,6 +245,7 @@ function normalizeCandidate(candidate, job) {
     source: candidate.source ?? candidate.uploadedBy ?? "Direct",
     clientStatus: candidate.clientStatus ?? jobContext?.clientStatus ?? "Feedback Awaited",
     rejectionReason: candidate.rejectionReason ?? jobContext?.rejectionReason ?? "Rejected for this role",
+    unscreenedFilterStatus: normalizeUnscreenedFilterStatus(candidate, jobContext),
     jobContext,
   };
 }
@@ -335,7 +362,7 @@ function MetaField({ label, value, valueClassName }) {
 
 function WorkspaceEmptyState({ title, body, action }) {
   return (
-    <div className={`flex h-full min-h-[320px] items-center justify-center border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)] px-[24px] py-[24px]`}>
+    <div className="flex h-full min-h-[320px] items-center justify-center bg-[var(--fx-surface)] px-[24px] py-[24px]">
       <div className="max-w-[440px] space-y-[16px] text-center">
         <div className="mx-auto flex size-[48px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] text-[var(--fx-primary)]">
           <Users className="size-[22px]" />
@@ -698,7 +725,6 @@ function AddCandidatesDrawer({
               active={activeMode}
               onChange={setActiveMode}
               className="justify-start"
-              showUnderline
             />
 
             {activeMode === "pick" ? (
@@ -965,6 +991,10 @@ export default function JobDetailsPage({ params }) {
   const [addCandidatesOpen, setAddCandidatesOpen] = useState(false);
   const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
   const [callPreviewOpen, setCallPreviewOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [candidateToReject, setCandidateToReject] = useState(null);
+  const [rejectReasonDraft, setRejectReasonDraft] = useState("");
+  const [unscreenedFilter, setUnscreenedFilter] = useState("all");
   const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [sortConfig, setSortConfig] = useState(null);
@@ -993,19 +1023,36 @@ export default function JobDetailsPage({ params }) {
     () => candidateRows.filter((candidate) => candidate.status === activeStage),
     [candidateRows, activeStage],
   );
+  const unscreenedFilterCounts = useMemo(() => {
+    const counts = UNSCREENED_FILTERS.reduce((accumulator, filter) => ({ ...accumulator, [filter.key]: 0 }), {});
+    const unscreenedCandidates = candidateRows.filter((candidate) => candidate.status === "unscreened");
+
+    counts.all = unscreenedCandidates.length;
+
+    unscreenedCandidates.forEach((candidate) => {
+      const nextKey = candidate.unscreenedFilterStatus || "pending";
+      counts[nextKey] = (counts[nextKey] || 0) + 1;
+    });
+
+    return counts;
+  }, [candidateRows]);
 
   const filteredCandidates = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
+    const stageFilteredCandidates =
+      activeStage === "unscreened" && unscreenedFilter !== "all"
+        ? pipelineCandidates.filter((candidate) => candidate.unscreenedFilterStatus === unscreenedFilter)
+        : pipelineCandidates;
 
     if (!query) {
-      return pipelineCandidates;
+      return stageFilteredCandidates;
     }
 
-    return pipelineCandidates.filter((candidate) => {
+    return stageFilteredCandidates.filter((candidate) => {
       const haystack = [candidate.name, candidate.email, candidate.phone].join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [pipelineCandidates, searchTerm]);
+  }, [activeStage, pipelineCandidates, searchTerm, unscreenedFilter]);
 
   const sortedCandidates = useMemo(() => {
     if (!sortConfig) {
@@ -1161,17 +1208,39 @@ export default function JobDetailsPage({ params }) {
     [updateWorkspaceCandidate],
   );
 
+  const handleOpenRejectDialog = useCallback((candidate) => {
+    if (!candidate) {
+      return;
+    }
+
+    setCandidateToReject(candidate);
+    setRejectReasonDraft(candidate.rejectionReason && candidate.rejectionReason !== "Rejected for this role" ? candidate.rejectionReason : "");
+    setRejectDialogOpen(true);
+  }, []);
+
+  const handleCloseRejectDialog = useCallback((nextOpen) => {
+    setRejectDialogOpen(nextOpen);
+
+    if (!nextOpen) {
+      setCandidateToReject(null);
+      setRejectReasonDraft("");
+    }
+  }, []);
+
   const handleRejectCandidate = useCallback(
-    (candidate) => {
+    (candidate, rejectionReason = "") => {
       if (!candidate) {
         return;
       }
+
+      const resolvedReason = String(rejectionReason ?? "").trim() || "Rejected for this role";
 
       updateWorkspaceCandidate(
         candidate.id,
         (current) => ({
           ...current,
           status: "rejected",
+          rejectionReason: resolvedReason,
         }),
         { fromStatus: candidate.status, toStatus: "rejected" },
       );
@@ -1179,6 +1248,15 @@ export default function JobDetailsPage({ params }) {
     },
     [updateWorkspaceCandidate],
   );
+
+  const handleConfirmRejectCandidate = useCallback(() => {
+    if (!candidateToReject) {
+      return;
+    }
+
+    handleRejectCandidate(candidateToReject, rejectReasonDraft);
+    handleCloseRejectDialog(false);
+  }, [candidateToReject, handleCloseRejectDialog, handleRejectCandidate, rejectReasonDraft]);
 
   const handleRemoveCandidateFromJob = useCallback(
     (candidate) => {
@@ -1213,6 +1291,27 @@ export default function JobDetailsPage({ params }) {
           [job.id]: {
             ...(current.jobContexts?.[job.id] ?? {}),
             screeningModeOverride,
+          },
+        },
+      }));
+    },
+    [job?.id, updateWorkspaceCandidate],
+  );
+
+  const handleSetUnscreenedFilterStatus = useCallback(
+    (candidate, nextFilterStatus) => {
+      if (!candidate || !job?.id) {
+        return;
+      }
+
+      updateWorkspaceCandidate(candidate.id, (current) => ({
+        ...current,
+        unscreenedFilterStatus: nextFilterStatus,
+        jobContexts: {
+          ...(current.jobContexts ?? {}),
+          [job.id]: {
+            ...(current.jobContexts?.[job.id] ?? {}),
+            unscreenedFilterStatus: nextFilterStatus,
           },
         },
       }));
@@ -1782,16 +1881,46 @@ export default function JobDetailsPage({ params }) {
 
     if (activeStage === "unscreened") {
       return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex">
-              <button type="button" className={className} aria-label={`Start AI pre-screening for ${candidate.name}`} onClick={() => handleStartPrescreening(candidate, "ai")}>
-                <Sparkles className="size-[14px]" />
-              </button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8}>Start AI Pre-Screening</TooltipContent>
-        </Tooltip>
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <button
+                  type="button"
+                  className={className}
+                  aria-label={`Start email pre-screening for ${candidate.name}`}
+                  onClick={() => {
+                    handleSetCandidateScreeningMode(candidate, "ai");
+                    handleSetUnscreenedFilterStatus(candidate, "in_queue");
+                    showSuccess("Candidate updated", `${candidate.name} moved to Email Pre-Screening queue.`);
+                  }}
+                >
+                  <Mail className="size-[14px]" />
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>Email Pre-Screening</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <button
+                  type="button"
+                  className={className}
+                  aria-label={`Start manual screening for ${candidate.name}`}
+                  onClick={() => {
+                    handleSetCandidateScreeningMode(candidate, "manual");
+                    handleSetUnscreenedFilterStatus(candidate, "in_progress");
+                    showSuccess("Candidate updated", `${candidate.name} moved to Manual Screening.`);
+                  }}
+                >
+                  <Phone className="size-[14px]" />
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>Manual Screening</TooltipContent>
+          </Tooltip>
+        </>
       );
     }
 
@@ -1867,6 +1996,62 @@ export default function JobDetailsPage({ params }) {
     return <span className={cn("inline-flex min-w-[96px] items-center justify-center rounded-full px-[10px] py-[4px] text-[12px] leading-[18px] font-medium", toneClassName)}>{status}</span>;
   }
 
+  function renderCandidateMenuButton(candidate) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex size-[28px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+            aria-label={`Open actions for ${candidate.name}`}
+          >
+            <MoreHorizontal className="size-[16px]" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-[280px]">
+          <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate)}>
+            Open Candidate
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate)}>
+            View Resume
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleDownloadCandidateResume(candidate)}>
+            Download Resume
+          </DropdownMenuItem>
+          {activeStage === "shortlisted" ? (
+            <DropdownMenuItem onClick={() => handleMoveCandidateToStage(candidate, "screened", "Pre-Screened")}>
+              Move back to Pre-Screened
+            </DropdownMenuItem>
+          ) : null}
+          {activeStage === "shared" ? (
+            <DropdownMenuItem onClick={() => handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted")}>
+              Move back to Shortlisted
+            </DropdownMenuItem>
+          ) : null}
+          {activeStage === "rejected" ? (
+            <>
+              <DropdownMenuItem onClick={() => handleMoveCandidateToStage(candidate, "screened", "Pre-Screened")}>
+                Move to Pre-Screened
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted")}>
+                Move to Shortlisted
+              </DropdownMenuItem>
+            </>
+          ) : null}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => handleRemoveCandidateFromJob(candidate)}>
+            Remove from Job
+          </DropdownMenuItem>
+          {activeStage !== "rejected" ? (
+            <DropdownMenuItem onClick={() => handleOpenRejectDialog(candidate)}>
+              Reject Candidate
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
   const tableColumns = useMemo(() => {
     const sortLabel = (key, label) => (
       <button type="button" className={getSortHeaderButtonClassName(key)} onClick={() => handleSort(key)}>
@@ -1883,14 +2068,13 @@ export default function JobDetailsPage({ params }) {
       currentSalary: { key: "currentSalary", label: sortLabel("currentSalary", "Current Salary"), width: 144, minWidth: 130, maxWidth: 156, align: "right" },
       expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", "Expectation"), width: 136, minWidth: 124, maxWidth: 148, align: "right" },
       screeningOutcome: { key: "screeningOutcome", label: "Pre-Screen", width: 132, minWidth: 120, maxWidth: 148, align: "center" },
-      currentStage: { key: "currentStage", label: "Current Stage", width: 140, minWidth: 128, maxWidth: 156, align: "center" },
       clientStatus: { key: "clientStatus", label: "Client Status", width: 156, minWidth: 144, maxWidth: 172, align: "center" },
       rejectionReason: { key: "rejectionReason", label: "Rejection Reason", width: 188, minWidth: 172, maxWidth: 220 },
       actions: { key: "actions", label: "Actions", width: 88, minWidth: 80, maxWidth: 96, align: "left", required: true, locked: true, hideable: false },
       menuActions: { key: "menuActions", label: null, width: 56, minWidth: 56, maxWidth: 56, align: "center", cellClassName: "px-0 pr-0", required: true, locked: true, hideable: false },
     };
 
-    const commonKeys = ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "currentStage"];
+    const commonKeys = ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome"];
     const keysByStage = {
       unscreened: [...commonKeys, "actions", "menuActions"],
       screened: [...commonKeys, "actions", "menuActions"],
@@ -1958,11 +2142,6 @@ export default function JobDetailsPage({ params }) {
         {candidate.screeningOutcome || "Pending"}
       </span>
     ),
-    currentStage: (
-      <span className="inline-flex min-w-[96px] items-center justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] leading-[18px] font-medium text-[var(--fx-primary)]">
-        {PIPELINE_STAGES.find((stage) => stage.value === candidate.status)?.label ?? "Unscreened"}
-      </span>
-    ),
     clientStatus: renderClientStatusChip(candidate.clientStatus || "Feedback Awaited"),
     rejectionReason: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.rejectionReason || "Rejected for this role"}</span>,
     actions: (
@@ -1972,102 +2151,7 @@ export default function JobDetailsPage({ params }) {
     ),
     menuActions: (
       <div className="flex flex-col items-center justify-center gap-[4px]">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex size-[28px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
-              aria-label={`Open actions for ${candidate.name}`}
-            >
-              <MoreHorizontal className="size-[16px]" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[280px]">
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                handleOpenCandidateSheet(candidate);
-              }}
-            >
-              Open Candidate
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                handleOpenCandidateSheet(candidate);
-              }}
-            >
-              View Resume
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                handleDownloadCandidateResume(candidate);
-              }}
-            >
-              Download Resume
-            </DropdownMenuItem>
-            {activeStage === "shortlisted" ? (
-              <DropdownMenuItem
-                onSelect={(event) => {
-                  event.preventDefault();
-                  handleMoveCandidateToStage(candidate, "screened", "Pre-Screened");
-                }}
-              >
-                Move back to Pre-Screened
-              </DropdownMenuItem>
-            ) : null}
-            {activeStage === "shared" ? (
-              <DropdownMenuItem
-                onSelect={(event) => {
-                  event.preventDefault();
-                  handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted");
-                }}
-              >
-                Move back to Shortlisted
-              </DropdownMenuItem>
-            ) : null}
-            {activeStage === "rejected" ? (
-              <>
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    handleMoveCandidateToStage(candidate, "screened", "Pre-Screened");
-                  }}
-                >
-                  Move to Pre-Screened
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted");
-                  }}
-                >
-                  Move to Shortlisted
-                </DropdownMenuItem>
-              </>
-            ) : null}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={async (event) => {
-                event.preventDefault();
-                handleRemoveCandidateFromJob(candidate);
-              }}
-            >
-              Remove from Job
-            </DropdownMenuItem>
-            {activeStage !== "rejected" ? (
-              <DropdownMenuItem
-                onSelect={(event) => {
-                  event.preventDefault();
-                  handleRejectCandidate(candidate);
-                }}
-              >
-                Reject Candidate
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {renderCandidateMenuButton(candidate)}
         {activeStage !== "unscreened" ? renderScreeningFailureDot(candidate) : <span className="inline-flex size-[8px] shrink-0 rounded-full opacity-0" aria-hidden="true" />}
       </div>
     ),
@@ -2275,59 +2359,80 @@ export default function JobDetailsPage({ params }) {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-[16px]">
-              <div className="flex flex-col gap-[12px]">
+            <div className="flex min-h-0 flex-1 flex-col gap-[12px]">
+              <div className="flex min-h-0 flex-1 flex-col gap-[12px]">
                 <div className="min-w-0">
                   <FxTabs
-                    tabs={PIPELINE_STAGES.map((stage) => ({
+                    variant="stage"
+                    items={PIPELINE_STAGES.map((stage) => ({
                       value: stage.value,
-                      label: `${stage.label} (${candidateCounts[stage.value] || 0})`,
+                      label: stage.label,
+                      count: candidateCounts[stage.value] || 0,
                     }))}
-                    active={activeStage}
-                    onChange={handleStageChange}
-                    className="w-full justify-start"
-                    showUnderline
+                    value={activeStage}
+                    onValueChange={handleStageChange}
+                    className="w-full"
                     showBorder={false}
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center justify-end gap-[12px]">
-                  <div className="flex flex-wrap items-center justify-end gap-[8px]">{bulkToolbarButtons}</div>
-                  <div className="w-full min-w-0 sm:w-[240px] sm:flex-none">
-                    <div className={`flex h-[40px] items-center rounded-[6px] border border-[color:color-mix(in_srgb,var(--fx-text)_18%,var(--fx-border)_82%)] bg-[var(--fx-bg)] px-[16px]`}>
-                      <input
-                        ref={searchRef}
-                        value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Escape") {
-                            event.preventDefault();
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)]">
+                  <div className="grid min-h-[64px] items-center gap-[12px] border-b border-[var(--fx-border)] px-[12px] py-[10px] lg:grid-cols-[minmax(0,1fr)_auto]">
+                    <div className="min-w-0">
+                      {activeStage === "unscreened" ? (
+                        <div className="flex min-w-0 flex-wrap items-center gap-[10px]">
+                          <FxTabs
+                            variant="filter"
+                            items={UNSCREENED_FILTERS.map((filter) => ({
+                              value: filter.key,
+                              label: filter.label,
+                              count: unscreenedFilterCounts[filter.key] ?? 0,
+                            }))}
+                            value={unscreenedFilter}
+                            onValueChange={setUnscreenedFilter}
+                            className="min-w-0"
+                          />
+                        </div>
+                      ) : null}
+                    </div>
 
-                            if (searchTerm) {
-                              setSearchTerm("");
-                              return;
-                            }
+                    <div className="flex min-w-0 flex-wrap items-center justify-end gap-[12px]">
+                      <div className="flex flex-wrap items-center justify-end gap-[8px]">{bulkToolbarButtons}</div>
+                      <div className="w-full min-w-0 sm:w-[200px] sm:flex-none">
+                        <div className={`flex h-[34px] items-center rounded-[6px] border border-[color:color-mix(in_srgb,var(--fx-text)_18%,var(--fx-border)_82%)] bg-[var(--fx-bg)] px-[12px]`}>
+                          <input
+                            ref={searchRef}
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape") {
+                                event.preventDefault();
 
-                            event.currentTarget.blur();
-                          }
-                        }}
-                        placeholder="Search candidates"
-                        className="h-full w-full min-w-0 bg-transparent text-[14px] leading-[22px] font-normal text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)]"
-                      />
-                      <kbd className="ml-[12px] inline-flex h-[24px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[8px] text-[12px] font-medium text-[var(--fx-text-muted)]">
-                        /
-                      </kbd>
+                                if (searchTerm) {
+                                  setSearchTerm("");
+                                  return;
+                                }
+
+                                event.currentTarget.blur();
+                              }
+                            }}
+                            placeholder="Search candidates"
+                            className="h-full w-full min-w-0 bg-transparent text-[14px] leading-[22px] font-normal text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)]"
+                          />
+                          <kbd className="ml-[10px] inline-flex h-[20px] items-center justify-center rounded-[4px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[6px] text-[12px] font-medium text-[var(--fx-text-muted)]">
+                            /
+                          </kbd>
+                        </div>
+                      </div>
+                      <FxButton type="button" onClick={handleAddCandidates} className="shrink-0">
+                        Add Candidates
+                      </FxButton>
                     </div>
                   </div>
-                  <FxButton type="button" onClick={handleAddCandidates} className="shrink-0">
-                    Add Candidates
-                  </FxButton>
-                </div>
-              </div>
 
-              <div className="min-h-0 flex-1 overflow-hidden">
-                {filteredCandidates.length ? (
-                  <div className="flex h-full min-h-0 flex-col gap-[12px]">
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    {filteredCandidates.length ? (
+                      <div className="flex h-full min-h-0 flex-col">
                     {/* <div className={`flex min-h-[64px] flex-wrap items-center justify-between gap-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[16px] py-[12px]`}>
                       <div className="text-[14px] leading-[22px] font-medium text-[var(--fx-text-muted)]">
                         {selectedCountLabel}
@@ -2337,34 +2442,38 @@ export default function JobDetailsPage({ params }) {
                       </div>
                     </div> */}
 
-                    <FxTable
-                      columns={tableColumns}
-                      rows={rows}
-                      sortedColumnKey={tableSortedColumnKey}
-                      sortedColumnDirection={tableSortedColumnDirection}
-                      stickyHeader
-                      stickyFirstColumn
-                      stickyLastColumn
-                      scrollX
-                      emptyMessage="No candidates in this stage yet."
-                      enableColumnPicker
-                      storageKey={`${STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}:${activeStage}`}
-                      enableRowSelection
-                      selectedRowKeys={selectedCandidateIds}
-                      onSelectedRowKeysChange={setSelectedCandidateIds}
+                      <FxTable
+                        columns={tableColumns}
+                        rows={rows}
+                        className="h-full min-h-0"
+                        surfaceClassName="rounded-none border-0 bg-transparent"
+                        sortedColumnKey={tableSortedColumnKey}
+                        sortedColumnDirection={tableSortedColumnDirection}
+                        stickyHeader
+                        stickyFirstColumn
+                        stickyLastColumn
+                        scrollX
+                        emptyMessage="No candidates in this stage yet."
+                        enableColumnPicker
+                        storageKey={`${STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}:${activeStage}`}
+                        enableRowSelection
+                        selectedRowKeys={selectedCandidateIds}
+                        onSelectedRowKeysChange={setSelectedCandidateIds}
+                      />
+                    </div>
+                  ) : (
+                    <WorkspaceEmptyState
+                      title={getStageCopy(activeStage, searchTerm).title}
+                      body={getStageCopy(activeStage, searchTerm).body}
+                      action={searchTerm.trim() ? null : (
+                        <FxButton type="button" onClick={handleAddCandidates}>
+                          Add Candidates
+                        </FxButton>
+                      )}
                     />
+                  )}
                   </div>
-                ) : (
-                  <WorkspaceEmptyState
-                    title={getStageCopy(activeStage, searchTerm).title}
-                    body={getStageCopy(activeStage, searchTerm).body}
-                    action={searchTerm.trim() ? null : (
-                      <FxButton type="button" onClick={handleAddCandidates}>
-                        Add Candidates
-                      </FxButton>
-                    )}
-                  />
-                )}
+                </div>
               </div>
             </div>
           </>
@@ -2402,11 +2511,41 @@ export default function JobDetailsPage({ params }) {
           job={job}
           onMoveToNextStage={handleMoveCandidateToNextStage}
           onMarkNotInterested={handleMarkCandidateNotInterested}
-          onReject={handleRejectCandidate}
+          onReject={handleOpenRejectDialog}
           onRemoveFromJob={handleRemoveCandidateFromJob}
           onSetScreeningMode={handleSetCandidateScreeningMode}
         />
         <CallPreviewDrawer open={callPreviewOpen} onOpenChange={setCallPreviewOpen} job={job} />
+        <Dialog open={rejectDialogOpen} onOpenChange={handleCloseRejectDialog}>
+          <DialogContent className="max-w-[520px]">
+            <DialogHeader className="text-left">
+              <DialogTitle>Reject Candidate</DialogTitle>
+              <DialogDescription>
+                Add a note for why {candidateToReject?.name || "this candidate"} is being rejected for this job.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-[10px]">
+              <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>Rejection Notes</p>
+              <FxInput
+                textarea
+                value={rejectReasonDraft}
+                onChange={(event) => setRejectReasonDraft(event.target.value)}
+                placeholder="Leave notes about the rejection reason..."
+                className="min-h-[120px]"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-[8px]">
+              <FxButton variant="ghost" onClick={() => handleCloseRejectDialog(false)}>
+                Cancel
+              </FxButton>
+              <FxButton variant="destructive" onClick={handleConfirmRejectCandidate}>
+                Save and Reject
+              </FxButton>
+            </div>
+          </DialogContent>
+        </Dialog>
       </FxProtectedAppPage>
     </TooltipProvider>
   );

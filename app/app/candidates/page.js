@@ -10,6 +10,7 @@ import { FxButton } from "@/components/FxButton";
 import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxTable } from "@/components/FxTable";
+import { FxTabs } from "@/components/FxTabs";
 import { showWarning } from "@/components/FxToast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ROUTES } from "@/lib/FxConstants";
@@ -412,9 +413,9 @@ export default function CandidatesPage() {
       {
         key: "actions",
         label: null,
-        width: 64,
-        minWidth: 64,
-        maxWidth: 64,
+        width: 56,
+        minWidth: 56,
+        maxWidth: 56,
         align: "right",
         required: true,
         locked: true,
@@ -429,27 +430,20 @@ export default function CandidatesPage() {
       <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden`}>
         <div className="flex min-h-0 flex-1 flex-col gap-[24px] overflow-hidden">
           <div className="grid min-w-0 flex-none grid-cols-[minmax(0,1fr)_auto] items-end gap-[16px]">
-            <div className="flex min-w-0 items-end gap-[24px]">
-              <button
-                type="button"
-                className={`relative cursor-pointer pb-[8px] ${selectedTab === "active" ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"} ${FX_TYPOGRAPHY.button}`}
-                onClick={() => setSelectedTab("active")}
-              >
-                Active ({counts.active})
-                {selectedTab === "active" ? <span className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
-              </button>
-              <button
-                type="button"
-                className={`relative cursor-pointer pb-[8px] ${selectedTab === "archived" ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"} ${FX_TYPOGRAPHY.button}`}
-                onClick={() => setSelectedTab("archived")}
-              >
-                Archived ({counts.archived})
-                {selectedTab === "archived" ? <span className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
-              </button>
-            </div>
+            <FxTabs
+              variant="stage"
+              items={[
+                { value: "active", label: "Active", count: counts.active },
+                { value: "archived", label: "Archived", count: counts.archived },
+              ]}
+              value={selectedTab}
+              onValueChange={setSelectedTab}
+              className="w-full"
+              showBorder={false}
+            />
 
             <div className="flex min-w-0 shrink-0 items-center gap-[12px] justify-self-end">
-              <div className="w-full min-w-0 max-w-[320px]">
+              <div className="w-full min-w-0 max-w-[200px]">
                 <FxInput
                   ref={searchInputRef}
                   aria-label="Search candidates"
