@@ -1040,7 +1040,7 @@ export default function JobDetailsPage({ params }) {
       width: 300,
       minWidth: 240,
       grow: 2,
-      cellClassName: "text-[13px] leading-[20px] font-medium",
+      cellClassName: "text-[14px] leading-[22px] font-medium",
       required: true,
       locked: true,
       hideable: false,
@@ -1118,7 +1118,7 @@ export default function JobDetailsPage({ params }) {
     name: (
       <Link
         href={ROUTES.CANDIDATE(candidate.id)}
-        className="block truncate text-[13px] leading-[20px] font-medium text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
+        className="block truncate text-[14px] leading-[22px] font-medium text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
       >
         {candidate.name}
       </Link>
@@ -1127,7 +1127,7 @@ export default function JobDetailsPage({ params }) {
       <button
         type="button"
         onClick={() => handleOpenMatchAnalysis(candidate)}
-        className="inline-flex min-w-[64px] items-center justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[13px] leading-[20px] font-medium text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface-selected)_84%)]"
+        className="inline-flex min-w-[64px] items-center justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface-selected)_84%)]"
       >
         {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
       </button>
@@ -1146,22 +1146,22 @@ export default function JobDetailsPage({ params }) {
       </span>
     ),
     interested: (
-      <span className="inline-flex min-w-[56px] items-center justify-center px-[4px] py-0 text-[13px] leading-[20px] font-normal text-[var(--fx-text)]">
+      <span className="inline-flex min-w-[56px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-normal text-[var(--fx-text)]">
         {candidate.interested ?? "—"}
       </span>
     ),
     availability: (
-      <span className="inline-flex min-w-[64px] items-center justify-center px-[4px] py-0 text-[13px] leading-[20px] font-normal text-[var(--fx-text)]">
+      <span className="inline-flex min-w-[64px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-normal text-[var(--fx-text)]">
         {formatAvailability(candidate.availabilityDays)}
       </span>
     ),
     currentSalary: (
-      <span className="tabular-nums text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+      <span className="tabular-nums text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
         {formatCurrency(candidate.currentSalary)}
       </span>
     ),
     expectedSalary: (
-      <span className="tabular-nums text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+      <span className="tabular-nums text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
         {formatCurrency(candidate.expectedSalary)}
       </span>
     ),
@@ -1236,9 +1236,7 @@ export default function JobDetailsPage({ params }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {candidate.screeningOutcome === "Failed" ? (
-          <span className="text-[11px] leading-[16px] font-medium text-[var(--fx-danger)]">Failed</span>
-        ) : null}
+        {renderScreeningFailureDot(candidate)}
       </div>
     ),
   }));
@@ -1273,6 +1271,30 @@ export default function JobDetailsPage({ params }) {
     );
   }
 
+  function renderScreeningFailureDot(candidate) {
+    if (candidate.screeningOutcome !== "Failed") {
+      return <span className="inline-flex size-[8px] shrink-0 rounded-full opacity-0" aria-hidden="true" />;
+    }
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label="Failed"
+            className="inline-flex size-[8px] shrink-0 rounded-full bg-[var(--fx-danger)]"
+          />
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={6} className="whitespace-pre-line">
+          <div className="space-y-[2px]">
+            <div>Failed</div>
+            <div className="text-[var(--fx-danger)]">Screening outcome did not pass</div>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   if (job?.status === "Draft") {
     return null;
   }
@@ -1285,7 +1307,7 @@ export default function JobDetailsPage({ params }) {
         navbarLeading={
           <Link href={ROUTES.JOBS} className={`inline-flex items-center gap-[8px] ${FX_TYPOGRAPHY.button} text-foreground hover:text-[var(--fx-text)]`}>
             <ArrowLeft className="size-[16px]" />
-            Jobs
+            All Jobs
           </Link>
         }
       >
@@ -1403,7 +1425,6 @@ export default function JobDetailsPage({ params }) {
                     stickyFirstColumn
                     stickyLastColumn
                     scrollX
-                    density="compact"
                     emptyMessage="No candidates in this stage yet."
                     enableColumnPicker
                     storageKey={STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}

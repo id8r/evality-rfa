@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { FxColumnPicker } from "@/components/FxColumnPicker";
-import { FX_TABLE, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_TABLE, TABLE_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn, readStoredJSON, writeStoredJSON } from "@/lib/FxUtils";
 
 const TABLE_DENSITY = {
@@ -187,11 +187,11 @@ function getStickyHeaderClassName(stickyPosition, stickyHeader) {
   );
 
   if (stickyPosition === "left") {
-    return `${base} left-0 shadow-[1px_0_0_var(--fx-border)]`;
+    return `${base} left-0`;
   }
 
   if (stickyPosition === "right") {
-    return `${base} right-0 shadow-[-1px_0_0_var(--fx-border)]`;
+    return `${base} right-0`;
   }
 
   return base;
@@ -205,10 +205,10 @@ function getStickyBodyClassName(stickyPosition) {
   const base = "sticky z-[20] bg-inherit";
 
   if (stickyPosition === "left") {
-    return `${base} left-0 shadow-[1px_0_0_var(--fx-border)]`;
+    return `${base} left-0`;
   }
 
-  return `${base} right-0 shadow-[-1px_0_0_var(--fx-border)]`;
+  return `${base} right-0`;
 }
 /* - - - - - - - - - - - - - - - - */
 
@@ -229,6 +229,9 @@ export function FxTable({
   headerCellClassName,
   bodyCellClassName,
   emptyClassName,
+  headerTextClassName,
+  bodyTextClassName,
+  emptyTextClassName,
   visibleColumnKeys,
   defaultVisibleColumnKeys,
   onVisibleColumnKeysChange,
@@ -321,7 +324,7 @@ export function FxTable({
     ) : null;
 
     return (
-      <thead className={cn("bg-[var(--fx-table-header)]", FX_TYPOGRAPHY.tableHeader, headerClassName)}>
+      <thead className={cn("bg-[var(--fx-table-header)]", TABLE_TYPOGRAPHY.header, headerClassName)}>
         <tr className={FX_TABLE.headerRowHeight}>
           {visibleColumns.map((column, columnIndex) => {
             const stickyPosition = getColumnStickyPosition(column, columnIndex, visibleColumns.length, stickyFirstColumn, stickyLastColumn);
@@ -340,14 +343,16 @@ export function FxTable({
                 )}
                 style={columnStylesByKey.get(column.key)}
               >
-                {isLastColumn && columnPicker ? (
-                  <div className={cn("flex items-center gap-[8px]", column.align === "right" ? "justify-end" : "justify-between")}>
-                    {column.label ? <span className="min-w-0 truncate">{column.label}</span> : null}
-                    {columnPicker}
-                  </div>
-                ) : (
-                  column.label
-                )}
+                <div className={cn("min-w-0", TABLE_TYPOGRAPHY.header, headerTextClassName)}>
+                  {isLastColumn && columnPicker ? (
+                    <div className={cn("flex items-center gap-[8px]", column.align === "right" ? "justify-end" : "justify-between")}>
+                      {column.label ? <span className="min-w-0 truncate">{column.label}</span> : null}
+                      {columnPicker}
+                    </div>
+                  ) : (
+                    column.label
+                  )}
+                </div>
               </th>
             );
           })}
@@ -359,7 +364,7 @@ export function FxTable({
 
   function renderBody() {
     return (
-      <tbody className={cn("divide-y divide-[var(--fx-border)]", bodyClassName)}>
+      <tbody className={cn(bodyClassName)}>
         {rows.length ? (
           rows.map((row, rowIndex) => (
             <tr key={row.id ?? rowIndex} className={cn("relative z-0", FX_TABLE.row, densityClasses.row, rowClassName)}>
@@ -369,19 +374,28 @@ export function FxTable({
                 return (
                   <td
                     key={column.key}
-                    className={cn(
-                      FX_TABLE.bodyCell,
-                      FX_TYPOGRAPHY.tableCell,
-                      densityClasses.bodyCell,
-                      getStickyBodyClassName(stickyPosition),
-                      column.align === "right" ? "text-right" : "",
-                      column.align === "center" ? "text-center" : "",
-                      column.cellClassName,
-                      bodyCellClassName,
+                className={cn(
+                  FX_TABLE.bodyCell,
+                  densityClasses.bodyCell,
+                  isPrimaryTextColumn(column) ? TABLE_TYPOGRAPHY.primary : "",
+                  getStickyBodyClassName(stickyPosition),
+                  column.align === "right" ? "text-right" : "",
+                  column.align === "center" ? "text-center" : "",
+                  column.cellClassName,
+                  bodyCellClassName,
                     )}
                     style={columnStylesByKey.get(column.key)}
                   >
-                    {row[column.key]}
+                    <div
+                      className={cn(
+                        "min-w-0",
+                        TABLE_TYPOGRAPHY.cell,
+                        isPrimaryTextColumn(column) ? TABLE_TYPOGRAPHY.primary : "",
+                        bodyTextClassName,
+                      )}
+                    >
+                      {row[column.key]}
+                    </div>
                   </td>
                 );
               })}
@@ -390,7 +404,7 @@ export function FxTable({
         ) : (
           <tr>
             <td className={cn(FX_TABLE.emptyCell, emptyClassName)} colSpan={visibleColumns.length}>
-              {emptyMessage}
+              <div className={cn(TABLE_TYPOGRAPHY.empty, emptyTextClassName)}>{emptyMessage}</div>
             </td>
           </tr>
         )}
@@ -404,13 +418,13 @@ export function FxTable({
       <div
         className={cn(
           FX_TABLE.container,
-          "min-h-0 flex-1",
+          "relative min-h-0 flex-1",
           stickyHeader ? "h-full" : "",
           scrollX ? "overflow-auto" : "overflow-hidden",
         )}
       >
         <table
-          className={cn("w-full min-w-full table-fixed border-collapse relative isolate", stickyHeader ? "relative" : "")}
+          className={cn("w-full min-w-full table-fixed border-separate border-spacing-0 relative isolate", stickyHeader ? "relative" : "")}
           style={{ minWidth: tableMinWidth }}
         >
           {renderColGroup()}

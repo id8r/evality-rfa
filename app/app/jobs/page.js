@@ -104,7 +104,7 @@ import {
   writeStoredJobsPageState,
   writeStoredJobsViewMode,
 } from "@/lib/FxStore";
-import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY, TABLE_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 const DEFAULT_PAGE_STATE = {
@@ -334,13 +334,13 @@ function formatQuestionFormatLabel(value) {
 }
 
 function fieldButtonClassName(isInteractive = false) {
-  return `${FX_TYPOGRAPHY.metaLabel} font-normal text-[var(--fx-text-muted)] ${
+  return `${TABLE_TYPOGRAPHY.header} font-normal text-[var(--fx-text-muted)] ${
     isInteractive ? "inline-flex cursor-pointer items-center gap-[8px] text-left hover:text-[var(--fx-text)]" : ""
   }`;
 }
 
 function fieldHeaderLabelClassName() {
-  return `${FX_TYPOGRAPHY.metaLabel} font-normal text-[var(--fx-text-muted)]`;
+  return `${TABLE_TYPOGRAPHY.header} font-normal text-[var(--fx-text-muted)]`;
 }
 
 function toggleListValue(list, value) {
@@ -2040,7 +2040,7 @@ export default function JobsPage() {
                 onClick={() => setSelectedTab("active")}
               >
                 {PAGE_COPY.jobs.activeTab} ({activeCount})
-                {selectedTab === "active" ? <span className="absolute bottom-0 left-[2px] right-[2px] h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
+                {selectedTab === "active" ? <span className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
               </button>
               <button
                 type="button"
@@ -2048,7 +2048,7 @@ export default function JobsPage() {
                 onClick={() => setSelectedTab("archived")}
               >
                 {PAGE_COPY.jobs.archivedTab} ({archivedCount})
-                {selectedTab === "archived" ? <span className="absolute bottom-0 left-[2px] right-[2px] h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
+                {selectedTab === "archived" ? <span className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
               </button>
             </div>
 

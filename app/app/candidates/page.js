@@ -4,15 +4,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Users } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 
 import { FxButton } from "@/components/FxButton";
 import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxTable } from "@/components/FxTable";
 import { showWarning } from "@/components/FxToast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ROUTES } from "@/lib/FxConstants";
-import { FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
+import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY, TABLE_TYPOGRAPHY } from "@/lib/FxTheme";
 import { findStoredJob, readStoredCandidates } from "@/lib/FxStore";
 import { cn } from "@/lib/FxUtils";
 
@@ -64,6 +65,24 @@ function formatRelativeTime(value) {
   return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
+function fieldButtonClassName(isInteractive = false) {
+  return `${TABLE_TYPOGRAPHY.header} font-normal text-[var(--fx-text-muted)] ${
+    isInteractive ? "inline-flex cursor-pointer items-center gap-[8px] text-left hover:text-[var(--fx-text)]" : ""
+  }`;
+}
+
+function fieldHeaderLabelClassName() {
+  return `${TABLE_TYPOGRAPHY.header} font-normal text-[var(--fx-text-muted)]`;
+}
+
+function renderCandidateStatusDot(candidate) {
+  if (candidate.screeningOutcome !== "Failed") {
+    return <span className="inline-flex size-[8px] shrink-0 rounded-full opacity-0" aria-hidden="true" />;
+  }
+
+  return <span className="inline-flex size-[8px] shrink-0 rounded-full bg-[var(--fx-danger)]" title="Failed" aria-label="Failed" />;
+}
+
 function CandidateStatusPill({ status }) {
   const tone =
     status === "shared"
@@ -74,13 +93,25 @@ function CandidateStatusPill({ status }) {
           ? "bg-[color-mix(in_srgb,var(--fx-warning)_14%,var(--fx-surface)_86%)] text-[var(--fx-warning)]"
           : "bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]";
 
-  return <span className={cn("inline-flex rounded-full px-[10px] py-[4px] text-[12px] font-medium", tone)}>{status}</span>;
+  const label =
+    status === "shared"
+      ? "Shared"
+      : status === "shortlisted"
+        ? "Shortlisted"
+        : status === "screened"
+          ? "Screened"
+          : status === "rejected"
+            ? "Rejected"
+            : "Unscreened";
+
+  return <span className={cn("inline-flex rounded-full px-[10px] py-[4px] text-[12px] font-medium", tone)}>{label}</span>;
 }
 
 export default function CandidatesPage() {
   const [candidateRows, setCandidateRows] = useState(() => readStoredCandidates());
   const [selectedTab, setSelectedTab] = useState("active");
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: "updatedAt", direction: "desc" });
   const searchInputRef = useRef(null);
   const tableSurfaceRef = useRef(null);
 
@@ -141,6 +172,16 @@ export default function CandidatesPage() {
     showWarning("Add candidate", "Candidate intake flow will be added here next.");
   }
 
+  function handleSort(key) {
+    setSortConfig((current) => {
+      if (current.key === key) {
+        return { key, direction: current.direction === "asc" ? "desc" : "asc" };
+      }
+
+      return { key, direction: key === "updatedAt" ? "desc" : "asc" };
+    });
+  }
+
   const counts = useMemo(() => {
     const archived = candidateRows.filter((candidate) => Boolean(candidate.archived || candidate.isArchived || candidate.status === "archived"));
 
@@ -153,7 +194,7 @@ export default function CandidatesPage() {
   const visibleCandidates = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
-    return candidateRows
+    const nextCandidates = candidateRows
       .filter((candidate) => {
         const isArchived = Boolean(candidate.archived || candidate.isArchived || candidate.status === "archived");
         return selectedTab === "archived" ? isArchived : !isArchived;
@@ -177,9 +218,27 @@ export default function CandidatesPage() {
           .toLowerCase();
 
         return haystack.includes(query);
-      })
-      .sort((left, right) => new Date(right.updatedAt ?? 0) - new Date(left.updatedAt ?? 0));
-  }, [candidateRows, searchTerm, selectedTab]);
+      });
+
+    return [...nextCandidates].sort((left, right) => {
+      const leftValue = left[sortConfig.key];
+      const rightValue = right[sortConfig.key];
+
+      if (typeof leftValue === "number" && typeof rightValue === "number") {
+        return sortConfig.direction === "asc" ? leftValue - rightValue : rightValue - leftValue;
+      }
+
+      if (sortConfig.key === "updatedAt") {
+        const leftDate = new Date(left.updatedAt).getTime();
+        const rightDate = new Date(right.updatedAt).getTime();
+        return sortConfig.direction === "asc" ? leftDate - rightDate : rightDate - leftDate;
+      }
+
+      return sortConfig.direction === "asc"
+        ? String(leftValue ?? "").localeCompare(String(rightValue ?? ""))
+        : String(rightValue ?? "").localeCompare(String(leftValue ?? ""));
+    });
+  }, [candidateRows, searchTerm, selectedTab, sortConfig]);
 
   const rows = useMemo(
     () =>
@@ -189,18 +248,21 @@ export default function CandidatesPage() {
         return {
           id: candidate.id,
           name: (
-            <Link
-              href={ROUTES.CANDIDATE(candidate.id)}
-              className="block truncate text-[13px] leading-[20px] font-medium text-[var(--fx-primary)] hover:text-[var(--fx-text)]"
-              title={candidate.name}
-            >
-              {candidate.name}
-            </Link>
+            <div className="flex min-w-0 items-center gap-[10px]">
+              {/* Status dots are intentionally reserved for the job workspace table for now. */}
+              <Link
+                href={ROUTES.CANDIDATE(candidate.id)}
+                className={`block min-w-0 truncate ${FX_TYPOGRAPHY.clickableData} text-[var(--fx-primary)] hover:text-[var(--fx-text)]`}
+                title={candidate.name}
+              >
+                {candidate.name}
+              </Link>
+            </div>
           ),
           jobTitle: (
             <Link
               href={job ? ROUTES.JOB(job.id) : ROUTES.CANDIDATES}
-              className="block truncate text-[13px] leading-[20px] text-[var(--fx-text)] hover:text-[var(--fx-primary)]"
+              className={`block truncate ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)] hover:text-[var(--fx-primary)]`}
               title={candidate.jobTitle || job?.title || "—"}
             >
               {candidate.jobTitle || job?.title || "—"}
@@ -208,23 +270,44 @@ export default function CandidatesPage() {
           ),
           status: <CandidateStatusPill status={candidate.status || "unscreened"} />,
           matchScore: (
-            <span className="tabular-nums text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+            <span className={`tabular-nums ${FX_TYPOGRAPHY.tableCell} font-medium text-[var(--fx-text)]`}>
               {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
             </span>
           ),
-          availability: <span className="text-[13px] leading-[20px] text-[var(--fx-text)]">{formatAvailability(candidate.availabilityDays)}</span>,
+          availability: <span className={`${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)]`}>{formatAvailability(candidate.availabilityDays)}</span>,
           salary: (
-            <span className="tabular-nums text-[13px] leading-[20px] text-[var(--fx-text)]">
+            <span className={`tabular-nums ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)]`}>
               {formatCurrency(candidate.currentSalary)}
             </span>
           ),
-          updatedAt: <span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{formatRelativeTime(candidate.updatedAt)}</span>,
+          updatedAt: <span className={`${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text-muted)]`}>{formatRelativeTime(candidate.updatedAt)}</span>,
           actions: (
-            <div className="flex items-center justify-end gap-[8px]">
-              <Link href={ROUTES.CANDIDATE(candidate.id)} className={FX_TYPOGRAPHY.button + " text-[var(--fx-primary)] hover:text-[var(--fx-text)]"}>
-                Open
-              </Link>
-              <ArrowRight className="size-[14px] text-[var(--fx-text-muted)]" />
+            <div className="flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={`inline-flex h-[32px] w-[32px] cursor-pointer items-center justify-center ${FX_RADIUS.xs} text-[var(--fx-text-muted)] hover:bg-[var(--fx-bg-soft)] hover:text-[var(--fx-text)]`}
+                  >
+                    <MoreHorizontal className="size-[16px]" />
+                    <span className="sr-only">Open actions</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[200px]">
+                  <DropdownMenuItem asChild>
+                    <Link href={ROUTES.CANDIDATE(candidate.id)}>View Candidate</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={ROUTES.CANDIDATE(candidate.id)}>Edit Candidate</Link>
+                  </DropdownMenuItem>
+                  {candidate.archived || candidate.isArchived || candidate.status === "archived" ? (
+                    <DropdownMenuItem>Restore Candidate</DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem>Archive Candidate</DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem className="text-[var(--fx-danger)]">Delete Candidate</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ),
         };
@@ -236,7 +319,12 @@ export default function CandidatesPage() {
     () => [
       {
         key: "name",
-        label: "Candidate",
+        label: (
+          <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("name")}>
+            <span>Candidate</span>
+            <ArrowUpDown className="size-[14px]" />
+          </button>
+        ),
         width: 240,
         minWidth: 220,
         grow: 2,
@@ -246,14 +334,19 @@ export default function CandidatesPage() {
       },
       {
         key: "jobTitle",
-        label: "Job",
+        label: (
+          <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("jobTitle")}>
+            <span>Role</span>
+            <ArrowUpDown className="size-[14px]" />
+          </button>
+        ),
         width: 240,
         minWidth: 200,
         grow: 2,
       },
       {
         key: "status",
-        label: "Status",
+        label: <span className={fieldHeaderLabelClassName()}>Screening</span>,
         width: 128,
         minWidth: 112,
         maxWidth: 140,
@@ -261,7 +354,12 @@ export default function CandidatesPage() {
       },
       {
         key: "matchScore",
-        label: "Match",
+        label: (
+          <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("matchScore")}>
+            <span>Fit</span>
+            <ArrowUpDown className="size-[14px]" />
+          </button>
+        ),
         width: 96,
         minWidth: 88,
         maxWidth: 112,
@@ -269,7 +367,7 @@ export default function CandidatesPage() {
       },
       {
         key: "availability",
-        label: "Availability",
+        label: <span className={fieldHeaderLabelClassName()}>Availability</span>,
         width: 112,
         minWidth: 96,
         maxWidth: 128,
@@ -277,7 +375,7 @@ export default function CandidatesPage() {
       },
       {
         key: "salary",
-        label: "Current Salary",
+        label: <span className={fieldHeaderLabelClassName()}>Current Salary</span>,
         width: 144,
         minWidth: 128,
         maxWidth: 160,
@@ -285,7 +383,12 @@ export default function CandidatesPage() {
       },
       {
         key: "updatedAt",
-        label: "Updated",
+        label: (
+          <button type="button" className={fieldButtonClassName(true)} onClick={() => handleSort("updatedAt")}>
+            <span>Updated</span>
+            <ArrowUpDown className="size-[14px]" />
+          </button>
+        ),
         width: 124,
         minWidth: 112,
         maxWidth: 136,
@@ -294,9 +397,9 @@ export default function CandidatesPage() {
       {
         key: "actions",
         label: null,
-        width: 92,
-        minWidth: 92,
-        maxWidth: 92,
+        width: 64,
+        minWidth: 64,
+        maxWidth: 64,
         align: "right",
         required: true,
         locked: true,
@@ -307,23 +410,9 @@ export default function CandidatesPage() {
   );
 
   return (
-    <FxProtectedAppPage pageId="candidates">
+    <FxProtectedAppPage pageId="candidates" contentClassName="bg-[var(--fx-surface)]">
       <section className={`${FX_LAYOUT.contentWidthWide} flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden`}>
         <div className="flex min-h-0 flex-1 flex-col gap-[24px] overflow-hidden">
-          <div className="space-y-[6px]">
-            <div className="flex items-center gap-[10px]">
-              <div className="flex size-[40px] items-center justify-center rounded-[12px] bg-[var(--fx-bg-soft)] text-[var(--fx-primary)]">
-                <Users className="size-[18px]" />
-              </div>
-              <div className="space-y-[2px]">
-                <h1 className={FX_TYPOGRAPHY.pageTitle}>Candidates</h1>
-                <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                  Manage candidate records, screening progress, and archived profiles from one table.
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div className="grid min-w-0 flex-none grid-cols-[minmax(0,1fr)_auto] items-end gap-[16px]">
             <div className="flex min-w-0 items-end gap-[24px]">
               <button
@@ -332,7 +421,7 @@ export default function CandidatesPage() {
                 onClick={() => setSelectedTab("active")}
               >
                 Active ({counts.active})
-                {selectedTab === "active" ? <span className="absolute bottom-0 left-[2px] right-[2px] h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
+                {selectedTab === "active" ? <span className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
               </button>
               <button
                 type="button"
@@ -340,7 +429,7 @@ export default function CandidatesPage() {
                 onClick={() => setSelectedTab("archived")}
               >
                 Archived ({counts.archived})
-                {selectedTab === "archived" ? <span className="absolute bottom-0 left-[2px] right-[2px] h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
+                {selectedTab === "archived" ? <span className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[var(--fx-primary)]" /> : null}
               </button>
             </div>
 
@@ -350,7 +439,7 @@ export default function CandidatesPage() {
                   ref={searchInputRef}
                   aria-label="Search candidates"
                   className="border-[color:color-mix(in_srgb,var(--fx-border)_72%,var(--fx-text)_28%)]"
-                  placeholder="Search candidates or jobs..."
+                  placeholder="Search candidates or roles..."
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   rightElement={(
@@ -372,8 +461,8 @@ export default function CandidatesPage() {
             className="min-h-0 flex-1 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[var(--fx-primary)]/20"
           >
             {selectedTab === "archived" && counts.archived === 0 && !searchTerm.trim() ? (
-              <div className="flex h-full min-h-0 items-center justify-center rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[24px] py-[24px]">
-                <div className="max-w-[420px] space-y-[12px] text-center">
+              <div className={`flex h-full min-h-0 items-center justify-center border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)] px-[24px] py-[24px]`}>
+                <div className="max-w-[420px] space-y-[16px] text-center">
                   <p className={FX_TYPOGRAPHY.sectionTitle}>No archived candidates yet</p>
                   <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
                     Archive candidate records later to keep active screening focused.
@@ -382,27 +471,28 @@ export default function CandidatesPage() {
               </div>
             ) : null}
             {selectedTab === "active" && candidateRows.length === 0 && !searchTerm.trim() ? (
-              <div className="flex h-full min-h-0 items-center justify-center rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[24px] py-[24px]">
-                <div className="max-w-[420px] space-y-[12px] text-center">
+              <div className={`flex h-full min-h-0 items-center justify-center border ${FX_COLORS.border} ${FX_RADIUS.sm} bg-[var(--fx-surface)] px-[24px] py-[24px]`}>
+                <div className="max-w-[420px] space-y-[16px] text-center">
                   <p className={FX_TYPOGRAPHY.sectionTitle}>No candidates yet</p>
                   <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
                     Add candidates to start tracking screening, match scores, and follow-up activity.
                   </p>
                 </div>
               </div>
-            ) : null}
-            <FxTable
-              columns={columns}
-              rows={rows}
-              stickyHeader
-              stickyFirstColumn
-              stickyLastColumn
-              scrollX
-              density="compact"
-              emptyMessage="No candidates match the current search."
-              enableColumnPicker
-              storageKey="fx-candidates-table-columns"
-            />
+            ) : (
+              <FxTable
+                columns={columns}
+                rows={rows}
+                stickyHeader
+                stickyFirstColumn
+                stickyLastColumn
+                scrollX
+                className="h-full min-h-0"
+                emptyMessage="No candidates match the current search."
+                enableColumnPicker
+                storageKey="fx-candidates-table-columns"
+              />
+            )}
           </div>
         </div>
       </section>

@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import React from "react";
+import { ArrowLeft } from "lucide-react";
 
 import { fxButtonClassName } from "@/components/FxButton";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
@@ -61,7 +62,8 @@ export default function CandidateWorkspacePage({ params }) {
       title={false}
       navbarLeading={
         <Link href={ROUTES.CANDIDATES} className={`inline-flex items-center gap-[8px] ${FX_TYPOGRAPHY.button} text-foreground hover:text-[var(--fx-text)]`}>
-          Back to Candidates
+          <ArrowLeft className="size-[16px]" />
+          All Candidates
         </Link>
       }
     >
