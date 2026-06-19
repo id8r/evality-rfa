@@ -66,13 +66,13 @@ function formatRelativeTime(value) {
 }
 
 function fieldButtonClassName(isInteractive = false) {
-  return `${TABLE_TYPOGRAPHY.header} font-normal text-[var(--fx-text-muted)] ${
+  return `${TABLE_TYPOGRAPHY.header} whitespace-nowrap font-normal text-[var(--fx-text-muted)] ${
     isInteractive ? "inline-flex cursor-pointer items-center gap-[8px] text-left hover:text-[var(--fx-text)]" : ""
   }`;
 }
 
 function fieldHeaderLabelClassName() {
-  return `${TABLE_TYPOGRAPHY.header} font-normal text-[var(--fx-text-muted)]`;
+  return `${TABLE_TYPOGRAPHY.header} whitespace-nowrap font-normal text-[var(--fx-text-muted)]`;
 }
 
 function renderCandidateStatusDot(candidate) {
@@ -340,9 +340,9 @@ export default function CandidatesPage() {
             <ArrowUpDown className="size-[14px]" />
           </button>
         ),
-        width: 240,
-        minWidth: 220,
-        grow: 2,
+        width: 176,
+        minWidth: 160,
+        grow: 1,
         required: true,
         locked: true,
         hideable: false,
@@ -355,8 +355,8 @@ export default function CandidatesPage() {
             <ArrowUpDown className="size-[14px]" />
           </button>
         ),
-        width: 240,
-        minWidth: 200,
+        width: 200,
+        minWidth: 180,
         grow: 2,
       },
       {
@@ -375,9 +375,9 @@ export default function CandidatesPage() {
             <ArrowUpDown className="size-[14px]" />
           </button>
         ),
-        width: 96,
-        minWidth: 88,
-        maxWidth: 112,
+        width: 112,
+        minWidth: 104,
+        maxWidth: 120,
         align: "center",
       },
       {

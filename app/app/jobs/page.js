@@ -1824,8 +1824,8 @@ export default function JobsPage() {
           <ArrowUpDown className="size-[14px]" />
         </button>
       ),
-      width: showClientInfo ? 260 : 320,
-      minWidth: 240,
+      width: showClientInfo ? 230 : 280,
+      minWidth: 200,
       grow: 2,
       cellClassName: FX_TYPOGRAPHY.clickableData,
       required: true,

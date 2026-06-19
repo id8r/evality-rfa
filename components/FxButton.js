@@ -12,7 +12,8 @@ const variantClasses = {
     "border border-[var(--fx-disabled-border)] bg-[var(--fx-surface)] text-[var(--fx-text)] hover:border-[var(--fx-text-disabled)] hover:bg-[var(--fx-surface-hover)]",
 
   // Outline utility button
-  outline: "border border-[var(--fx-disabled-border)] bg-transparent text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]/60",
+  outline:
+    "border border-[var(--fx-disabled-border)] bg-transparent text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]/60 disabled:border-[var(--fx-border)] disabled:bg-transparent disabled:text-[var(--fx-text-disabled)] disabled:opacity-100 disabled:hover:bg-transparent disabled:hover:text-[var(--fx-text-disabled)]",
 
   // Low-emphasis ghost button
   ghost: "bg-transparent text-foreground hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]",

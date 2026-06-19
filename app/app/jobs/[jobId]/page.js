@@ -15,12 +15,14 @@ import {
   Minus,
   MoreHorizontal,
   PencilLine,
+  Phone,
   PhoneCall,
   Plus,
   RotateCcw,
   Share2,
   Download,
   Sparkles,
+  UserRoundX,
   Trash2,
   UserX,
   Upload,
@@ -1603,7 +1605,7 @@ export default function JobDetailsPage({ params }) {
 
   function getSortHeaderButtonClassName(key) {
     return cn(
-      "inline-flex cursor-pointer items-center gap-[8px] text-left",
+      "inline-flex cursor-pointer items-center gap-[8px] whitespace-nowrap text-left",
       sortConfig?.key === key ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]",
     );
   }
@@ -1644,9 +1646,9 @@ export default function JobDetailsPage({ params }) {
           <ArrowUpDown className="size-[14px]" />
         </button>
       ),
-      width: 300,
-      minWidth: 240,
-      grow: 2,
+      width: 220,
+      minWidth: 200,
+      grow: 1,
       cellClassName: "text-[14px] leading-[22px] font-medium",
       required: true,
       locked: true,
@@ -1660,9 +1662,9 @@ export default function JobDetailsPage({ params }) {
           <ArrowUpDown className="size-[14px]" />
         </button>
       ),
-      width: 136,
-      minWidth: 120,
-      maxWidth: 152,
+      width: 164,
+      minWidth: 152,
+      maxWidth: 176,
       align: "center",
       defaultVisible: true,
     },
@@ -1732,8 +1734,7 @@ export default function JobDetailsPage({ params }) {
       width: 112,
       minWidth: 104,
       maxWidth: 120,
-      align: "center",
-      cellClassName: "px-0 pr-0",
+      align: "left",
       required: true,
       locked: true,
       hideable: false,
@@ -1812,33 +1813,61 @@ export default function JobDetailsPage({ params }) {
       </span>
     ),
     actions: (
-      <div className="flex items-center justify-center gap-[4px]">
-        <button
-          type="button"
-          className={cn(
-            "inline-flex size-[28px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-primary)] transition-colors hover:bg-[var(--fx-surface-hover)]",
-            candidate.status !== "unscreened" ? "opacity-50" : "",
-          )}
-          aria-label={`Start AI pre-screening for ${candidate.name}`}
-          title="Start AI Pre-Screening"
-          disabled={candidate.status !== "unscreened"}
-          onClick={() => handleStartPrescreening(candidate, "ai")}
-        >
-          <Sparkles className="size-[14px]" />
-        </button>
-        <button
-          type="button"
-          className={cn(
-            "inline-flex size-[28px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-text)] transition-colors hover:bg-[var(--fx-surface-hover)]",
-            candidate.status !== "unscreened" ? "opacity-50" : "",
-          )}
-          aria-label={`Manual pre-screening for ${candidate.name}`}
-          title="Manual Pre-Screening"
-          disabled={candidate.status !== "unscreened"}
-          onClick={() => handleStartPrescreening(candidate, "manual")}
-        >
-          <PencilLine className="size-[14px]" />
-        </button>
+      <div className="flex items-center justify-start gap-[8px]">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex size-[32px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-primary)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface-raised)_90%)] hover:text-[var(--fx-primary)]",
+                  candidate.status !== "unscreened" ? "text-[var(--fx-text-muted)]" : "",
+                )}
+                aria-label={`Start AI pre-screening for ${candidate.name}`}
+                aria-disabled={candidate.status !== "unscreened"}
+                onClick={() => {
+                  if (candidate.status !== "unscreened") {
+                    return;
+                  }
+
+                  handleStartPrescreening(candidate, "ai");
+                }}
+              >
+                <Sparkles className="size-[14px]" />
+              </button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
+            AI Pre-Screening
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex size-[32px] items-center justify-center rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface-raised)_90%)] hover:text-[var(--fx-primary)]",
+                  candidate.status !== "unscreened" ? "text-[var(--fx-text-muted)]" : "",
+                )}
+                aria-label={`Manual pre-screening for ${candidate.name}`}
+                aria-disabled={candidate.status !== "unscreened"}
+                onClick={() => {
+                  if (candidate.status !== "unscreened") {
+                    return;
+                  }
+
+                  handleStartPrescreening(candidate, "manual");
+                }}
+              >
+                <Phone className="size-[14px]" />
+              </button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
+            Manual Pre-Screening
+          </TooltipContent>
+        </Tooltip>
       </div>
     ),
     menuActions: (
@@ -1957,32 +1986,37 @@ export default function JobDetailsPage({ params }) {
     );
   }
 
-  const renderBulkButton = (key, Icon, label, onClick, tone = "neutral") => (
-    <FxButton
-      key={key}
-      variant="ghost"
-      size="sm"
-      disabled={selectedCount === 0}
-      onClick={onClick}
-      className={cn(
-        "h-[36px] rounded-[6px] px-[12px] text-[12px] leading-[18px] font-medium shadow-none",
-        tone === "accent"
-          ? "border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-primary)] hover:bg-[var(--fx-surface-hover)]"
-          : tone === "danger"
-            ? "border border-[color-mix(in_srgb,var(--fx-danger)_24%,var(--fx-border)_76%)] bg-[var(--fx-surface-raised)] text-[var(--fx-danger)] hover:bg-[color-mix(in_srgb,var(--fx-danger)_8%,var(--fx-surface-raised)_92%)]"
-            : "border border-[var(--fx-border)] bg-[var(--fx-surface-raised)] text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]",
-      )}
-    >
-      {Icon ? <Icon className="size-[14px]" /> : null}
-      {label}
-    </FxButton>
-  );
+  const renderBulkButton = (key, Icon, label, onClick, tone = "neutral") => {
+    const buttonClassName = cn(
+      "inline-flex size-[36px] items-center justify-center rounded-[8px] border-0 shadow-none transition-colors disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-100",
+      tone === "accent"
+        ? "bg-transparent text-[var(--fx-primary)] hover:bg-[var(--fx-surface-hover)] disabled:bg-transparent disabled:text-[var(--fx-text-disabled)] disabled:hover:bg-transparent"
+        : tone === "danger"
+          ? "bg-transparent text-[var(--fx-danger)] hover:bg-[var(--fx-surface-hover)] disabled:bg-transparent disabled:text-[var(--fx-text-disabled)] disabled:hover:bg-transparent"
+          : "bg-transparent text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)] disabled:bg-transparent disabled:text-[var(--fx-text-disabled)] disabled:hover:bg-transparent",
+    );
+
+    return (
+      <Tooltip key={key}>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">
+            <button type="button" disabled={selectedCount === 0} onClick={onClick} className={buttonClassName} aria-label={label}>
+              {Icon ? <Icon className="size-[16px]" /> : null}
+            </button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" sideOffset={6}>
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
 
   const bulkToolbarButtons = (() => {
     if (bulkStage === "unscreened") {
       return [
         renderBulkButton("ai-pre-screen", Sparkles, "Start AI Pre-Screening", bulkActionHandlers.startAiPreScreening, "accent"),
-        renderBulkButton("remove-from-queue", Minus, "Remove from Pre-Screening Queue", bulkActionHandlers.removeFromPreScreeningQueue),
+        renderBulkButton("remove-from-queue", UserRoundX, "Remove from Pre-Screening Queue", bulkActionHandlers.removeFromPreScreeningQueue),
         renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob),
         renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
@@ -2158,7 +2192,7 @@ export default function JobDetailsPage({ params }) {
               <div className="min-h-0 flex-1 overflow-hidden">
                 {filteredCandidates.length ? (
                   <div className="flex h-full min-h-0 flex-col gap-[12px]">
-                    <div className={`flex min-h-[64px] flex-wrap items-center justify-between gap-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface-subtle)] px-[16px] py-[12px]`}>
+                    <div className={`flex min-h-[64px] flex-wrap items-center justify-between gap-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[16px] py-[12px]`}>
                       <div className="text-[14px] leading-[22px] font-medium text-[var(--fx-text-muted)]">
                         {selectedCount} selected
                       </div>

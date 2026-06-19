@@ -410,8 +410,8 @@ export default function ClientsPage() {
             <ArrowUpDown className="size-[14px]" />
           </button>
         ),
-        width: 260,
-        minWidth: 220,
+        width: 220,
+        minWidth: 200,
         grow: 2,
         required: true,
         locked: true,
