@@ -22,7 +22,6 @@ import {
   Share2,
   Download,
   Sparkles,
-  UserRoundX,
   Trash2,
   UserX,
   Upload,
@@ -64,11 +63,12 @@ import { FX_COLORS, FX_RADIUS, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
 
 const PIPELINE_STAGES = [
-  { value: "all", label: "All" },
+  // { value: "all", label: "All" },
   { value: "unscreened", label: "Unscreened" },
   { value: "screened", label: "Pre-Screened" },
   { value: "shortlisted", label: "Shortlisted" },
   { value: "shared", label: "Sent to Client" },
+  { value: "rejected", label: "Rejected" },
 ];
 
 const PIPELINE_STAGE_SEQUENCE = PIPELINE_STAGES.filter((stage) => stage.value !== "all").map((stage) => stage.value);
@@ -80,10 +80,10 @@ const PIPELINE_STAGE_COUNT_KEYS = {
 };
 
 const EMPTY_STAGE_COPY = {
-  all: {
-    title: "No candidates yet",
-    body: "Start adding candidates to begin screening and evaluation for this role.",
-  },
+  // all: {
+  //   title: "No candidates yet",
+  //   body: "Start adding candidates to begin screening and evaluation for this role.",
+  // },
   unscreened: {
     title: "No unscreened candidates yet",
     body: "Add candidates to begin AI pre-screening for this role.",
@@ -105,6 +105,25 @@ const EMPTY_STAGE_COPY = {
     body: "Rejected candidates will be grouped here for this job.",
   },
 };
+
+const CLIENT_STATUS_OPTIONS = [
+  "Feedback Awaited",
+  "Shortlisted",
+  "Interviewing",
+  "Offered",
+  "Joined",
+  "Rejected",
+  "On Hold",
+  "Dropped Off",
+];
+
+function getClientOutcomeStage(status) {
+  if (status === "Rejected" || status === "Dropped Off") {
+    return "rejected";
+  }
+
+  return "shared";
+}
 
 function normalizeJob(job) {
   return normalizeJobRecord(job);
@@ -196,6 +215,10 @@ function normalizeCandidate(candidate, job) {
     expectedSalary: candidate.expectedSalary != null ? Number(candidate.expectedSalary) : null,
     email: candidate.email ?? "—",
     phone: candidate.phone ?? "—",
+    uploadedBy: candidate.uploadedBy ?? "Manual entry",
+    source: candidate.source ?? candidate.uploadedBy ?? "Direct",
+    clientStatus: candidate.clientStatus ?? jobContext?.clientStatus ?? "Feedback Awaited",
+    rejectionReason: candidate.rejectionReason ?? jobContext?.rejectionReason ?? "Rejected for this role",
     jobContext,
   };
 }
@@ -963,11 +986,11 @@ export default function JobDetailsPage({ params }) {
   }, [job?.status, router]);
 
   const candidateCounts = useMemo(
-    () => ({ all: candidateRows.length, ...getStoredPipelineCounts(candidateRows) }),
+    () => getStoredPipelineCounts(candidateRows),
     [candidateRows],
   );
   const pipelineCandidates = useMemo(
-    () => (activeStage === "all" ? candidateRows : candidateRows.filter((candidate) => candidate.status === activeStage)),
+    () => candidateRows.filter((candidate) => candidate.status === activeStage),
     [candidateRows, activeStage],
   );
 
@@ -992,6 +1015,12 @@ export default function JobDetailsPage({ params }) {
     return [...filteredCandidates].sort((left, right) => {
       const leftValue = left[sortConfig.key];
       const rightValue = right[sortConfig.key];
+
+      if (sortConfig.key === "updatedAt") {
+        const leftTime = new Date(leftValue ?? 0).getTime();
+        const rightTime = new Date(rightValue ?? 0).getTime();
+        return sortConfig.direction === "asc" ? leftTime - rightTime : rightTime - leftTime;
+      }
 
       if (typeof leftValue === "number" && typeof rightValue === "number") {
         return sortConfig.direction === "asc" ? leftValue - rightValue : rightValue - leftValue;
@@ -1018,7 +1047,7 @@ export default function JobDetailsPage({ params }) {
   );
   const selectedCount = selectedVisibleCandidates.length;
   const selectedCountLabel = selectedCount === 1 ? "1 candidate selected" : `${selectedCount} candidates selected`;
-  const bulkStage = activeStage === "all" ? "unscreened" : activeStage;
+  const bulkStage = activeStage;
   const tableSortedColumnKey =
     sortConfig?.key === "name"
       ? "name"
@@ -1026,11 +1055,13 @@ export default function JobDetailsPage({ params }) {
         ? "matchScore"
         : sortConfig?.key === "availabilityDays"
           ? "availability"
-          : sortConfig?.key === "currentSalary"
-            ? "currentSalary"
-            : sortConfig?.key === "expectedSalary"
-              ? "expectedSalary"
-              : null;
+            : sortConfig?.key === "currentSalary"
+              ? "currentSalary"
+              : sortConfig?.key === "expectedSalary"
+                ? "expectedSalary"
+                : sortConfig?.key === "updatedAt"
+                  ? "updatedAt"
+                  : null;
   const tableSortedColumnDirection = sortConfig?.direction ?? "asc";
 
   const updateWorkspaceCandidate = useCallback(
@@ -1189,13 +1220,76 @@ export default function JobDetailsPage({ params }) {
     [job?.id, updateWorkspaceCandidate],
   );
 
-  const handleSelectCurrentStageCandidates = useCallback(() => {
-    setSelectedCandidateIds(pipelineCandidates.map((candidate) => candidate.id));
-  }, [pipelineCandidates]);
-
   const clearSelectedCandidates = useCallback(() => {
     setSelectedCandidateIds([]);
   }, []);
+
+  const handleMoveCandidateToStage = useCallback(
+    (candidate, nextStage, successLabel = null) => {
+      if (!candidate || !nextStage || candidate.status === nextStage) {
+        return;
+      }
+
+      updateWorkspaceCandidate(
+        candidate.id,
+        (current) => ({ ...current, status: nextStage }),
+        { fromStatus: candidate.status, toStatus: nextStage },
+      );
+
+      showSuccess(
+        "Candidate moved",
+        `${candidate.name} moved to ${successLabel ?? PIPELINE_STAGES.find((stage) => stage.value === nextStage)?.label ?? nextStage}.`,
+      );
+    },
+    [updateWorkspaceCandidate],
+  );
+
+  const handleUpdateClientStatus = useCallback(
+    (candidate, nextStatus = null) => {
+      if (!candidate) {
+        return;
+      }
+
+      const currentIndex = CLIENT_STATUS_OPTIONS.indexOf(candidate.clientStatus || "Feedback Awaited");
+      const resolvedStatus =
+        nextStatus ??
+        CLIENT_STATUS_OPTIONS[(currentIndex + 1 + CLIENT_STATUS_OPTIONS.length) % CLIENT_STATUS_OPTIONS.length] ??
+        CLIENT_STATUS_OPTIONS[0];
+      const nextStage = getClientOutcomeStage(resolvedStatus);
+      const rejectionReason =
+        resolvedStatus === "Rejected"
+          ? "Rejected by client"
+          : resolvedStatus === "Dropped Off"
+            ? "Candidate dropped off after sharing"
+            : candidate.rejectionReason;
+
+      updateWorkspaceCandidate(
+        candidate.id,
+        (current) => ({
+          ...current,
+          status: nextStage,
+          clientStatus: resolvedStatus,
+          rejectionReason,
+          jobContexts: {
+            ...(current.jobContexts ?? {}),
+            [job.id]: {
+              ...(current.jobContexts?.[job.id] ?? {}),
+              clientStatus: resolvedStatus,
+            },
+          },
+        }),
+        { fromStatus: candidate.status, toStatus: nextStage },
+      );
+
+      showSuccess(
+        "Client status updated",
+        nextStage === "rejected"
+          ? `${candidate.name} marked as ${resolvedStatus} and moved to Rejected.`
+          : `${candidate.name} marked as ${resolvedStatus}.`,
+      );
+    },
+    [job?.id, updateWorkspaceCandidate],
+  );
 
   const updateSelectedCandidateStatus = useCallback(
     (candidate, updater, options, message) => {
@@ -1225,29 +1319,6 @@ export default function JobDetailsPage({ params }) {
         );
       });
       showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved to pre-screening.`);
-      clearSelectedCandidates();
-    },
-    removeFromPreScreeningQueue: () => {
-      bulkSelectedVisibleCandidates.forEach((candidate) => {
-        if (candidate.status !== "unscreened") {
-          return;
-        }
-
-        updateSelectedCandidateStatus(
-          candidate,
-          (current) => ({
-            ...current,
-            jobContexts: {
-              ...(current.jobContexts ?? {}),
-              [job.id]: {
-                ...(current.jobContexts?.[job.id] ?? {}),
-                preScreeningQueueState: "removed",
-              },
-            },
-          }),
-        );
-      });
-      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} removed from the pre-screening queue.`);
       clearSelectedCandidates();
     },
     removeFromJob: () => {
@@ -1313,6 +1384,21 @@ export default function JobDetailsPage({ params }) {
       showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} sent to client.`);
       clearSelectedCandidates();
     },
+    moveBackToScreened: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        if (candidate.status !== "shortlisted") {
+          return;
+        }
+
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({ ...current, status: "screened" }),
+          { fromStatus: candidate.status, toStatus: "screened" },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved back to pre-screened.`);
+      clearSelectedCandidates();
+    },
     moveBackToShortlisted: () => {
       bulkSelectedVisibleCandidates.forEach((candidate) => {
         if (candidate.status !== "shared") {
@@ -1328,7 +1414,44 @@ export default function JobDetailsPage({ params }) {
       showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved back to shortlisted.`);
       clearSelectedCandidates();
     },
-    restoreCandidate: () => {
+    updateClientStatus: () => {
+      const nextStatus = CLIENT_STATUS_OPTIONS[1] ?? "Shortlisted";
+      const nextStage = getClientOutcomeStage(nextStatus);
+      const rejectionReason =
+        nextStatus === "Rejected"
+          ? "Rejected by client"
+          : nextStatus === "Dropped Off"
+            ? "Candidate dropped off after sharing"
+            : null;
+
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({
+            ...current,
+            status: nextStage,
+            clientStatus: nextStatus,
+            rejectionReason: rejectionReason ?? current.rejectionReason,
+            jobContexts: {
+              ...(current.jobContexts ?? {}),
+              [job.id]: {
+                ...(current.jobContexts?.[job.id] ?? {}),
+                clientStatus: nextStatus,
+              },
+            },
+          }),
+          { fromStatus: candidate.status, toStatus: nextStage },
+        );
+      });
+      showSuccess(
+        "Bulk action applied",
+        nextStage === "rejected"
+          ? `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} updated to ${nextStatus} and moved to Rejected.`
+          : `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} updated to ${nextStatus}.`,
+      );
+      clearSelectedCandidates();
+    },
+    restoreToScreened: () => {
       bulkSelectedVisibleCandidates.forEach((candidate) => {
         if (candidate.status !== "rejected") {
           return;
@@ -1336,11 +1459,26 @@ export default function JobDetailsPage({ params }) {
 
         updateSelectedCandidateStatus(
           candidate,
-          (current) => ({ ...current, status: "unscreened" }),
-          { fromStatus: candidate.status, toStatus: "unscreened" },
+          (current) => ({ ...current, status: "screened" }),
+          { fromStatus: candidate.status, toStatus: "screened" },
         );
       });
-      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} rejected candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} restored.`);
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} rejected candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved to pre-screened.`);
+      clearSelectedCandidates();
+    },
+    restoreToShortlisted: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        if (candidate.status !== "rejected") {
+          return;
+        }
+
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({ ...current, status: "shortlisted" }),
+          { fromStatus: candidate.status, toStatus: "shortlisted" },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} rejected candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved to shortlisted.`);
       clearSelectedCandidates();
     },
   };
@@ -1638,121 +1776,131 @@ export default function JobDetailsPage({ params }) {
     return () => window.removeEventListener("keydown", handleKeydown);
   }, []);
 
-  const tableColumns = [
-    {
-      key: "name",
-      label: (
-        <button type="button" className={getSortHeaderButtonClassName("name")} onClick={() => handleSort("name")}>
-          <span>Candidate Name</span>
-          <ArrowUpDown className="size-[14px]" />
-        </button>
-      ),
-      width: 220,
-      minWidth: 200,
-      grow: 1,
-      cellClassName: "text-[14px] leading-[22px] font-medium",
-      required: true,
-      locked: true,
-      hideable: false,
-    },
-    {
-      key: "matchScore",
-      label: (
-        <button type="button" className={getSortHeaderButtonClassName("matchScore")} onClick={() => handleSort("matchScore")}>
-          <span>JD Match Score</span>
-          <ArrowUpDown className="size-[14px]" />
-        </button>
-      ),
-      width: 164,
-      minWidth: 152,
-      maxWidth: 176,
-      align: "center",
-      defaultVisible: true,
-    },
-    {
-      key: "trustScore",
-      label: "Trust Score",
-      width: 128,
-      minWidth: 112,
-      maxWidth: 144,
-      align: "center",
-      defaultVisible: true,
-    },
-    {
-      key: "interested",
-      label: "Interested",
-      width: 112,
-      minWidth: 104,
-      maxWidth: 128,
-      align: "center",
-      defaultVisible: true,
-    },
-    {
-      key: "availability",
-      label: (
-        <button type="button" className={getSortHeaderButtonClassName("availability")} onClick={() => handleSort("availabilityDays")}>
-          <span>Availability</span>
-          <ArrowUpDown className="size-[14px]" />
-        </button>
-      ),
-      width: 136,
-      minWidth: 120,
-      maxWidth: 152,
-      align: "center",
-      defaultVisible: true,
-    },
-    {
-      key: "currentSalary",
-      label: (
-        <button type="button" className={getSortHeaderButtonClassName("currentSalary")} onClick={() => handleSort("currentSalary")}>
-          <span>Current Salary</span>
-          <ArrowUpDown className="size-[14px]" />
-        </button>
-      ),
-      width: 144,
-      minWidth: 128,
-      maxWidth: 160,
-      align: "right",
-      defaultVisible: true,
-    },
-    {
-      key: "expectedSalary",
-      label: (
-        <button type="button" className={getSortHeaderButtonClassName("expectedSalary")} onClick={() => handleSort("expectedSalary")}>
-          <span>Expectation</span>
-          <ArrowUpDown className="size-[14px]" />
-        </button>
-      ),
-      width: 136,
-      minWidth: 120,
-      maxWidth: 152,
-      align: "right",
-      defaultVisible: true,
-    },
-    {
-      key: "actions",
-      label: "Actions",
-      width: 112,
-      minWidth: 104,
-      maxWidth: 120,
-      align: "left",
-      required: true,
-      locked: true,
-      hideable: false,
-    },
-    {
-      key: "menuActions",
-      label: null,
-      width: 56,
-      minWidth: 56,
-      maxWidth: 56,
-      align: "center",
-      cellClassName: "px-0 pr-0",
-      required: true,
-      locked: true,
-      hideable: false,
-    },
-  ];
+  function renderStageActionButton(candidate) {
+    const className =
+      "inline-flex size-[32px] items-center justify-center rounded-[6px] border-0 bg-[var(--fx-surface-raised)] text-[var(--fx-text)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface-raised)_90%)] hover:text-[var(--fx-primary)]";
+
+    if (activeStage === "unscreened") {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <button type="button" className={className} aria-label={`Start AI pre-screening for ${candidate.name}`} onClick={() => handleStartPrescreening(candidate, "ai")}>
+                <Sparkles className="size-[14px]" />
+              </button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={8}>Start AI Pre-Screening</TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    if (activeStage === "screened") {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <button type="button" className={className} aria-label={`Shortlist ${candidate.name}`} onClick={() => handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted")}>
+                <ArrowRight className="size-[14px]" />
+              </button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={8}>Shortlist</TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    if (activeStage === "shortlisted") {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <button type="button" className={className} aria-label={`Send ${candidate.name} to client`} onClick={() => handleMoveCandidateToStage(candidate, "shared", "Sent to Client")}>
+                <Share2 className="size-[14px]" />
+              </button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={8}>Send to Client</TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    if (activeStage === "shared") {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <button type="button" className={className} aria-label={`Update client status for ${candidate.name}`} onClick={() => handleUpdateClientStatus(candidate)}>
+                <Check className="size-[14px]" />
+              </button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={8}>Update Client Status</TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">
+            <button type="button" className={className} aria-label={`Move ${candidate.name} to pre-screened`} onClick={() => handleMoveCandidateToStage(candidate, "screened", "Pre-Screened")}>
+              <RotateCcw className="size-[14px]" />
+            </button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={8}>Move to Pre-Screened</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  function renderClientStatusChip(status) {
+    const toneClassName =
+      status === "Joined"
+        ? "bg-[color-mix(in_srgb,var(--fx-success)_14%,var(--fx-surface)_86%)] text-[var(--fx-success)]"
+        : status === "Rejected" || status === "Dropped Off"
+          ? "bg-[color-mix(in_srgb,var(--fx-danger)_12%,var(--fx-surface)_88%)] text-[var(--fx-danger)]"
+          : status === "On Hold"
+            ? "bg-[color-mix(in_srgb,var(--fx-warning)_12%,var(--fx-surface)_88%)] text-[var(--fx-warning)]"
+            : "bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]";
+
+    return <span className={cn("inline-flex min-w-[96px] items-center justify-center rounded-full px-[10px] py-[4px] text-[12px] leading-[18px] font-medium", toneClassName)}>{status}</span>;
+  }
+
+  const tableColumns = useMemo(() => {
+    const sortLabel = (key, label) => (
+      <button type="button" className={getSortHeaderButtonClassName(key)} onClick={() => handleSort(key)}>
+        <span>{label}</span>
+        <ArrowUpDown className="size-[14px]" />
+      </button>
+    );
+
+    const columnsByKey = {
+      name: { key: "name", label: sortLabel("name", "Candidate Name"), width: 220, minWidth: 200, maxWidth: 260, grow: 1, cellClassName: "text-[14px] leading-[22px] font-medium", required: true, locked: true, hideable: false },
+      matchScore: { key: "matchScore", label: sortLabel("matchScore", "JD Match Score"), width: 160, minWidth: 148, maxWidth: 168, align: "center" },
+      interested: { key: "interested", label: "Interested", width: 112, minWidth: 104, maxWidth: 124, align: "center" },
+      availability: { key: "availability", label: sortLabel("availabilityDays", "Availability"), width: 132, minWidth: 120, maxWidth: 148, align: "center" },
+      currentSalary: { key: "currentSalary", label: sortLabel("currentSalary", "Current Salary"), width: 144, minWidth: 130, maxWidth: 156, align: "right" },
+      expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", "Expectation"), width: 136, minWidth: 124, maxWidth: 148, align: "right" },
+      screeningOutcome: { key: "screeningOutcome", label: "Pre-Screen", width: 132, minWidth: 120, maxWidth: 148, align: "center" },
+      currentStage: { key: "currentStage", label: "Current Stage", width: 140, minWidth: 128, maxWidth: 156, align: "center" },
+      clientStatus: { key: "clientStatus", label: "Client Status", width: 156, minWidth: 144, maxWidth: 172, align: "center" },
+      rejectionReason: { key: "rejectionReason", label: "Rejection Reason", width: 188, minWidth: 172, maxWidth: 220 },
+      actions: { key: "actions", label: "Actions", width: 88, minWidth: 80, maxWidth: 96, align: "left", required: true, locked: true, hideable: false },
+      menuActions: { key: "menuActions", label: null, width: 56, minWidth: 56, maxWidth: 56, align: "center", cellClassName: "px-0 pr-0", required: true, locked: true, hideable: false },
+    };
+
+    const commonKeys = ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "currentStage"];
+    const keysByStage = {
+      unscreened: [...commonKeys, "actions", "menuActions"],
+      screened: [...commonKeys, "actions", "menuActions"],
+      shortlisted: [...commonKeys, "actions", "menuActions"],
+      shared: [...commonKeys, "clientStatus", "actions", "menuActions"],
+      rejected: [...commonKeys, "rejectionReason", "actions", "menuActions"],
+    };
+
+    return (keysByStage[activeStage] ?? keysByStage.unscreened).map((key) => columnsByKey[key]);
+  }, [activeStage, sortConfig]);
 
   const rows = sortedCandidates.map((candidate) => ({
     id: candidate.id,
@@ -1781,19 +1929,10 @@ export default function JobDetailsPage({ params }) {
         {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
       </button>
     ),
-    trustScore: (
-      <span
-        className={`inline-flex min-w-[64px] items-center justify-center rounded-full px-[8px] py-[3px] text-[12px] leading-[18px] font-medium ${
-          candidate.trustScore === "High"
-            ? "bg-[color-mix(in_srgb,var(--fx-success)_14%,var(--fx-surface)_86%)] text-[var(--fx-success)]"
-            : candidate.trustScore === "Low"
-              ? "bg-[color-mix(in_srgb,var(--fx-warning)_12%,var(--fx-surface)_88%)] text-[var(--fx-warning)]"
-              : "bg-[var(--fx-bg-soft)] text-[var(--fx-text)]"
-        }`}
-      >
-        {candidate.trustScore || "—"}
-      </span>
-    ),
+    phone: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.phone || "—"}</span>,
+    email: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.email || "—"}</span>,
+    uploadedBy: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.uploadedBy || "—"}</span>,
+    source: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.source || "—"}</span>,
     interested: (
       <span className="inline-flex min-w-[56px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-normal text-[var(--fx-text)]">
         {candidate.interested ?? "—"}
@@ -1814,62 +1953,21 @@ export default function JobDetailsPage({ params }) {
         {formatCurrency(candidate.expectedSalary)}
       </span>
     ),
+    screeningOutcome: (
+      <span className="inline-flex min-w-[88px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[12px] leading-[18px] font-medium text-[var(--fx-text)]">
+        {candidate.screeningOutcome || "Pending"}
+      </span>
+    ),
+    currentStage: (
+      <span className="inline-flex min-w-[96px] items-center justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] leading-[18px] font-medium text-[var(--fx-primary)]">
+        {PIPELINE_STAGES.find((stage) => stage.value === candidate.status)?.label ?? "Unscreened"}
+      </span>
+    ),
+    clientStatus: renderClientStatusChip(candidate.clientStatus || "Feedback Awaited"),
+    rejectionReason: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.rejectionReason || "Rejected for this role"}</span>,
     actions: (
       <div className="flex items-center justify-start gap-[8px]">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex">
-              <button
-                type="button"
-                className={cn(
-                  "inline-flex size-[32px] items-center justify-center rounded-[6px] border-0 bg-[var(--fx-surface-raised)] text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface-raised)_90%)] hover:text-[var(--fx-primary)]",
-                  candidate.status !== "unscreened" ? "text-[var(--fx-text-muted)]" : "",
-                )}
-                aria-label={`Start AI pre-screening for ${candidate.name}`}
-                aria-disabled={candidate.status !== "unscreened"}
-                onClick={() => {
-                  if (candidate.status !== "unscreened") {
-                    return;
-                  }
-
-                  handleStartPrescreening(candidate, "ai");
-                }}
-              >
-                <Sparkles className="size-[14px]" />
-              </button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8}>
-            AI Pre-Screening
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex">
-              <button
-                type="button"
-                className={cn(
-                  "inline-flex size-[32px] items-center justify-center rounded-[6px] border-0 bg-[var(--fx-surface-raised)] text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface-raised)_90%)] hover:text-[var(--fx-primary)]",
-                  candidate.status !== "unscreened" ? "text-[var(--fx-text-muted)]" : "",
-                )}
-                aria-label={`Manual pre-screening for ${candidate.name}`}
-                aria-disabled={candidate.status !== "unscreened"}
-                onClick={() => {
-                  if (candidate.status !== "unscreened") {
-                    return;
-                  }
-
-                  handleStartPrescreening(candidate, "manual");
-                }}
-              >
-                <Phone className="size-[14px]" />
-              </button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8}>
-            Manual Pre-Screening
-          </TooltipContent>
-        </Tooltip>
+        {renderStageActionButton(candidate)}
       </div>
     ),
     menuActions: (
@@ -1909,6 +2007,46 @@ export default function JobDetailsPage({ params }) {
             >
               Download Resume
             </DropdownMenuItem>
+            {activeStage === "shortlisted" ? (
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  handleMoveCandidateToStage(candidate, "screened", "Pre-Screened");
+                }}
+              >
+                Move back to Pre-Screened
+              </DropdownMenuItem>
+            ) : null}
+            {activeStage === "shared" ? (
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted");
+                }}
+              >
+                Move back to Shortlisted
+              </DropdownMenuItem>
+            ) : null}
+            {activeStage === "rejected" ? (
+              <>
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    handleMoveCandidateToStage(candidate, "screened", "Pre-Screened");
+                  }}
+                >
+                  Move to Pre-Screened
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted");
+                  }}
+                >
+                  Move to Shortlisted
+                </DropdownMenuItem>
+              </>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={async (event) => {
@@ -1918,17 +2056,19 @@ export default function JobDetailsPage({ params }) {
             >
               Remove from Job
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-                handleRejectCandidate(candidate);
-              }}
-            >
-              Reject Candidate
-            </DropdownMenuItem>
+            {activeStage !== "rejected" ? (
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  handleRejectCandidate(candidate);
+                }}
+              >
+                Reject Candidate
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-        {renderScreeningFailureDot(candidate)}
+        {activeStage !== "unscreened" ? renderScreeningFailureDot(candidate) : <span className="inline-flex size-[8px] shrink-0 rounded-full opacity-0" aria-hidden="true" />}
       </div>
     ),
   }));
@@ -2018,56 +2158,51 @@ export default function JobDetailsPage({ params }) {
     if (bulkStage === "unscreened") {
       return [
         renderBulkButton("ai-pre-screen", Sparkles, "Start AI Pre-Screening", bulkActionHandlers.startAiPreScreening, "accent"),
-        renderBulkButton("remove-from-queue", UserRoundX, "Remove from Pre-Screening Queue", bulkActionHandlers.removeFromPreScreeningQueue),
         renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob),
         renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
-        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+        renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
     }
 
     if (bulkStage === "screened") {
       return [
         renderBulkButton("shortlisted", ArrowRight, "Move to Shortlisted", bulkActionHandlers.moveToShortlisted, "accent"),
-        renderBulkButton("sent-to-client", ArrowRight, "Move to Sent to Client", bulkActionHandlers.moveToSentToClient),
+        renderBulkButton("sent-to-client", Share2, "Move to Sent to Client", bulkActionHandlers.moveToSentToClient),
         renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
-        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+        renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
     }
 
     if (bulkStage === "shortlisted") {
       return [
-        renderBulkButton("sent-to-client", ArrowRight, "Move to Sent to Client", bulkActionHandlers.moveToSentToClient, "accent"),
-        renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
+        renderBulkButton("sent-to-client", Share2, "Send to Client", bulkActionHandlers.moveToSentToClient, "accent"),
+        renderBulkButton("back-to-screened", RotateCcw, "Move back to Pre-Screened", bulkActionHandlers.moveBackToScreened),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
-        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+        renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
     }
 
     if (bulkStage === "shared") {
       return [
-        renderBulkButton("back-to-shortlisted", ArrowLeft, "Move back to Shortlisted", bulkActionHandlers.moveBackToShortlisted, "accent"),
-        renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
+        renderBulkButton("client-status", Check, "Update Client Status", bulkActionHandlers.updateClientStatus, "accent"),
+        renderBulkButton("back-to-shortlisted", ArrowLeft, "Move back to Shortlisted", bulkActionHandlers.moveBackToShortlisted),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
-        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+        renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
     }
 
     if (bulkStage === "rejected") {
       return [
-        renderBulkButton("restore", RotateCcw, "Restore Candidate", bulkActionHandlers.restoreCandidate, "secondary"),
-        renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob),
-        renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
+        renderBulkButton("move-to-screened", RotateCcw, "Move to Pre-Screened", bulkActionHandlers.restoreToScreened, "accent"),
+        renderBulkButton("move-to-shortlisted", ArrowRight, "Move to Shortlisted", bulkActionHandlers.restoreToShortlisted),
+        renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob, "danger"),
+        renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
     }
 
-    return [
-      renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
-      renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
-      renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob),
-      renderBulkButton("download-resumes", Download, "Download Resumes", handleBulkDownloadResumes, "accent"),
-    ];
+    return [];
   })();
 
   if (job?.status === "Draft") {
@@ -2137,14 +2272,12 @@ export default function JobDetailsPage({ params }) {
                 <MetaField label="Location" value={job.location || "—"} />
                 <MetaField label="Publish Date" value={job.publishDate ? formatDate(job.publishDate) : "Draft"} />
                 <MetaField label="Question Format" value={job.questionFormat || "CV + AI pre-screening"} />
-                <MetaField label="Last Activity" value={formatRelativeTime(job.updatedAt)} />
-                <MetaField label="Job ID" value={jobIdLabel} valueClassName="font-mono text-[13px]" />
               </div>
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-[16px]">
-              <div className="flex items-center gap-[16px]">
-                <div className="min-w-0 flex-1">
+              <div className="flex flex-col gap-[12px]">
+                <div className="min-w-0">
                   <FxTabs
                     tabs={PIPELINE_STAGES.map((stage) => ({
                       value: stage.value,
@@ -2158,9 +2291,9 @@ export default function JobDetailsPage({ params }) {
                   />
                 </div>
 
-                <div className="flex shrink-0 flex-nowrap items-center justify-end gap-[12px]">
-                  <div className="flex flex-none items-center gap-[8px]">{bulkToolbarButtons}</div>
-                  <div className="w-[240px] flex-none">
+                <div className="flex flex-wrap items-center justify-end gap-[12px]">
+                  <div className="flex flex-wrap items-center justify-end gap-[8px]">{bulkToolbarButtons}</div>
+                  <div className="w-full min-w-0 sm:w-[240px] sm:flex-none">
                     <div className={`flex h-[40px] items-center rounded-[6px] border border-[color:color-mix(in_srgb,var(--fx-text)_18%,var(--fx-border)_82%)] bg-[var(--fx-bg)] px-[16px]`}>
                       <input
                         ref={searchRef}
@@ -2215,11 +2348,10 @@ export default function JobDetailsPage({ params }) {
                       scrollX
                       emptyMessage="No candidates in this stage yet."
                       enableColumnPicker
-                      storageKey={STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}
+                      storageKey={`${STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}:${activeStage}`}
                       enableRowSelection
                       selectedRowKeys={selectedCandidateIds}
                       onSelectedRowKeysChange={setSelectedCandidateIds}
-                      rowSelectionActions={{ onSelectCurrentStage: handleSelectCurrentStageCandidates }}
                     />
                   </div>
                 ) : (
