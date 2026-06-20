@@ -1319,7 +1319,7 @@ export default function JobsPage() {
       <label
         key={`${groupTitle}-${item.label}`}
         htmlFor={inputId}
-        className={`flex w-full cursor-pointer items-start gap-[10px] rounded-[8px] px-[4px] py-[6px] transition-colors hover:bg-[var(--fx-surface-hover)] ${
+        className={`flex w-full cursor-pointer items-start gap-[8px] rounded-[8px] px-[4px] py-[4px] transition-colors hover:bg-[var(--fx-surface-hover)] ${
           isActive ? "text-[var(--fx-text)]" : "text-[var(--fx-text-muted)]"
         }`}
       >
@@ -1397,7 +1397,7 @@ export default function JobsPage() {
 
   function renderReviewSectionCard({ title, step, children }) {
     return (
-      <div className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+      <div className="space-y-[12px] rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
         <div className="flex items-start justify-between gap-[12px]">
           <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>{title}</h4>
           <FxButton type="button" variant="ghost" size="sm" className="text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]" onClick={() => goToSheetStep(step)}>
@@ -1448,12 +1448,23 @@ export default function JobsPage() {
   }
 
   function renderReviewSummaryRow({ title, step, lines, complete, children }) {
+    const inlineSummary = lines.length ? lines.join(" ") : null;
+
     return (
-      <div className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
-        <div className="flex items-start justify-between gap-[12px]">
+      <div className="space-y-[12px] rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+        <div className="flex items-center justify-between gap-[12px]">
           <div className="flex min-w-0 items-center gap-[8px]">
             {renderReviewStatusDot(complete)}
-            <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>{title}</h4>
+            <div className="min-w-0">
+              <h4 className={`${FX_TYPOGRAPHY.button} flex min-w-0 items-center gap-[6px] text-[var(--fx-text-muted)]`}>
+                <span className="truncate">{title}</span>
+                {inlineSummary ? (
+                  <span className="min-w-0 truncate text-[var(--fx-text)]">
+                    - {inlineSummary}
+                  </span>
+                ) : null}
+              </h4>
+            </div>
           </div>
 
           <FxButton type="button" variant="ghost" size="sm" className="text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]" onClick={() => goToSheetStep(step)}>
@@ -1461,7 +1472,7 @@ export default function JobsPage() {
           </FxButton>
         </div>
 
-        {lines.length ? (
+        {!inlineSummary && lines.length ? (
           <div className="space-y-[6px] text-[14px] leading-[22px] text-[var(--fx-text)]">
             {lines.map((line, index) => (
               <div key={index} className="text-[14px] leading-[22px] text-[var(--fx-text)]">
@@ -1478,7 +1489,7 @@ export default function JobsPage() {
 
   function renderEvaluationMissingCard() {
     return (
-      <div className="rounded-[16px] border border-[color:color-mix(in_srgb,var(--fx-warning)_32%,var(--fx-border)_68%)] bg-[color:color-mix(in_srgb,var(--fx-warning)_8%,var(--fx-surface)_92%)] p-[16px]">
+      <div className="rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-warning)_32%,var(--fx-border)_68%)] bg-[color:color-mix(in_srgb,var(--fx-warning)_8%,var(--fx-surface)_92%)] p-[16px]">
         <div className="space-y-[12px]">
           <div className="flex items-start justify-between gap-[12px]">
             <div className="space-y-[4px]">
@@ -2259,7 +2270,7 @@ export default function JobsPage() {
           <SheetHeader
             title={isSheetOpen ? jobCreationTitle : editingJob ? PAGE_COPY.jobs.editCta : PAGE_COPY.jobs.createCta}
             description={jobTitleValue || (editingJob ? "Edit details for this job" : "Enter job details to get started")}
-            descriptionClassName="text-[var(--fx-text)] font-medium"
+            descriptionClassName="text-[var(--fx-text-muted)] font-normal"
             actions={(
               <>
                 {editingJob ? (
@@ -2363,7 +2374,7 @@ export default function JobsPage() {
                       */}
 
                       <div className="grid gap-[24px] xl:grid-cols-12">
-                        <div className="xl:col-span-12 space-y-[8px]">
+                        <div className="xl:col-span-12 flex flex-col gap-[8px]">
                           <FxFieldLabel required>Job Title</FxFieldLabel>
                           <FxInput
                             ref={jobTitleInputRef}
@@ -2381,40 +2392,100 @@ export default function JobsPage() {
                         </div>
 
                         <div className="xl:col-span-6">
-                        {/* <div className="xl:col-span-4"> //[Sree] */}
-                          <div className="flex flex-col gap-[8px]">
-                            <FxFieldLabel required>Experience</FxFieldLabel>
-                            <div className="grid grid-cols-2 gap-[8px]">
-                              <FxInput
-                                name="experienceFrom"
-                                placeholder="From"
-                                type="number"
-                                min="0"
-                                value={jobForm.experienceFrom}
-                                onChange={(event) => handleExperienceFieldChange("experienceFrom", event.target.value)}
-                                required
-                                state={fieldState("experienceFrom")}
-                                validationMessage={validationErrors.experienceFrom}
-                                className={BASIC_FORM_CONTROL_CLASS}
-                                rightElement={<span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">years</span>}
-                                stackClassName="gap-0"
-                              />
-                              <FxInput
-                              name="experienceTo"
-                              placeholder="To"
-                              type="number"
-                              min="0"
-                              value={jobForm.experienceTo}
-                                onChange={(event) => handleExperienceFieldChange("experienceTo", event.target.value)}
-                                optional
-                                state={fieldState("experienceTo")}
-                                validationMessage={validationErrors.experienceTo}
-                                className={BASIC_FORM_CONTROL_CLASS}
-                                rightElement={<span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">years</span>}
-                                stackClassName="gap-0"
-                              />
-                            </div>
-                          </div>
+                          <FxSelect
+                            name="employmentType"
+                            options={EMPLOYMENT_TYPE_OPTIONS}
+                            value={jobForm.employmentType}
+                            onChange={(event) => handleSelectFieldChange("employmentType", event.target.value)}
+                            label="Employment Type"
+                            placeholder="Employment type"
+                            state={fieldState("employmentType")}
+                            validationMessage={validationErrors.employmentType}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-6">
+                          <FxSelect
+                            name="workplaceType"
+                            options={WORKPLACE_TYPE_OPTIONS}
+                            value={jobForm.workplaceType}
+                            onChange={(event) => handleSelectFieldChange("workplaceType", event.target.value)}
+                            label="Workplace Type"
+                            placeholder="Workplace type"
+                            state={fieldState("workplaceType")}
+                            validationMessage={validationErrors.workplaceType}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-[24px] xl:grid-cols-12">
+                        <div className="xl:col-span-6">
+                          <FxInput
+                            name="city"
+                            label="City"
+                            placeholder="Bengaluru"
+                            value={jobForm.city}
+                            onChange={handleJobFormChange}
+                            required={isCityRequired}
+                            state={fieldState("city")}
+                            validationMessage={validationErrors.city}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-6">
+                          <FxInput
+                            name="locality"
+                            label="Locality"
+                            placeholder={isRemote ? "Optional for remote roles" : "HSR Layout"}
+                            value={jobForm.locality}
+                            onChange={handleJobFormChange}
+                            disabled={isRemote}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-[24px] xl:grid-cols-12">
+                        <div className="xl:col-span-3">
+                          <FxInput
+                            name="experienceFrom"
+                            label="Experience Min"
+                            placeholder="Min"
+                            type="number"
+                            min="0"
+                            value={jobForm.experienceFrom}
+                            onChange={(event) => handleExperienceFieldChange("experienceFrom", event.target.value)}
+                            required
+                            state={fieldState("experienceFrom")}
+                            validationMessage={validationErrors.experienceFrom}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            rightElement={<span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">years</span>}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
+                        </div>
+
+                        <div className="xl:col-span-3">
+                          <FxInput
+                            name="experienceTo"
+                            label="Experience Max"
+                            placeholder="Max"
+                            type="number"
+                            min="0"
+                            value={jobForm.experienceTo}
+                            onChange={(event) => handleExperienceFieldChange("experienceTo", event.target.value)}
+                            state={fieldState("experienceTo")}
+                            validationMessage={validationErrors.experienceTo}
+                            className={BASIC_FORM_CONTROL_CLASS}
+                            rightElement={<span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">years</span>}
+                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
+                          />
                         </div>
 
                         <div className="xl:col-span-3">
@@ -2444,76 +2515,14 @@ export default function JobsPage() {
                             stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                           />
                         </div>
-
-                        <div className="xl:col-span-3">
-                          <FxSelect
-                            name="employmentType"
-                            options={EMPLOYMENT_TYPE_OPTIONS}
-                            value={jobForm.employmentType}
-                            onChange={(event) => handleSelectFieldChange("employmentType", event.target.value)}
-                            label="Employment Type"
-                            placeholder="Employment type"
-                            state={fieldState("employmentType")}
-                            validationMessage={validationErrors.employmentType}
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
-                        </div>
-
-                        <div className="xl:col-span-3">
-                          <FxSelect
-                            name="workplaceType"
-                            options={WORKPLACE_TYPE_OPTIONS}
-                            value={jobForm.workplaceType}
-                            onChange={(event) => handleSelectFieldChange("workplaceType", event.target.value)}
-                            label="Workplace Type"
-                            placeholder="Workplace type"
-                            state={fieldState("workplaceType")}
-                            validationMessage={validationErrors.workplaceType}
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-[24px] xl:grid-cols-12">
-                        <div className="xl:col-span-6">
-                          <FxInput
-                            name="city"
-                            label="City"
-                            placeholder="Bengaluru"
-                            value={jobForm.city}
-                            onChange={handleJobFormChange}
-                            required={isCityRequired}
-                            optional={!isCityRequired}
-                            state={fieldState("city")}
-                            validationMessage={validationErrors.city}
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
-                        </div>
-
-                        <div className="xl:col-span-6">
-                          <FxInput
-                            name="locality"
-                            label="Locality"
-                            placeholder={isRemote ? "Optional for remote roles" : "HSR Layout"}
-                            value={jobForm.locality}
-                            onChange={handleJobFormChange}
-                            optional
-                            disabled={isRemote}
-                            className={BASIC_FORM_CONTROL_CLASS}
-                            stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
-                          />
-                        </div>
                       </div>
 
                       <div className="space-y-[16px]">
                         <div className="flex items-center justify-between gap-[16px]">
                           <h3 className="text-[16px] leading-[24px] font-normal text-[var(--fx-text-muted)]">Compensation</h3>
                         </div>
-                        <div className="grid gap-[24px] md:grid-cols-3">
-                          <div>
+                        <div className="grid gap-[24px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px]">
+                          <div className="min-w-0">
                             <FxInput
                               name="salaryMin"
                               label="Salary Min"
@@ -2521,13 +2530,12 @@ export default function JobsPage() {
                               placeholder="1000000"
                               value={jobForm.salaryMin}
                               onChange={handleJobFormChange}
-                              optional
                               className={`text-right placeholder:text-right ${BASIC_FORM_CONTROL_CLASS}`}
                               stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                             />
                           </div>
 
-                          <div>
+                          <div className="min-w-0">
                             <FxInput
                               name="salaryMax"
                               label="Salary Max"
@@ -2535,13 +2543,12 @@ export default function JobsPage() {
                               placeholder="1500000"
                               value={jobForm.salaryMax}
                               onChange={handleJobFormChange}
-                              optional
                               className={`text-right placeholder:text-right ${BASIC_FORM_CONTROL_CLASS}`}
                               stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                             />
                           </div>
 
-                          <div>
+                          <div className="min-w-0">
                             <FxSelect
                               name="currency"
                               options={CURRENCY_OPTIONS}
@@ -2549,8 +2556,7 @@ export default function JobsPage() {
                               onChange={(event) => handleSelectFieldChange("currency", event.target.value)}
                               label="Currency"
                               placeholder="Currency"
-                              optional
-                              className={`w-auto min-w-[96px] max-w-[120px] ${BASIC_FORM_CONTROL_CLASS}`}
+                              className={`w-full min-w-0 ${BASIC_FORM_CONTROL_CLASS}`}
                               stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                             />
                           </div>
