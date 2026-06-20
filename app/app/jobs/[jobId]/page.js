@@ -492,11 +492,9 @@ function CvMatchBreakdownSheet({ open, onOpenChange, candidate }) {
               <p className="text-[15px] leading-[22px] font-semibold text-[var(--fx-text)]">
                 {candidate?.name || "Candidate"}
               </p>
-              <div className="flex flex-wrap items-center gap-[6px] text-[13px] leading-[18px] font-medium">
-                <span className="text-[var(--fx-text-muted)]">CV Match Score</span>
-                <span className="text-[var(--fx-text-muted)]">–</span>
-                <span className="text-[var(--fx-text)]">{candidate?.jobTitle || "Job"}</span>
-              </div>
+              <p className="text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">
+                {candidate?.jobTitle || "Job"}
+              </p>
             </div>
           )}
         />
@@ -505,7 +503,7 @@ function CvMatchBreakdownSheet({ open, onOpenChange, candidate }) {
             <div className="space-y-[12px]">
               <div className="rounded-[8px] px-[12px] py-[12px]">
                 <div className="flex items-center justify-between gap-[16px]">
-                  <p className="text-[15px] leading-[22px] font-semibold text-[var(--fx-text)]">Overall Match</p>
+                  <p className="text-[15px] leading-[22px] font-semibold text-[var(--fx-text)]">Overall CV Match Score</p>
                   <span className="text-[15px] leading-[22px] font-semibold text-[var(--fx-text)]">
                     {breakdown.overallScore}%
                   </span>
