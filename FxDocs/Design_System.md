@@ -1,6 +1,6 @@
 # Evality AI - Design System
 
-**Version:** 1.2 | **Date:** 16 Jun 2026 | **Status:** Approved Baseline | **Path:** FxDocs/Design_System.md | **Need:** Source of Truth for Dev | **Last Updated:** 16 Jun 2026
+**Version:** 1.3 | **Date:** 20 Jun 2026 | **Status:** Approved Baseline | **Path:** FxDocs/Design_System.md | **Need:** Source of Truth for Dev | **Last Updated:** 20 Jun 2026
 
 
 # Principles
@@ -99,26 +99,36 @@ font-family:
 
 ## Type Scale
 
-| Token       | Size | Line Height | Weight | Usage                                |
-| ----------- | ---- | ----------- | ------ | ------------------------------------ |
-| Display     | 36px | 44px        | 600    | Landing sections, major headers      |
-| Page Title  | 28px | 36px        | 600    | Page titles                          |
-| Section Title | 20px | 28px      | 600    | Section titles                       |
-| Card Title  | 16px | 24px        | 600    | Card titles, dialog titles           |
-| Body        | 14px | 22px        | 400    | Default text                         |
-| Field Label | 13px | 20px        | 400    | Form labels                          |
-| Field Hint  | 13px | 20px        | 400    | Helper text, validation text         |
-| Button      | 14px | 22px        | 500    | Primary and secondary actions        |
-| Table Header | 12px | 18px       | 500    | Table headers, metadata, chips       |
-| Table Cell  | 14px | 22px        | 400    | Table cells                          |
-| Caption     | 11px | 16px        | 400    | Tiny metadata, timestamps            |
+| Token              | Size | Line Height | Weight | Usage                                      |
+| ------------------ | ---- | ----------- | ------ | ------------------------------------------ |
+| Display            | 36px | 44px        | 600    | Landing sections, major headers            |
+| Nav Title          | 24px | 36px        | 600    | App navbar titles                          |
+| Page Title         | 28px | 36px        | 600    | Page titles                                |
+| Workspace Title    | 24px | 32px        | 600    | Job workspace and large in-app workspaces  |
+| Workspace Subtitle | 14px | 22px        | 400    | Supporting workspace context               |
+| Section Title      | 20px | 28px        | 600    | Section titles                             |
+| Card Title         | 16px | 24px        | 600    | Card titles and compact panel headers      |
+| Sheet Title        | 16px | 24px        | 600    | Right-side workspace sheets                |
+| Sheet Subtitle     | 13px | 20px        | 400    | Sheet helper and supporting copy           |
+| Dialog Title       | 20px | 32px        | 600    | Modal and confirmation dialog titles       |
+| Dialog Subtitle    | 14px | 22px        | 400    | Dialog helper copy                         |
+| Body               | 14px | 22px        | 400    | Default text                               |
+| Field Label        | 13px | 20px        | 400    | Form labels                                |
+| Field Hint         | 13px | 20px        | 400    | Helper text, validation text               |
+| Button             | 14px | 22px        | 500    | Primary and secondary actions              |
+| Meta Label         | 12px | 18px        | 500    | Chips, compact status, metadata            |
+| Table Header       | 13px | 20px        | 500    | Table headers and dense structured labels  |
+| Table Cell         | 14px | 22px        | 400    | Table cells                                |
+| Caption            | 11px | 16px        | 400    | Tiny metadata, timestamps                  |
 
 ## Typography Rules
 
 * Use Body as the default application text
 * Use Field Label for form labels
 * Use Field Hint for field help and validation text
-* Use Table Header for table headers and compact metadata
+* Use Table Header for table headers and dense structured labels
+* Use Meta Label for chips, compact state, and tiny metadata
+* Use Sheet Title and Sheet Subtitle for right-side workspace sheets
 * Do not use text below 11px
 
 
@@ -155,6 +165,15 @@ font-family:
 | Expanded Sidebar      | 256px  |
 | Collapsed Sidebar     | 72px   |
 | Global Header Height  | 64px   |
+
+## Sheet Widths
+
+| Token      | Value |
+| ---------- | ----- |
+| Sheet Sm   | 480px |
+| Sheet Md   | 540px |
+| Sheet Lg   | 600px |
+| Sheet Xl   | 660px |
 
 
 # Radius

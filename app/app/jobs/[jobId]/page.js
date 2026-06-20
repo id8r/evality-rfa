@@ -34,6 +34,7 @@ import { FxAiButton } from "@/components/FxAiButton";
 import { FxButton } from "@/components/FxButton";
 import { FxInput } from "@/components/FxInput";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
+import { FxRichTextEditor } from "@/components/FxRichTextEditor";
 import { FxTable } from "@/components/FxTable";
 import { FxTabs } from "@/components/FxTabs";
 import { showSuccess } from "@/components/FxToast";
@@ -484,7 +485,7 @@ function CvMatchBreakdownSheet({ open, onOpenChange, candidate }) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="lg">
+      <SheetContent size="sm">
         <SheetHeader
           title={(
             <div className="space-y-[2px]">
@@ -553,124 +554,90 @@ function EmailScreeningSheet({
   candidate,
   job,
   onStart,
-  onMarkFailed,
   onReject,
 }) {
   const screeningQuestions = useMemo(() => getJobScreeningQuestions(job), [job]);
-  const screeningStatus = candidate?.unscreenedFilterStatus ?? "pending";
   const [emailValue, setEmailValue] = useState("");
   const [messageValue, setMessageValue] = useState("");
 
   useEffect(() => {
-    const questionPreview = screeningQuestions
-      .slice(0, 3)
-      .map((item, index) => `${index + 1}. ${item.question}`)
-      .join("\n");
-
     setEmailValue(candidate?.email && candidate.email !== "—" ? candidate.email : "");
     setMessageValue(
       candidate?.jobContext?.emailScreeningMessage ||
-        `Hi ${candidate?.name || "there"},\n\nWe would like to continue your application for ${job?.title || "this role"} with a short email pre-screening step.\n\nPlease reply to the questions below:\n${questionPreview}${screeningQuestions.length > 3 ? "\n..." : ""}\n\nRegards,\nEvality Recruiting`,
+        `Hi {{CandidateName}},\n\nThank you for your interest in {{JobTitle}}.\n\nPlease reply to the questions below so we can continue evaluating your profile.\n\nRegards,\n{{Company}}`,
     );
-  }, [candidate, job?.title, screeningQuestions]);
+  }, [candidate, screeningQuestions.length]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="lg">
+      <SheetContent size="sm">
         <SheetHeader
-          title="Email Pre-Screening"
-          description={`${candidate?.name || "Candidate"} · ${job?.title || "Job"}`}
+          title={<span className="text-[var(--fx-text-muted)]">Email Pre-Screening</span>}
         />
         <SheetBody>
           {candidate ? (
-            <div className="space-y-[20px]">
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="flex flex-wrap items-start justify-between gap-[12px]">
-                  <div className="space-y-[4px]">
-                    <p className={FX_TYPOGRAPHY.cardTitle}>{candidate.name}</p>
-                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                      {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
-                    </p>
-                  </div>
-                  <span className="inline-flex items-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
-                    {candidate.matchScore != null ? `${candidate.matchScore}% CV match` : "Match unavailable"}
-                  </span>
-                </div>
-              </div>
-
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="space-y-[4px]">
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Email destination</p>
-                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                    Start the email pre-screening flow for this candidate and keep progress inside Unscreened.
+            <div className="space-y-[16px]">
+              <div className={`rounded-[8px] border ${FX_COLORS.border} p-[16px]`}>
+                <div className="flex items-start justify-between gap-[16px]">
+                  <p className={FX_TYPOGRAPHY.cardTitle}>{candidate.name}</p>
+                  <p
+                    className={cn(
+                      `${FX_TYPOGRAPHY.body} text-right font-medium`,
+                      candidate.matchScore == null
+                        ? "text-[var(--fx-text-muted)]"
+                        : candidate.matchScore >= 80
+                          ? "text-[var(--fx-success)]"
+                          : candidate.matchScore >= 60
+                            ? "text-[var(--fx-primary)]"
+                            : candidate.matchScore >= 40
+                              ? "text-[var(--fx-warning)]"
+                              : "text-[var(--fx-danger)]",
+                    )}
+                  >
+                    {candidate.matchScore != null ? `CV Match ${candidate.matchScore}%` : "CV Match unavailable"}
                   </p>
                 </div>
-                <FxInput
-                  className="mt-[12px]"
-                  value={emailValue}
-                  onChange={(event) => setEmailValue(event.target.value)}
-                  placeholder="candidate@company.com"
-                />
-              </div>
-
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <p className={FX_TYPOGRAPHY.cardTitle}>Screening questions</p>
-                <div className="mt-[12px] space-y-[8px]">
-                  {screeningQuestions.map((item, index) => (
-                    <div key={item.id} className="flex items-start gap-[8px]">
-                      <span className="pt-[1px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{index + 1}.</span>
-                      <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">{item.question}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="space-y-[4px]">
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Screening message preview</p>
-                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                    Use the current template as-is or adjust the message before starting the flow.
-                  </p>
-                </div>
-                <FxInput
-                  textarea
-                  value={messageValue}
-                  onChange={(event) => setMessageValue(event.target.value)}
-                  className="mt-[12px] min-h-[220px]"
-                />
-              </div>
-
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <p className={FX_TYPOGRAPHY.cardTitle}>Candidate context</p>
-                <div className="mt-[12px] grid gap-[12px] sm:grid-cols-2">
-                  <MetaField label="Email" value={candidate.email || "—"} />
-                  <MetaField label="Phone" value={candidate.phone || "—"} />
-                  <MetaField label="Experience" value={candidate.experience != null ? `${candidate.experience} years` : "—"} />
-                  <MetaField
-                    label="Current Status"
-                    value={UNSCREENED_FILTERS.find((item) => item.key === screeningStatus)?.label || "Pending"}
+                <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text-muted)]`}>
+                  {candidate.currentRole || candidate.jobTitle || "Candidate"}
+                  {candidate.experience != null ? ` • ${candidate.experience} Years Exp` : ""}
+                </p>
+                <div className="mt-[12px]">
+                  <FxInput
+                    value={emailValue}
+                    onChange={(event) => setEmailValue(event.target.value)}
+                    placeholder="candidate@company.com"
                   />
                 </div>
+              </div>
+
+              <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="space-y-[4px]">
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Email Template</p>
+                </div>
+                <FxRichTextEditor
+                  value={messageValue}
+                  onChange={setMessageValue}
+                  placeholder="Write email template"
+                  minHeight={420}
+                  className="mt-[12px]"
+                />
               </div>
             </div>
           ) : null}
         </SheetBody>
         <SheetFooter
+          left={(
+            <FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Cancel
+            </FxButton>
+          )}
           right={(
-            <div className="flex flex-wrap items-center gap-[8px]">
-              <FxButton variant="outline" size="sm" onClick={() => candidate && onMarkFailed?.(candidate)}>
-                Mark Failed
-              </FxButton>
-              <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate)}>
-                Reject Candidate
-              </FxButton>
-              <FxButton
-                size="sm"
-                onClick={() => candidate && onStart?.(candidate, { email: emailValue, message: messageValue })}
-              >
-                Send & Start
-              </FxButton>
-            </div>
+            <FxButton
+              size="sm"
+              onClick={() => candidate && onStart?.(candidate, { email: emailValue, message: messageValue })}
+            >
+              Send & Start
+            </FxButton>
           )}
         />
       </SheetContent>
@@ -718,7 +685,7 @@ function ManualScreeningSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="xl">
+      <SheetContent size="md">
         <SheetHeader
           title="Manual Screening"
           description={`${candidate?.name || "Candidate"} · ${job?.title || "Job"}`}
@@ -892,7 +859,7 @@ function CandidateWorkspaceSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="xl">
+      <SheetContent size="lg">
         <SheetHeader
           title={candidate?.name || "Candidate"}
           description={`${currentStageLabel} · ${candidate?.jobTitle || job?.title || "Candidate profile"} · Job-specific review and actions`}
@@ -3229,7 +3196,6 @@ export default function JobDetailsPage({ params }) {
           candidate={selectedCandidate}
           job={job}
           onStart={handleStartEmailScreening}
-          onMarkFailed={handleFailEmailScreening}
           onReject={handleOpenRejectDialog}
         />
         <ManualScreeningSheet

@@ -2255,7 +2255,7 @@ export default function JobsPage() {
       </div>
 
       <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
-        <SheetContent size="xl">
+        <SheetContent size="lg" widthPx={700}>
           <SheetHeader
             title={isSheetOpen ? jobCreationTitle : editingJob ? PAGE_COPY.jobs.editCta : PAGE_COPY.jobs.createCta}
             description={jobTitleValue || (editingJob ? "Edit details for this job" : "Enter job details to get started")}
@@ -2380,10 +2380,10 @@ export default function JobsPage() {
                           />
                         </div>
 
-                        <div className="xl:col-span-4">
+                        <div className="xl:col-span-6">
                         {/* <div className="xl:col-span-4"> //[Sree] */}
                           <div className="flex flex-col gap-[8px]">
-                            <FxFieldLabel required>Experience (Years)</FxFieldLabel>
+                            <FxFieldLabel required>Experience</FxFieldLabel>
                             <div className="grid grid-cols-2 gap-[8px]">
                               <FxInput
                                 name="experienceFrom"
@@ -2396,6 +2396,7 @@ export default function JobsPage() {
                                 state={fieldState("experienceFrom")}
                                 validationMessage={validationErrors.experienceFrom}
                                 className={BASIC_FORM_CONTROL_CLASS}
+                                rightElement={<span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">years</span>}
                                 stackClassName="gap-0"
                               />
                               <FxInput
@@ -2409,13 +2410,14 @@ export default function JobsPage() {
                                 state={fieldState("experienceTo")}
                                 validationMessage={validationErrors.experienceTo}
                                 className={BASIC_FORM_CONTROL_CLASS}
+                                rightElement={<span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">years</span>}
                                 stackClassName="gap-0"
                               />
                             </div>
                           </div>
                         </div>
 
-                        <div className="xl:col-span-2">
+                        <div className="xl:col-span-3">
                           <FxInput
                             name="positions"
                             label="Openings"
@@ -2430,7 +2432,7 @@ export default function JobsPage() {
                           />
                         </div>
 
-                        <div className="xl:col-span-2">
+                        <div className="xl:col-span-3">
                           <FxInput
                             name="questionCount"
                             label="Pre-Screen Questions"
@@ -2438,7 +2440,6 @@ export default function JobsPage() {
                             type="number"
                             value={jobForm.questions?.length ?? 0}
                             onChange={handleQuestionCountChange}
-                            optional
                             className={BASIC_FORM_CONTROL_CLASS}
                             stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                           />
@@ -2510,18 +2511,6 @@ export default function JobsPage() {
                       <div className="space-y-[16px]">
                         <div className="flex items-center justify-between gap-[16px]">
                           <h3 className="text-[16px] leading-[24px] font-normal text-[var(--fx-text-muted)]">Compensation</h3>
-                          <label className="flex cursor-pointer items-center gap-[10px] select-none">
-                            <Checkbox
-                              checked={Boolean(jobForm.hideCompensationFromCandidates)}
-                              onCheckedChange={(checked) =>
-                                setJobForm((current) => ({
-                                  ...current,
-                                  hideCompensationFromCandidates: Boolean(checked),
-                                }))
-                              }
-                            />
-                            <span className={FX_TYPOGRAPHY.fieldLabel}>Show Salary to Candidates</span>
-                          </label>
                         </div>
                         <div className="grid gap-[24px] md:grid-cols-3">
                           <div>
@@ -2566,6 +2555,18 @@ export default function JobsPage() {
                             />
                           </div>
                         </div>
+                        <label className="flex cursor-pointer items-center gap-[10px] select-none">
+                          <Checkbox
+                            checked={Boolean(jobForm.hideCompensationFromCandidates)}
+                            onCheckedChange={(checked) =>
+                              setJobForm((current) => ({
+                                ...current,
+                                hideCompensationFromCandidates: Boolean(checked),
+                              }))
+                            }
+                          />
+                          <span className={FX_TYPOGRAPHY.fieldLabel}>Show Salary to Candidates</span>
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -2648,9 +2649,9 @@ export default function JobsPage() {
                     />
                   </div>
 
-                  <div className="space-y-[12px]">
+                  {/* <div className="space-y-[12px]">
                     {renderInterviewProcessSection()}
-                  </div>
+                  </div> */}
                 </section>
               ) : null}
 
@@ -2751,11 +2752,6 @@ export default function JobsPage() {
                     </label>
                   </RadioGroup>
 
-                  <div className="mt-[16px] rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[16px] py-[14px]">
-                    <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">
-                      {jobForm.questions?.length ?? 0} pre-screen question{(jobForm.questions?.length ?? 0) === 1 ? "" : "s"} configured in Basic Details.
-                    </p>
-                  </div>
                 </section>
               ) : null}
 
@@ -2769,7 +2765,7 @@ export default function JobsPage() {
                     </div>
                     {/* Company info brief intentionally hidden for now.
                     {renderBenefitsBrief()} */}
-                    <div className="grid gap-[16px] lg:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid gap-[16px] md:grid-cols-2">
                       {BENEFITS_GROUPS.map((group) => (
                         <div key={group.title} className="space-y-[12px] rounded-[16px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
                           <h5 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{group.title}</h5>

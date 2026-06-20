@@ -8,6 +8,7 @@ import { FxButton, fxButtonClassName, fxIconButtonClassName } from "@/components
 import { FxAiButton } from "@/components/FxAiButton";
 import { FxEmptyState } from "@/components/FxEmptyState";
 import { FxInput } from "@/components/FxInput";
+import { FxPill } from "@/components/FxPill";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxSelect } from "@/components/FxSelect";
 import { FxTagInput } from "@/components/FxTagInput";
@@ -62,7 +63,7 @@ function Section({ title, description, action, className = "", children }) {
         <h2 className={FX_TYPOGRAPHY.sectionTitle}>{title}</h2>
         {description || action ? (
           <div className="flex flex-wrap items-center gap-x-[12px] gap-y-[4px]">
-            {description ? <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>{description}</p> : null}
+            {description ? <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>{description}</p> : null}
             {action ? <div className="shrink-0">{action}</div> : null}
           </div>
         ) : null}
@@ -102,16 +103,6 @@ function ThemeColorGrid({ title, subtitle, themeClassName = "" }) {
   );
 }
 
-function TypographyRow({ name, sample, token, source }) {
-  return (
-    <div className={`grid gap-[12px] rounded-[10px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px] md:grid-cols-[180px_minmax(0,1fr)_240px] md:items-center`}>
-      <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>{name}</div>
-      <div className={`${token} text-[var(--fx-text)]`}>{sample}</div>
-      <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>{source}</div>
-    </div>
-  );
-}
-
 function TableActionsMenu() {
   return (
     <DropdownMenu>
@@ -144,7 +135,7 @@ export default function DesignSystemRoute() {
       jobId: "JOB-1024",
       jobTitle: "Senior Frontend Engineer",
       client: "ThinkJS",
-      status: <span className="rounded-full bg-[var(--fx-primary)]/10 px-[10px] py-[4px] text-[var(--fx-primary)]">Published</span>,
+      status: <FxPill shape="full" tone="primary">Published</FxPill>,
       lastUpdated: "2h ago",
       actions: <TableActionsMenu />,
     },
@@ -153,7 +144,7 @@ export default function DesignSystemRoute() {
       jobId: "JOB-2048",
       jobTitle: "Product Designer",
       client: "Northstar Labs",
-      status: <span className="rounded-full bg-[var(--fx-warning)]/10 px-[10px] py-[4px] text-[var(--fx-warning)]">Draft</span>,
+      status: <FxPill shape="rect" tone="warning">Draft</FxPill>,
       lastUpdated: "5h ago",
       actions: <TableActionsMenu />,
     },
@@ -162,11 +153,34 @@ export default function DesignSystemRoute() {
       jobId: "JOB-3096",
       jobTitle: "Backend Engineer",
       client: "SignalDesk",
-      status: <span className="rounded-full bg-[var(--fx-success)]/10 px-[10px] py-[4px] text-[var(--fx-success)]">Active</span>,
+      status: <FxPill shape="full" tone="success">Active</FxPill>,
       lastUpdated: "1d ago",
       actions: <TableActionsMenu />,
     },
   ];
+  const typographyColumns = [
+    { key: "name", label: "Token", width: 180, minWidth: 160, maxWidth: 220, defaultVisible: true },
+    { key: "sample", label: "Preview", width: 420, minWidth: 280, grow: 1, defaultVisible: true },
+    { key: "spec", label: "Spec", width: 140, minWidth: 128, maxWidth: 160, defaultVisible: true },
+  ];
+  const typographyRows = DESIGN_SYSTEM_TYPOGRAPHY.map((row) => ({
+    id: row.name,
+    name: (
+      <div className="space-y-[2px]">
+        <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text)]`}>{row.name}</div>
+      </div>
+    ),
+    spec: (
+      <span className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>
+        {row.size} / {row.lh} / {row.weight}
+      </span>
+    ),
+    sample: (
+      <div className={`${row.token} text-[var(--fx-text)]`}>
+        {row.sample}
+      </div>
+    ),
+  }));
 
   return (
     <FxProtectedAppPage pageId="designSystem" title="Design System">
@@ -222,12 +236,18 @@ export default function DesignSystemRoute() {
             </div>
           </Section>
 
-          <Section title="Typography" description="Actual type tokens used across the app.">
-            <div className="space-y-[10px]">
-              {DESIGN_SYSTEM_TYPOGRAPHY.map((row) => (
-                <TypographyRow key={row.name} {...row} />
-              ))}
-            </div>
+          <Section
+            title="Typography"
+            description='Font Family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif.'
+          >
+            <FxTable
+              columns={typographyColumns}
+              rows={typographyRows}
+              stickyHeader
+              scrollX
+              enableColumnPicker={false}
+              storageKey={null}
+            />
           </Section>
 
           <Section title="Buttons" description="Existing FxButton variants and sizes.">

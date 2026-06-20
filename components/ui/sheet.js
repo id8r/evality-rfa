@@ -25,7 +25,7 @@ function SheetOverlay({ className, ...props }) {
   );
 }
 
-function SheetContent({ className, children, side = "right", size = "md", ...props }) {
+function SheetContent({ className, children, side = "right", size = "md", widthPx, style, ...props }) {
   const sideClasses = {
     right: "inset-y-0 right-0 h-full border-l border-l-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] shadow-[-6px_0_18px_rgba(15,23,42,0.04)] data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
     left: "inset-y-0 left-0 h-full border-r border-r-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] shadow-[6px_0_18px_rgba(15,23,42,0.04)] data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
@@ -49,6 +49,7 @@ function SheetContent({ className, children, side = "right", size = "md", ...pro
           widthClasses[size],
           className,
         )}
+        style={widthPx ? { ...style, width: `${widthPx}px`, maxWidth: "none" } : style}
         {...props}
       >
         {children}
