@@ -663,160 +663,273 @@ function ManualScreeningSheet({
   onOpenChange,
   candidate,
   job,
-  onSaveResponses,
-  onPass,
-  onReject,
+  onSubmit,
+  onDownloadResume,
 }) {
-  const screeningQuestions = useMemo(() => getJobScreeningQuestions(job), [job]);
-  const [responses, setResponses] = useState({});
-  const [activeSection, setActiveSection] = useState("resume");
+  const [activeStep, setActiveStep] = useState("resume");
+  const [formState, setFormState] = useState({
+    interested: "Yes",
+    availabilityMode: "days",
+    availabilityDays: "",
+    availabilityDate: "",
+    commuteComfortable: "Yes",
+    currentSalary: "",
+    expectedSalary: "",
+    currentCompany: "",
+    notes: "",
+  });
+  const shouldShowCommuteQuestion = job?.workplaceType === "On-site" || job?.workplaceType === "Hybrid";
+  const commuteQuestion = useMemo(() => {
+    if (job?.workplaceType === "Hybrid") {
+      return `The job role is hybrid and based out of ${job?.location || "the listed location"}. Is the candidate comfortable commuting when required?`;
+    }
+
+    return `The job role is on-site based out of ${job?.location || "the listed location"}. Is the candidate comfortable commuting?`;
+  }, [job?.location, job?.workplaceType]);
   const interviewQuestions = useMemo(
     () => [
-      `Walk me through your experience most relevant to ${job?.title || "this role"}.`,
-      "What kind of projects have you handled end-to-end in your current or recent role?",
-      "What would make you interested in exploring this opportunity further?",
+      {
+        question: `Walk me through your experience most relevant to ${job?.title || "this role"}.`,
+        guidance: "Listen for depth of ownership, tools used, and how closely the work matches the target role.",
+      },
+      {
+        question: "What kind of projects have you handled end-to-end in your current or recent role?",
+        guidance: "Look for practical scope, collaboration signals, and delivery responsibility.",
+      },
+      {
+        question: "What would make you interested in exploring this opportunity further?",
+        guidance: "Use this to gauge role fit, motivation, and whether the opportunity is aligned to candidate intent.",
+      },
     ],
     [job?.title],
   );
+  const resumePreview = useMemo(() => {
+    return candidate ? [
+      `${candidate.name || "Candidate"}`,
+      `${candidate.currentRole || candidate.jobTitle || "Current Role"}${candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}`,
+      "",
+      "Summary",
+      `Candidate profile with ${candidate.experience != null ? `${candidate.experience} years` : "relevant"} experience for ${job?.title || "this role"}.`,
+      "",
+      "Contact",
+      `${candidate.email || "—"}${candidate.phone && candidate.phone !== "—" ? ` · ${candidate.phone}` : ""}`,
+      "",
+      "Notes",
+      "Demo resume preview rendered for recruiter screening workflow.",
+    ].join("\n") : "";
+  }, [candidate, job?.title]);
 
   useEffect(() => {
-    const sourceAnswers = (
-      [candidate?.screeningAnswers, candidate?.answers, candidate?.responses, candidate?.jobContext?.answers].find(
-        (value) => Array.isArray(value) && value.length,
-      ) ?? []
-    );
-
-    const nextResponses = {};
-    sourceAnswers.forEach((answer, index) => {
-      const answerId = answer.id ?? screeningQuestions[index]?.id ?? `question-${index + 1}`;
-      nextResponses[answerId] = answer.answer ?? answer.value ?? "";
+    setActiveStep("resume");
+    setFormState({
+      interested: candidate?.interested || "Yes",
+      availabilityMode: candidate?.jobContext?.availabilityDate ? "date" : "days",
+      availabilityDays: candidate?.availabilityDays != null ? String(candidate.availabilityDays) : "",
+      availabilityDate: candidate?.jobContext?.availabilityDate || "",
+      commuteComfortable: candidate?.jobContext?.commuteComfortable || "Yes",
+      currentSalary: candidate?.currentSalary != null ? String(candidate.currentSalary) : "",
+      expectedSalary: candidate?.expectedSalary != null ? String(candidate.expectedSalary) : "",
+      currentCompany: candidate?.currentCompany || "",
+      notes: candidate?.jobContext?.manualScreeningNotes || candidate?.notes || "",
     });
-
-    setResponses(nextResponses);
-  }, [candidate, screeningQuestions]);
+  }, [candidate]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="md">
         <SheetHeader
-          title="Manual Screening"
+          title="Manual Pre-Screening"
           description={`${candidate?.name || "Candidate"} · ${job?.title || "Job"}`}
         />
         <SheetBody>
           {candidate ? (
             <div className="space-y-[20px]">
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="grid gap-[12px] sm:grid-cols-2">
-                  <MetaField label="Current Role" value={candidate.currentRole || candidate.jobTitle || "—"} />
-                  <MetaField label="Current Company" value={candidate.currentCompany || "—"} />
-                  <MetaField label="Experience" value={candidate.experience != null ? `${candidate.experience} years` : "—"} />
-                  <MetaField label="CV Match Score" value={candidate.matchScore != null ? `${candidate.matchScore}%` : "—"} />
-                </div>
-              </div>
+              <FxTabs
+                variant="filter"
+                value={activeStep}
+                onValueChange={setActiveStep}
+                items={[
+                  { value: "resume", label: "Resume" },
+                  { value: "interview", label: "Interview Questions" },
+                  { value: "prescreen", label: "Pre-Screening Form" },
+                ]}
+                itemClassName="text-[15px] leading-[22px]"
+              />
 
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="space-y-[4px]">
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Manual screening workspace</p>
-                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                    Review the resume, use the question sets, and submit the screening outcome from one recruiter-facing workflow.
-                  </p>
-                </div>
-                <div className="mt-[16px] flex flex-wrap gap-[8px]">
-                  {[
-                    { value: "resume", label: "Resume" },
-                    { value: "interview", label: "Interview Questions" },
-                    { value: "prescreen", label: "Pre-Screening Questions" },
-                  ].map((item) => {
-                    const isActive = activeSection === item.value;
+              <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                {activeStep === "resume" ? (
+                  <div className="space-y-[12px]">
+                    <div className="flex items-center justify-between gap-[12px]">
+                      <p className={FX_TYPOGRAPHY.cardTitle}>Resume</p>
+                      <FxButton type="button" variant="outline" size="sm" onClick={() => candidate && onDownloadResume?.(candidate)}>
+                        Download Resume
+                      </FxButton>
+                    </div>
+                    <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[16px]`}>
+                      <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                        {resumePreview}
+                      </pre>
+                    </div>
+                  </div>
+                ) : null}
 
-                    return (
-                      <button
-                        key={item.value}
-                        type="button"
-                        onClick={() => setActiveSection(item.value)}
-                        className={cn(
-                          "inline-flex h-[32px] items-center rounded-full border px-[12px] text-[13px] font-medium transition-colors",
-                          isActive
-                            ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]"
-                            : "border-[var(--fx-border)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]",
-                        )}
-                      >
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-[16px]">
-                  {activeSection === "resume" ? (
-                    <div className="grid gap-[12px] md:grid-cols-2">
-                      <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
-                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Profile summary</p>
-                        <p className={`${FX_TYPOGRAPHY.body} mt-[6px] text-[var(--fx-text)]`}>
-                          {candidate.currentRole || "Candidate"}{candidate.currentCompany ? ` at ${candidate.currentCompany}` : ""} with{" "}
-                          {candidate.experience != null ? `${candidate.experience} years` : "relevant"} experience. Match score is{" "}
-                          {candidate.matchScore != null ? `${candidate.matchScore}%` : "not available"} for this role.
+                {activeStep === "interview" ? (
+                  <div className="space-y-[12px]">
+                    {interviewQuestions.map((item, index) => (
+                      <div key={item.question} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Question {index + 1}</p>
+                        <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{item.question}</p>
+                        <p className="mt-[8px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                          {item.guidance}
                         </p>
                       </div>
-                      <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
-                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Resume notes</p>
-                        <FxInput
-                          textarea
-                          value={responses.resumeNotes ?? ""}
-                          onChange={(event) => setResponses((current) => ({ ...current, resumeNotes: event.target.value }))}
-                          placeholder="Capture quick recruiter notes from the resume review..."
-                          className="mt-[10px] min-h-[140px]"
-                        />
-                      </div>
-                    </div>
-                  ) : null}
+                    ))}
+                  </div>
+                ) : null}
 
-                  {activeSection === "interview" ? (
-                    <div className="space-y-[12px]">
-                      {interviewQuestions.map((question, index) => (
-                        <div key={question} className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
-                          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Question {index + 1}</p>
-                          <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{question}</p>
-                        </div>
-                      ))}
+                {activeStep === "prescreen" ? (
+                  <div className="space-y-[16px]">
+                    <div className="space-y-[8px]">
+                      <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">Is the candidate interested in the role?</p>
+                      <RadioGroup
+                        value={formState.interested}
+                        onValueChange={(value) => setFormState((current) => ({ ...current, interested: value }))}
+                        className="flex flex-wrap items-center gap-[20px]"
+                      >
+                        {["Yes", "No"].map((value) => (
+                          <label key={value} className="flex cursor-pointer items-center gap-[8px]">
+                            <RadioGroupItem value={value} />
+                            <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
+                          </label>
+                        ))}
+                      </RadioGroup>
                     </div>
-                  ) : null}
 
-                  {activeSection === "prescreen" ? (
-                    <div className="space-y-[12px]">
-                      {screeningQuestions.map((item) => (
-                        <div key={item.id} className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
-                          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{item.label}</p>
-                          <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{item.question}</p>
+                    <div className="space-y-[10px]">
+                      <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">By when can the candidate join?</p>
+                      <RadioGroup
+                        value={formState.availabilityMode}
+                        onValueChange={(value) => setFormState((current) => ({ ...current, availabilityMode: value }))}
+                        className="flex flex-wrap items-center gap-[20px]"
+                      >
+                        <label className="flex cursor-pointer items-center gap-[8px]">
+                          <RadioGroupItem value="days" />
+                          <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Availability in Days</span>
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-[8px]">
+                          <RadioGroupItem value="date" />
+                          <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Specific Date</span>
+                        </label>
+                      </RadioGroup>
+
+                      {formState.availabilityMode === "days" ? (
+                        <div className="flex max-w-[220px] items-center gap-[8px]">
                           <FxInput
-                            textarea
-                            value={responses[item.id] ?? ""}
-                            onChange={(event) => setResponses((current) => ({ ...current, [item.id]: event.target.value }))}
-                            placeholder="Capture recruiter notes / candidate response..."
-                            className="mt-[10px] min-h-[88px]"
+                            value={formState.availabilityDays}
+                            onChange={(event) => setFormState((current) => ({ ...current, availabilityDays: event.target.value }))}
+                            placeholder="30"
+                            inputMode="numeric"
+                            className="text-center"
+                          />
+                          <span className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">Days</span>
+                        </div>
+                      ) : (
+                        <div className="max-w-[240px]">
+                          <FxInput
+                            type="date"
+                            value={formState.availabilityDate}
+                            onChange={(event) => setFormState((current) => ({ ...current, availabilityDate: event.target.value }))}
                           />
                         </div>
-                      ))}
+                      )}
                     </div>
-                  ) : null}
-                </div>
+
+                    {shouldShowCommuteQuestion ? (
+                      <div className="space-y-[8px]">
+                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">{commuteQuestion}</p>
+                        <RadioGroup
+                          value={formState.commuteComfortable}
+                          onValueChange={(value) => setFormState((current) => ({ ...current, commuteComfortable: value }))}
+                          className="flex flex-wrap items-center gap-[20px]"
+                        >
+                          {["Yes", "No"].map((value) => (
+                            <label key={value} className="flex cursor-pointer items-center gap-[8px]">
+                              <RadioGroupItem value={value} />
+                              <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
+                            </label>
+                          ))}
+                        </RadioGroup>
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-[16px] md:grid-cols-2">
+                      <FxInput
+                        label="Current Salary"
+                        type="number"
+                        value={formState.currentSalary}
+                        onChange={(event) => setFormState((current) => ({ ...current, currentSalary: event.target.value }))}
+                        placeholder="Enter current CTC in INR"
+                      />
+                      <FxInput
+                        label="Salary Expectation"
+                        type="number"
+                        value={formState.expectedSalary}
+                        onChange={(event) => setFormState((current) => ({ ...current, expectedSalary: event.target.value }))}
+                        placeholder="Enter expected CTC in INR"
+                      />
+                      <FxInput
+                        label="Current Company"
+                        value={formState.currentCompany}
+                        onChange={(event) => setFormState((current) => ({ ...current, currentCompany: event.target.value }))}
+                        placeholder="Name of candidate's current company"
+                      />
+                    </div>
+                    <FxInput
+                      textarea
+                      label="Recruiter Notes"
+                      value={formState.notes}
+                      onChange={(event) => setFormState((current) => ({ ...current, notes: event.target.value }))}
+                      placeholder="Add notes from the conversation"
+                      className="min-h-[120px]"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
         </SheetBody>
         <SheetFooter
-          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Responses are stored on the local demo candidate record.</span>}
+          left={(
+            <FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Cancel
+            </FxButton>
+          )}
           right={(
-            <div className="flex flex-wrap items-center gap-[8px]">
-              <FxButton variant="outline" size="sm" onClick={() => candidate && onSaveResponses?.(candidate, responses)}>
-                Save Progress
+            activeStep === "resume" ? (
+              <FxButton size="sm" onClick={() => setActiveStep("interview")}>
+                Next
+                <ArrowRight className="size-[16px]" />
               </FxButton>
-              <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate, responses)}>
-                Reject Candidate
-              </FxButton>
-              <FxButton size="sm" onClick={() => candidate && onPass?.(candidate, responses)}>
-                Pass Candidate
-              </FxButton>
-            </div>
+            ) : activeStep === "interview" ? (
+              <div className="flex items-center gap-[8px]">
+                <FxButton variant="ghost" size="sm" onClick={() => setActiveStep("resume")}>
+                  <ArrowLeft className="size-[16px]" />
+                  Back
+                </FxButton>
+                <FxButton size="sm" onClick={() => setActiveStep("prescreen")}>
+                  Next
+                  <ArrowRight className="size-[16px]" />
+                </FxButton>
+              </div>
+            ) : (
+              <div className="flex items-center gap-[8px]">
+                <FxButton variant="ghost" size="sm" onClick={() => setActiveStep("interview")}>
+                  <ArrowLeft className="size-[16px]" />
+                  Back
+                </FxButton>
+                <FxButton size="sm" onClick={() => candidate && onSubmit?.(candidate, formState)}>Submit Pre-Screening</FxButton>
+              </div>
+            )
           )}
         />
       </SheetContent>
@@ -943,7 +1056,7 @@ function CandidateWorkspaceSheet({
                           <p className="mt-[2px] text-[14px] leading-[22px] text-[var(--fx-text)]">—</p>
                         )}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 text-right">
                         <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Phone</p>
                         {candidate.phone && candidate.phone !== "—" ? (
                           <a className="mt-[2px] block truncate text-[14px] leading-[22px] text-[var(--fx-primary)] hover:underline" href={`tel:${candidate.phone}`}>
@@ -973,7 +1086,7 @@ function CandidateWorkspaceSheet({
                 </div>
               </div>
 
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[24px] py-[18px]`}>
+              <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[24px] py-[18px]`}>
                 <div className="flex justify-center overflow-x-auto overflow-y-hidden">
                   <div className="inline-flex items-center">
                   {PIPELINE_STAGE_SEQUENCE.filter((stage) => stage !== "rejected").map((stage, index) => {
@@ -999,7 +1112,7 @@ function CandidateWorkspaceSheet({
                                 className={cn(
                                   "inline-flex size-[30px] shrink-0 items-center justify-center rounded-full border",
                                   isActive
-                                    ? "border-[var(--fx-primary)] bg-[var(--fx-surface)] text-[var(--fx-primary)]"
+                                    ? "border-[var(--fx-text-muted)] bg-[var(--fx-surface)] text-[var(--fx-text)]"
                                     : isComplete
                                       ? "border-[var(--fx-success)] bg-[color:color-mix(in_srgb,var(--fx-success)_8%,var(--fx-surface)_92%)] text-[var(--fx-success)]"
                                       : "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)]",
@@ -1016,7 +1129,7 @@ function CandidateWorkspaceSheet({
                             className={cn(
                               "mt-[8px] whitespace-nowrap text-center font-mono text-[11px] leading-[16px]",
                               isActive
-                                ? "font-semibold text-[var(--fx-primary)]"
+                                ? "font-semibold text-[var(--fx-text)]"
                                 : isComplete
                                   ? "font-medium text-[var(--fx-text)]"
                                   : "font-medium text-[var(--fx-text-muted)]",
@@ -1030,8 +1143,10 @@ function CandidateWorkspaceSheet({
                               <div
                                 className={cn(
                                   "h-full w-full",
-                                  isComplete || isActive
-                                    ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_72%,transparent)]"
+                                  isComplete
+                                    ? "bg-[color:color-mix(in_srgb,var(--fx-success)_72%,transparent)]"
+                                    : isActive
+                                      ? "bg-[color:color-mix(in_srgb,var(--fx-text-muted)_72%,transparent)]"
                                     : "bg-transparent",
                                 )}
                               />
@@ -2064,78 +2179,102 @@ export default function JobDetailsPage({ params }) {
   );
 /* - - - - - - - - - - - - - - - - */
 
-  const handleSaveManualScreeningResponses = useCallback(
-    (candidate, responses) => {
+  const handleSubmitManualScreening = useCallback(
+    (candidate, formState) => {
       if (!candidate || !job?.id) {
         return;
       }
 
-      const screeningQuestions = getJobScreeningQuestions(job);
-      const normalizedAnswers = screeningQuestions.map((item) => ({
-        id: item.id,
-        label: item.label,
-        question: item.question,
-        answer: String(responses?.[item.id] ?? "").trim(),
-      }));
-
-      updateWorkspaceCandidate(candidate.id, (current) => ({
-        ...current,
-        screeningAnswers: normalizedAnswers,
-        jobContexts: {
-          ...(current.jobContexts ?? {}),
-          [job.id]: {
-            ...(current.jobContexts?.[job.id] ?? {}),
-            answers: normalizedAnswers,
-            screeningModeOverride: "manual",
-            unscreenedFilterStatus: "processing",
-          },
+      const availabilityMode = formState?.availabilityMode === "date" ? "date" : "days";
+      const availabilityDays = String(formState?.availabilityDays ?? "").trim();
+      const availabilityDate = String(formState?.availabilityDate ?? "").trim();
+      const commuteComfortable = String(formState?.commuteComfortable ?? "").trim() || "Yes";
+      const currentSalary = String(formState?.currentSalary ?? "").trim();
+      const expectedSalary = String(formState?.expectedSalary ?? "").trim();
+      const currentCompany = String(formState?.currentCompany ?? "").trim();
+      const notes = String(formState?.notes ?? "").trim();
+      const interested = String(formState?.interested ?? "").trim() || "Yes";
+      const normalizedAnswers = [
+        {
+          id: "interest",
+          label: "Interest",
+          question: "Is the candidate interested in the role?",
+          answer: interested,
         },
-      }));
-
-      handleSetUnscreenedFilterStatus(candidate, "processing");
-      showSuccess("Screening saved", `${candidate.name}'s manual screening notes were saved.`);
-    },
-    [handleSetUnscreenedFilterStatus, job, job?.id, updateWorkspaceCandidate],
-  );
-
-  const handlePassCandidateFromScreening = useCallback(
-    (candidate, responses = null) => {
-      if (!candidate || !job?.id) {
-        return;
-      }
-
-      const screeningQuestions = getJobScreeningQuestions(job);
-      const normalizedAnswers = responses
-        ? screeningQuestions.map((item) => ({
-            id: item.id,
-            label: item.label,
-            question: item.question,
-            answer: String(responses?.[item.id] ?? "").trim(),
-          }))
-        : candidate.screeningAnswers ?? candidate.jobContext?.answers ?? [];
+        {
+          id: "availability",
+          label: "Availability",
+          question: "By when can the candidate join?",
+          answer: availabilityMode === "date" ? (availabilityDate || "—") : (availabilityDays ? `${availabilityDays} days` : "—"),
+        },
+        ...(job?.workplaceType === "On-site" || job?.workplaceType === "Hybrid"
+          ? [{
+              id: "commute",
+              label: "Commute",
+              question:
+                job?.workplaceType === "Hybrid"
+                  ? `The job role is hybrid and based out of ${job?.location || "the listed location"}. Is the candidate comfortable commuting when required?`
+                  : `The job role is on-site based out of ${job?.location || "the listed location"}. Is the candidate comfortable commuting?`,
+              answer: commuteComfortable,
+            }]
+          : []),
+        {
+          id: "current_salary",
+          label: "Current Salary",
+          question: "Current Salary",
+          answer: currentSalary || "—",
+        },
+        {
+          id: "expected_salary",
+          label: "Salary Expectation",
+          question: "Salary Expectation",
+          answer: expectedSalary || "—",
+        },
+        {
+          id: "current_company",
+          label: "Current Company",
+          question: "Current Company",
+          answer: currentCompany || "—",
+        },
+      ];
 
       updateWorkspaceCandidate(
         candidate.id,
         (current) => ({
           ...current,
           status: "screened",
+          interested,
+          availabilityDays:
+            availabilityMode === "days"
+              ? (availabilityDays ? Number.parseInt(availabilityDays, 10) || current.availabilityDays || null : current.availabilityDays ?? null)
+              : current.availabilityDays ?? null,
+          currentSalary: currentSalary ? Number.parseInt(currentSalary, 10) || null : current.currentSalary ?? null,
+          expectedSalary: expectedSalary ? Number.parseInt(expectedSalary, 10) || null : current.expectedSalary ?? null,
+          currentCompany: currentCompany || current.currentCompany || "",
           screeningOutcome: "Passed",
           screeningAnswers: normalizedAnswers,
+          notes: notes || current.notes || "",
           jobContexts: {
             ...(current.jobContexts ?? {}),
             [job.id]: {
               ...(current.jobContexts?.[job.id] ?? {}),
               answers: normalizedAnswers,
+              screeningModeOverride: "manual",
               unscreenedFilterStatus: "processing",
+              availabilityDate: availabilityMode === "date" ? availabilityDate : "",
+              availabilityMode,
+              commuteComfortable: job?.workplaceType === "On-site" || job?.workplaceType === "Hybrid" ? commuteComfortable : "",
+              manualScreeningNotes: notes,
+              manualScreeningCompletedAt: new Date().toISOString(),
+              notes: notes || current.jobContexts?.[job.id]?.notes || "",
             },
           },
         }),
         { fromStatus: candidate.status, toStatus: "screened" },
       );
 
-      setEmailScreeningOpen(false);
       setManualScreeningOpen(false);
-      showSuccess("Candidate passed", `${candidate.name} moved to Pre-Screened.`);
+      showSuccess("Pre-screening submitted", `${candidate.name} moved to Pre-Screened.`);
     },
     [job, job?.id, updateWorkspaceCandidate],
   );
@@ -2154,18 +2293,6 @@ export default function JobDetailsPage({ params }) {
       showSuccess("Candidate updated", `${candidate.name} moved to Failed.`);
     },
     [handleSetUnscreenedFilterStatus, updateWorkspaceCandidate],
-  );
-
-  const handleRejectCandidateFromManualScreening = useCallback(
-    (candidate, responses) => {
-      if (!candidate) {
-        return;
-      }
-
-      handleSaveManualScreeningResponses(candidate, responses);
-      handleOpenRejectDialog(candidate);
-    },
-    [handleOpenRejectDialog, handleSaveManualScreeningResponses],
   );
 
   const clearSelectedCandidates = useCallback(() => {
@@ -3437,9 +3564,8 @@ export default function JobDetailsPage({ params }) {
           onOpenChange={setManualScreeningOpen}
           candidate={selectedCandidate}
           job={job}
-          onSaveResponses={handleSaveManualScreeningResponses}
-          onPass={handlePassCandidateFromScreening}
-          onReject={handleRejectCandidateFromManualScreening}
+          onSubmit={handleSubmitManualScreening}
+          onDownloadResume={handleDownloadCandidateResume}
         />
         <CallPreviewDrawer open={callPreviewOpen} onOpenChange={setCallPreviewOpen} job={job} />
         <Dialog open={rejectDialogOpen} onOpenChange={handleCloseRejectDialog}>
