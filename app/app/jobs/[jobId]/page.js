@@ -129,6 +129,16 @@ const UNSCREENED_FILTERS = [
   { key: "rescheduled", label: "Rescheduled" },
   { key: "failed", label: "Failed" },
 ];
+/* - - - - - - - - - - - - - - - - */
+
+const CV_MATCH_BREAKDOWN_SECTIONS = [
+  { key: "jdMatch", label: "JD Match" },
+  { key: "companyTierDomain", label: "Company Tier & Domain" },
+  { key: "education", label: "Education" },
+  { key: "communicationLanguage", label: "Communication & Language" },
+  { key: "culturalSoftSkills", label: "Cultural & Soft Skills" },
+  { key: "bonusAttributes", label: "Bonus Attributes" },
+];
 
 function getClientOutcomeStage(status) {
   if (status === "Rejected" || status === "Dropped Off") {
@@ -377,6 +387,464 @@ function WorkspaceEmptyState({ title, body, action }) {
     </div>
   );
 }
+/* - - - - - - - - - - - - - - - - */
+
+function getJobScreeningQuestions(job) {
+  const source = Array.isArray(job?.questions) && job.questions.length
+    ? job.questions
+    : DEFAULT_JOB_QUESTION_SUGGESTIONS;
+
+  return source.map((question, index) => ({
+    id: question.id ?? `screening-question-${index + 1}`,
+    label: question.label ?? `Question ${index + 1}`,
+    question: question.question ?? question.title ?? question.label ?? `Question ${index + 1}`,
+  }));
+}
+/* - - - - - - - - - - - - - - - - */
+
+function generateMockCvMatchBreakdown(candidate) {
+  const baseScore = Math.max(52, Math.min(96, Number(candidate?.matchScore) || 72));
+  const nameSeed = String(candidate?.id || candidate?.name || "candidate")
+    .split("")
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const offsets = [4, -3, 2, -2, 1, 3];
+  const maxScores = [30, 15, 10, 15, 15, 15];
+
+  const sections = CV_MATCH_BREAKDOWN_SECTIONS.map((section, index) => {
+    const maxScore = maxScores[index];
+    const ratio = Math.max(0.45, Math.min(0.98, (baseScore + offsets[index] + ((nameSeed + index * 7) % 5) - 2) / 100));
+    const score = Math.max(1, Math.min(maxScore, Math.round(maxScore * ratio)));
+
+    return {
+      key: section.key,
+      label: section.label,
+      score,
+      maxScore,
+      summary:
+        section.key === "jdMatch"
+          ? "This candidate meets some of the role requirements, but key skills or experience areas may need further validation during screening."
+          : section.key === "companyTierDomain"
+            ? "Measures alignment between the candidate's industry, domain experience, and the hiring context."
+            : section.key === "education"
+              ? "Evaluates academic background and relevance to the role requirements."
+              : section.key === "communicationLanguage"
+                ? "Assesses written and verbal communication indicators available from the profile and resume."
+                : section.key === "culturalSoftSkills"
+                  ? "Estimates alignment with collaboration, ownership, adaptability, and workplace expectations."
+                  : "Additional strengths that may provide an advantage beyond the core role requirements.",
+    };
+  });
+
+  return {
+    overallScore: baseScore,
+    sections,
+  };
+}
+/* - - - - - - - - - - - - - - - - */
+
+function CvMatchBreakdownSheet({ open, onOpenChange, candidate }) {
+  const breakdown = candidate?.cvMatchBreakdown;
+  const formatBreakdownPercentage = (value, maxValue) => {
+    if (!maxValue) {
+      return "—";
+    }
+
+    const percentValue = (Number(value) / Number(maxValue)) * 100;
+    if (!Number.isFinite(percentValue)) {
+      return "—";
+    }
+
+    const roundedPercent = Number(percentValue.toFixed(2));
+    return `${Number.isInteger(roundedPercent) ? roundedPercent : roundedPercent.toFixed(2)}%`;
+  };
+  const getBreakdownToneClassName = (value, maxValue) => {
+    if (!maxValue) {
+      return "bg-[var(--fx-primary)]";
+    }
+
+    const percentValue = (Number(value) / Number(maxValue)) * 100;
+    if (!Number.isFinite(percentValue)) {
+      return "bg-[var(--fx-primary)]";
+    }
+
+    if (percentValue >= 80) {
+      return "bg-[color:color-mix(in_srgb,var(--fx-success)_68%,white_32%)]";
+    }
+
+    if (percentValue >= 60) {
+      return "bg-[color:color-mix(in_srgb,var(--fx-primary)_68%,white_32%)]";
+    }
+
+    if (percentValue >= 40) {
+      return "bg-[color:color-mix(in_srgb,var(--fx-warning)_70%,white_30%)]";
+    }
+
+    return "bg-[color:color-mix(in_srgb,var(--fx-danger)_62%,white_38%)]";
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="lg">
+        <SheetHeader
+          title={(
+            <div className="space-y-[2px]">
+              <p className="text-[15px] leading-[22px] font-semibold text-[var(--fx-text)]">
+                {candidate?.name || "Candidate"}
+              </p>
+              <div className="flex flex-wrap items-center gap-[6px] text-[13px] leading-[18px] font-medium">
+                <span className="text-[var(--fx-text-muted)]">CV Match Score</span>
+                <span className="text-[var(--fx-text-muted)]">–</span>
+                <span className="text-[var(--fx-text)]">{candidate?.jobTitle || "Job"}</span>
+              </div>
+            </div>
+          )}
+        />
+        <SheetBody>
+          {candidate && breakdown ? (
+            <div className="space-y-[12px]">
+              <div className="rounded-[8px] px-[12px] py-[12px]">
+                <div className="flex items-center justify-between gap-[16px]">
+                  <p className="text-[15px] leading-[22px] font-semibold text-[var(--fx-text)]">Overall Match</p>
+                  <span className="text-[15px] leading-[22px] font-semibold text-[var(--fx-text)]">
+                    {breakdown.overallScore}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-[8px]">
+                {breakdown.sections.map((section) => {
+                  const progressWidth = `${Math.max(6, Math.min(100, (section.score / section.maxScore) * 100))}%`;
+                  const progressToneClassName = getBreakdownToneClassName(section.score, section.maxScore);
+
+                  return (
+                    <div key={section.key} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+                      <div className="flex items-center justify-between gap-[12px]">
+                        <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">{section.label}</p>
+                        <span className="text-[14px] leading-[20px] font-semibold text-[var(--fx-text)]">
+                          {formatBreakdownPercentage(section.score, section.maxScore)}
+                        </span>
+                      </div>
+                      <div className="mt-[8px] h-[8px] overflow-hidden rounded-full bg-[var(--fx-bg-soft)]">
+                        <div className={cn("h-full rounded-full", progressToneClassName)} style={{ width: progressWidth }} />
+                      </div>
+                      <p className="mt-[8px] text-[13px] leading-[18px] text-[var(--fx-text-muted)]">
+                        {section.summary}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-[13px] leading-[18px] text-[var(--fx-text-muted)]">
+                Scores are intended to support recruiter decisions and should be considered alongside screening outcomes and candidate interactions.
+              </p>
+            </div>
+          ) : null}
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function EmailScreeningSheet({
+  open,
+  onOpenChange,
+  candidate,
+  job,
+  onStart,
+  onMarkFailed,
+  onReject,
+}) {
+  const screeningQuestions = useMemo(() => getJobScreeningQuestions(job), [job]);
+  const screeningStatus = candidate?.unscreenedFilterStatus ?? "pending";
+  const [emailValue, setEmailValue] = useState("");
+  const [messageValue, setMessageValue] = useState("");
+
+  useEffect(() => {
+    const questionPreview = screeningQuestions
+      .slice(0, 3)
+      .map((item, index) => `${index + 1}. ${item.question}`)
+      .join("\n");
+
+    setEmailValue(candidate?.email && candidate.email !== "—" ? candidate.email : "");
+    setMessageValue(
+      candidate?.jobContext?.emailScreeningMessage ||
+        `Hi ${candidate?.name || "there"},\n\nWe would like to continue your application for ${job?.title || "this role"} with a short email pre-screening step.\n\nPlease reply to the questions below:\n${questionPreview}${screeningQuestions.length > 3 ? "\n..." : ""}\n\nRegards,\nEvality Recruiting`,
+    );
+  }, [candidate, job?.title, screeningQuestions]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="lg">
+        <SheetHeader
+          title="Email Pre-Screening"
+          description={`${candidate?.name || "Candidate"} · ${job?.title || "Job"}`}
+        />
+        <SheetBody>
+          {candidate ? (
+            <div className="space-y-[20px]">
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="flex flex-wrap items-start justify-between gap-[12px]">
+                  <div className="space-y-[4px]">
+                    <p className={FX_TYPOGRAPHY.cardTitle}>{candidate.name}</p>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                      {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
+                    {candidate.matchScore != null ? `${candidate.matchScore}% CV match` : "Match unavailable"}
+                  </span>
+                </div>
+              </div>
+
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="space-y-[4px]">
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Email destination</p>
+                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                    Start the email pre-screening flow for this candidate and keep progress inside Unscreened.
+                  </p>
+                </div>
+                <FxInput
+                  className="mt-[12px]"
+                  value={emailValue}
+                  onChange={(event) => setEmailValue(event.target.value)}
+                  placeholder="candidate@company.com"
+                />
+              </div>
+
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <p className={FX_TYPOGRAPHY.cardTitle}>Screening questions</p>
+                <div className="mt-[12px] space-y-[8px]">
+                  {screeningQuestions.map((item, index) => (
+                    <div key={item.id} className="flex items-start gap-[8px]">
+                      <span className="pt-[1px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{index + 1}.</span>
+                      <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">{item.question}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="space-y-[4px]">
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Screening message preview</p>
+                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                    Use the current template as-is or adjust the message before starting the flow.
+                  </p>
+                </div>
+                <FxInput
+                  textarea
+                  value={messageValue}
+                  onChange={(event) => setMessageValue(event.target.value)}
+                  className="mt-[12px] min-h-[220px]"
+                />
+              </div>
+
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <p className={FX_TYPOGRAPHY.cardTitle}>Candidate context</p>
+                <div className="mt-[12px] grid gap-[12px] sm:grid-cols-2">
+                  <MetaField label="Email" value={candidate.email || "—"} />
+                  <MetaField label="Phone" value={candidate.phone || "—"} />
+                  <MetaField label="Experience" value={candidate.experience != null ? `${candidate.experience} years` : "—"} />
+                  <MetaField
+                    label="Current Status"
+                    value={UNSCREENED_FILTERS.find((item) => item.key === screeningStatus)?.label || "Pending"}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </SheetBody>
+        <SheetFooter
+          right={(
+            <div className="flex flex-wrap items-center gap-[8px]">
+              <FxButton variant="outline" size="sm" onClick={() => candidate && onMarkFailed?.(candidate)}>
+                Mark Failed
+              </FxButton>
+              <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate)}>
+                Reject Candidate
+              </FxButton>
+              <FxButton
+                size="sm"
+                onClick={() => candidate && onStart?.(candidate, { email: emailValue, message: messageValue })}
+              >
+                Send & Start
+              </FxButton>
+            </div>
+          )}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function ManualScreeningSheet({
+  open,
+  onOpenChange,
+  candidate,
+  job,
+  onSaveResponses,
+  onPass,
+  onReject,
+}) {
+  const screeningQuestions = useMemo(() => getJobScreeningQuestions(job), [job]);
+  const [responses, setResponses] = useState({});
+  const [activeSection, setActiveSection] = useState("resume");
+  const interviewQuestions = useMemo(
+    () => [
+      `Walk me through your experience most relevant to ${job?.title || "this role"}.`,
+      "What kind of projects have you handled end-to-end in your current or recent role?",
+      "What would make you interested in exploring this opportunity further?",
+    ],
+    [job?.title],
+  );
+
+  useEffect(() => {
+    const sourceAnswers = (
+      [candidate?.screeningAnswers, candidate?.answers, candidate?.responses, candidate?.jobContext?.answers].find(
+        (value) => Array.isArray(value) && value.length,
+      ) ?? []
+    );
+
+    const nextResponses = {};
+    sourceAnswers.forEach((answer, index) => {
+      const answerId = answer.id ?? screeningQuestions[index]?.id ?? `question-${index + 1}`;
+      nextResponses[answerId] = answer.answer ?? answer.value ?? "";
+    });
+
+    setResponses(nextResponses);
+  }, [candidate, screeningQuestions]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="xl">
+        <SheetHeader
+          title="Manual Screening"
+          description={`${candidate?.name || "Candidate"} · ${job?.title || "Job"}`}
+        />
+        <SheetBody>
+          {candidate ? (
+            <div className="space-y-[20px]">
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="grid gap-[12px] sm:grid-cols-2">
+                  <MetaField label="Current Role" value={candidate.currentRole || candidate.jobTitle || "—"} />
+                  <MetaField label="Current Company" value={candidate.currentCompany || "—"} />
+                  <MetaField label="Experience" value={candidate.experience != null ? `${candidate.experience} years` : "—"} />
+                  <MetaField label="CV Match Score" value={candidate.matchScore != null ? `${candidate.matchScore}%` : "—"} />
+                </div>
+              </div>
+
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="space-y-[4px]">
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Manual screening workspace</p>
+                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
+                    Review the resume, use the question sets, and submit the screening outcome from one recruiter-facing workflow.
+                  </p>
+                </div>
+                <div className="mt-[16px] flex flex-wrap gap-[8px]">
+                  {[
+                    { value: "resume", label: "Resume" },
+                    { value: "interview", label: "Interview Questions" },
+                    { value: "prescreen", label: "Pre-Screening Questions" },
+                  ].map((item) => {
+                    const isActive = activeSection === item.value;
+
+                    return (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => setActiveSection(item.value)}
+                        className={cn(
+                          "inline-flex h-[32px] items-center rounded-full border px-[12px] text-[13px] font-medium transition-colors",
+                          isActive
+                            ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]"
+                            : "border-[var(--fx-border)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]",
+                        )}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-[16px]">
+                  {activeSection === "resume" ? (
+                    <div className="grid gap-[12px] md:grid-cols-2">
+                      <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Profile summary</p>
+                        <p className={`${FX_TYPOGRAPHY.body} mt-[6px] text-[var(--fx-text)]`}>
+                          {candidate.currentRole || "Candidate"}{candidate.currentCompany ? ` at ${candidate.currentCompany}` : ""} with{" "}
+                          {candidate.experience != null ? `${candidate.experience} years` : "relevant"} experience. Match score is{" "}
+                          {candidate.matchScore != null ? `${candidate.matchScore}%` : "not available"} for this role.
+                        </p>
+                      </div>
+                      <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Resume notes</p>
+                        <FxInput
+                          textarea
+                          value={responses.resumeNotes ?? ""}
+                          onChange={(event) => setResponses((current) => ({ ...current, resumeNotes: event.target.value }))}
+                          placeholder="Capture quick recruiter notes from the resume review..."
+                          className="mt-[10px] min-h-[140px]"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {activeSection === "interview" ? (
+                    <div className="space-y-[12px]">
+                      {interviewQuestions.map((question, index) => (
+                        <div key={question} className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+                          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Question {index + 1}</p>
+                          <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{question}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {activeSection === "prescreen" ? (
+                    <div className="space-y-[12px]">
+                      {screeningQuestions.map((item) => (
+                        <div key={item.id} className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+                          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{item.label}</p>
+                          <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{item.question}</p>
+                          <FxInput
+                            textarea
+                            value={responses[item.id] ?? ""}
+                            onChange={(event) => setResponses((current) => ({ ...current, [item.id]: event.target.value }))}
+                            placeholder="Capture recruiter notes / candidate response..."
+                            className="mt-[10px] min-h-[88px]"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </SheetBody>
+        <SheetFooter
+          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Responses are stored on the local demo candidate record.</span>}
+          right={(
+            <div className="flex flex-wrap items-center gap-[8px]">
+              <FxButton variant="outline" size="sm" onClick={() => candidate && onSaveResponses?.(candidate, responses)}>
+                Save Progress
+              </FxButton>
+              <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate, responses)}>
+                Reject Candidate
+              </FxButton>
+              <FxButton size="sm" onClick={() => candidate && onPass?.(candidate, responses)}>
+                Pass Candidate
+              </FxButton>
+            </div>
+          )}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
 
 function CandidateWorkspaceSheet({
   open,
@@ -573,24 +1041,13 @@ function CandidateWorkspaceSheet({
           ) : null}
         </SheetBody>
         <SheetFooter
-          left={
-            <span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-              Candidate actions update this job only.
-            </span>
-          }
           right={(
             <div className="flex flex-wrap items-center gap-[8px]">
               <FxButton variant="outline" size="sm" onClick={() => candidate && onMoveToNextStage?.(candidate)}>
                 Move to Next Stage
               </FxButton>
-              <FxButton variant="outline" size="sm" onClick={() => candidate && onMarkNotInterested?.(candidate)}>
-                Mark as Not Interested
-              </FxButton>
               <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate)}>
                 Reject Candidate
-              </FxButton>
-              <FxButton variant="destructive" size="sm" onClick={() => candidate && onRemoveFromJob?.(candidate)}>
-                Remove from Job
               </FxButton>
             </div>
           )}
@@ -991,6 +1448,9 @@ export default function JobDetailsPage({ params }) {
   const [recommendedOpen, setRecommendedOpen] = useState(false);
   const [addCandidatesOpen, setAddCandidatesOpen] = useState(false);
   const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
+  const [cvMatchSheetOpen, setCvMatchSheetOpen] = useState(false);
+  const [emailScreeningOpen, setEmailScreeningOpen] = useState(false);
+  const [manualScreeningOpen, setManualScreeningOpen] = useState(false);
   const [callPreviewOpen, setCallPreviewOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [candidateToReject, setCandidateToReject] = useState(null);
@@ -1174,6 +1634,29 @@ export default function JobDetailsPage({ params }) {
     },
     [markCandidateViewed],
   );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleOpenCvMatchBreakdown = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      if (!candidate.cvMatchBreakdown) {
+        updateWorkspaceCandidate(candidate.id, (current) => ({
+          ...current,
+          cvMatchBreakdown: generateMockCvMatchBreakdown({
+            ...current,
+            matchScore: current.matchScore ?? candidate.matchScore,
+          }),
+        }));
+      }
+
+      setSelectedCandidateId(candidate.id);
+      setCvMatchSheetOpen(true);
+    },
+    [updateWorkspaceCandidate],
+  );
 
   const handleMoveCandidateToNextStage = useCallback(
     (candidate) => {
@@ -1318,6 +1801,169 @@ export default function JobDetailsPage({ params }) {
       }));
     },
     [job?.id, updateWorkspaceCandidate],
+  );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleOpenEmailScreening = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      setSelectedCandidateId(candidate.id);
+      setEmailScreeningOpen(true);
+      markCandidateViewed(candidate.id);
+      handleSetCandidateScreeningMode(candidate, "ai");
+    },
+    [handleSetCandidateScreeningMode, markCandidateViewed],
+  );
+
+  const handleOpenManualScreening = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      setSelectedCandidateId(candidate.id);
+      setManualScreeningOpen(true);
+      markCandidateViewed(candidate.id);
+      handleSetCandidateScreeningMode(candidate, "manual");
+    },
+    [handleSetCandidateScreeningMode, markCandidateViewed],
+  );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleStartEmailScreening = useCallback(
+    (candidate, payload = {}) => {
+      if (!candidate || !job?.id) {
+        return;
+      }
+
+      updateWorkspaceCandidate(candidate.id, (current) => ({
+        ...current,
+        email: payload.email || current.email,
+        screeningOutcome: "In Progress",
+        jobContexts: {
+          ...(current.jobContexts ?? {}),
+          [job.id]: {
+            ...(current.jobContexts?.[job.id] ?? {}),
+            screeningModeOverride: "ai",
+            unscreenedFilterStatus: "in_progress",
+            emailScreeningMessage: payload.message ?? current.jobContexts?.[job.id]?.emailScreeningMessage ?? "",
+          },
+        },
+      }));
+
+      handleSetUnscreenedFilterStatus(candidate, "in_progress");
+      setEmailScreeningOpen(false);
+      showSuccess("Email screening started", `${candidate.name} moved to In Progress.`);
+    },
+    [handleSetUnscreenedFilterStatus, job?.id, updateWorkspaceCandidate],
+  );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleSaveManualScreeningResponses = useCallback(
+    (candidate, responses) => {
+      if (!candidate || !job?.id) {
+        return;
+      }
+
+      const screeningQuestions = getJobScreeningQuestions(job);
+      const normalizedAnswers = screeningQuestions.map((item) => ({
+        id: item.id,
+        label: item.label,
+        question: item.question,
+        answer: String(responses?.[item.id] ?? "").trim(),
+      }));
+
+      updateWorkspaceCandidate(candidate.id, (current) => ({
+        ...current,
+        screeningAnswers: normalizedAnswers,
+        jobContexts: {
+          ...(current.jobContexts ?? {}),
+          [job.id]: {
+            ...(current.jobContexts?.[job.id] ?? {}),
+            answers: normalizedAnswers,
+            screeningModeOverride: "manual",
+            unscreenedFilterStatus: "processing",
+          },
+        },
+      }));
+
+      handleSetUnscreenedFilterStatus(candidate, "processing");
+      showSuccess("Screening saved", `${candidate.name}'s manual screening notes were saved.`);
+    },
+    [handleSetUnscreenedFilterStatus, job, job?.id, updateWorkspaceCandidate],
+  );
+
+  const handlePassCandidateFromScreening = useCallback(
+    (candidate, responses = null) => {
+      if (!candidate || !job?.id) {
+        return;
+      }
+
+      const screeningQuestions = getJobScreeningQuestions(job);
+      const normalizedAnswers = responses
+        ? screeningQuestions.map((item) => ({
+            id: item.id,
+            label: item.label,
+            question: item.question,
+            answer: String(responses?.[item.id] ?? "").trim(),
+          }))
+        : candidate.screeningAnswers ?? candidate.jobContext?.answers ?? [];
+
+      updateWorkspaceCandidate(
+        candidate.id,
+        (current) => ({
+          ...current,
+          status: "screened",
+          screeningOutcome: "Passed",
+          screeningAnswers: normalizedAnswers,
+          jobContexts: {
+            ...(current.jobContexts ?? {}),
+            [job.id]: {
+              ...(current.jobContexts?.[job.id] ?? {}),
+              answers: normalizedAnswers,
+              unscreenedFilterStatus: "processing",
+            },
+          },
+        }),
+        { fromStatus: candidate.status, toStatus: "screened" },
+      );
+
+      setEmailScreeningOpen(false);
+      setManualScreeningOpen(false);
+      showSuccess("Candidate passed", `${candidate.name} moved to Pre-Screened.`);
+    },
+    [job, job?.id, updateWorkspaceCandidate],
+  );
+
+  const handleFailEmailScreening = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      updateWorkspaceCandidate(candidate.id, (current) => ({
+        ...current,
+        screeningOutcome: "Failed",
+      }));
+      handleSetUnscreenedFilterStatus(candidate, "failed");
+      showSuccess("Candidate updated", `${candidate.name} moved to Failed.`);
+    },
+    [handleSetUnscreenedFilterStatus, updateWorkspaceCandidate],
+  );
+
+  const handleRejectCandidateFromManualScreening = useCallback(
+    (candidate, responses) => {
+      if (!candidate) {
+        return;
+      }
+
+      handleSaveManualScreeningResponses(candidate, responses);
+      handleOpenRejectDialog(candidate);
+    },
+    [handleOpenRejectDialog, handleSaveManualScreeningResponses],
   );
 
   const clearSelectedCandidates = useCallback(() => {
@@ -1925,9 +2571,7 @@ export default function JobDetailsPage({ params }) {
                   className={className}
                   aria-label={`Start email pre-screening for ${candidate.name}`}
                   onClick={() => {
-                    handleSetCandidateScreeningMode(candidate, "ai");
-                    handleSetUnscreenedFilterStatus(candidate, "in_queue");
-                    showSuccess("Candidate updated", `${candidate.name} moved to Email Pre-Screening queue.`);
+                    handleOpenEmailScreening(candidate);
                   }}
                 >
                   <Mail className="size-[14px]" />
@@ -1944,9 +2588,7 @@ export default function JobDetailsPage({ params }) {
                   className={className}
                   aria-label={`Start manual screening for ${candidate.name}`}
                   onClick={() => {
-                    handleSetCandidateScreeningMode(candidate, "manual");
-                    handleSetUnscreenedFilterStatus(candidate, "in_progress");
-                    showSuccess("Candidate updated", `${candidate.name} moved to Manual Screening.`);
+                    handleOpenManualScreening(candidate);
                   }}
                 >
                   <Phone className="size-[14px]" />
@@ -2078,7 +2720,7 @@ export default function JobDetailsPage({ params }) {
             Remove from Job
           </DropdownMenuItem>
           {activeStage !== "rejected" ? (
-            <DropdownMenuItem onClick={() => handleOpenRejectDialog(candidate)}>
+            <DropdownMenuItem className="text-[var(--fx-danger)] focus:text-[var(--fx-danger)]" onClick={() => handleOpenRejectDialog(candidate)}>
               Reject Candidate
             </DropdownMenuItem>
           ) : null}
@@ -2145,9 +2787,11 @@ export default function JobDetailsPage({ params }) {
     __fxRowSelectionMeta: {
       // Fresh/unviewed candidates get a subtle left-edge cue in the selection column.
       isNew:
-        !candidate.jobContext?.viewedAt &&
-        (candidate.createdAt || candidate.updatedAt) &&
-        Date.now() - new Date(candidate.createdAt || candidate.updatedAt).getTime() <= 2 * 24 * 60 * 60 * 1000,
+        !candidate.jobContext?.viewedAt ||
+        (
+          (candidate.createdAt || candidate.updatedAt) &&
+          Date.now() - new Date(candidate.createdAt || candidate.updatedAt).getTime() <= 2 * 24 * 60 * 60 * 1000
+        ),
     },
     name: (
       <button
@@ -2161,7 +2805,7 @@ export default function JobDetailsPage({ params }) {
     matchScore: (
       <button
         type="button"
-        onClick={() => handleOpenCandidateSheet(candidate)}
+        onClick={() => handleOpenCvMatchBreakdown(candidate)}
         className="inline-flex min-w-[64px] items-center justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface-selected)_84%)]"
       >
         {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
@@ -2573,6 +3217,29 @@ export default function JobDetailsPage({ params }) {
           onReject={handleOpenRejectDialog}
           onRemoveFromJob={handleRemoveCandidateFromJob}
           onSetScreeningMode={handleSetCandidateScreeningMode}
+        />
+        <CvMatchBreakdownSheet
+          open={cvMatchSheetOpen}
+          onOpenChange={setCvMatchSheetOpen}
+          candidate={selectedCandidate}
+        />
+        <EmailScreeningSheet
+          open={emailScreeningOpen}
+          onOpenChange={setEmailScreeningOpen}
+          candidate={selectedCandidate}
+          job={job}
+          onStart={handleStartEmailScreening}
+          onMarkFailed={handleFailEmailScreening}
+          onReject={handleOpenRejectDialog}
+        />
+        <ManualScreeningSheet
+          open={manualScreeningOpen}
+          onOpenChange={setManualScreeningOpen}
+          candidate={selectedCandidate}
+          job={job}
+          onSaveResponses={handleSaveManualScreeningResponses}
+          onPass={handlePassCandidateFromScreening}
+          onReject={handleRejectCandidateFromManualScreening}
         />
         <CallPreviewDrawer open={callPreviewOpen} onOpenChange={setCallPreviewOpen} job={job} />
         <Dialog open={rejectDialogOpen} onOpenChange={handleCloseRejectDialog}>

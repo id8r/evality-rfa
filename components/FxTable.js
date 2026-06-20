@@ -404,10 +404,21 @@ export function FxTable({
                       : 0;
 
                   if (column.key === ROW_SELECTION_COLUMN.key) {
+                    const selectionMeta = row.__fxRowSelectionMeta ?? {};
+
                     return (
                       <td
                         key={column.key}
-                        className={cn(FX_TABLE.bodyCell, densityClasses.bodyCell, "sticky left-0 z-[30] bg-inherit text-center px-0", column.cellClassName, bodyCellClassName)}
+                        className={cn(
+                          FX_TABLE.bodyCell,
+                          densityClasses.bodyCell,
+                          "sticky left-0 z-[30] bg-inherit text-center px-0",
+                          selectionMeta.isNew
+                            ? "border-l-[3px] border-l-[color:color-mix(in_srgb,var(--fx-primary)_72%,white_28%)]"
+                            : "",
+                          column.cellClassName,
+                          bodyCellClassName,
+                        )}
                         style={{ ...resolvedStyle, left: 0 }}
                       >
                         <div className="flex h-full items-center justify-center">

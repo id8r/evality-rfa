@@ -16,7 +16,7 @@ function SheetOverlay({ className, ...props }) {
     <DialogPrimitive.Overlay
       forceMount
       className={cn(
-        `fixed inset-0 z-[100] transition-opacity ${FX_SHEET.overlayOpenMotion} ${FX_SHEET.overlayCloseMotion} data-[state=open]:opacity-100 data-[state=closed]:pointer-events-none data-[state=closed]:invisible data-[state=closed]:opacity-0`,
+        "fixed inset-0 z-[100] bg-slate-950/10 backdrop-blur-[2px] duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         FX_SURFACE.overlay,
         className,
       )}
@@ -27,8 +27,8 @@ function SheetOverlay({ className, ...props }) {
 
 function SheetContent({ className, children, side = "right", size = "md", ...props }) {
   const sideClasses = {
-    right: "inset-y-0 right-0 h-full border-l translate-x-full data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full",
-    left: "inset-y-0 left-0 h-full border-r -translate-x-full data-[state=open]:translate-x-0 data-[state=closed]:-translate-x-full",
+    right: "inset-y-0 right-0 h-full border-l border-l-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] shadow-[-6px_0_18px_rgba(15,23,42,0.04)] data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
+    left: "inset-y-0 left-0 h-full border-r border-r-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] shadow-[6px_0_18px_rgba(15,23,42,0.04)] data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left",
   };
 
   const widthClasses = {
@@ -44,7 +44,7 @@ function SheetContent({ className, children, side = "right", size = "md", ...pro
       <DialogPrimitive.Content
         forceMount
         className={cn(
-          `fixed z-[101] flex h-full flex-col overflow-hidden bg-[var(--fx-surface-raised)] text-foreground shadow-none transition-[transform,opacity] ${FX_SHEET.contentOpenMotion} ${FX_SHEET.contentCloseMotion} will-change-transform data-[state=open]:opacity-100 data-[state=closed]:pointer-events-none data-[state=closed]:invisible data-[state=closed]:opacity-0`,
+          "fixed z-[101] flex h-full flex-col overflow-hidden bg-[var(--fx-surface-raised)] text-foreground shadow-none duration-500 ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:pointer-events-none",
           sideClasses[side],
           widthClasses[size],
           className,
@@ -106,7 +106,7 @@ function SheetFooter({ className, left, right, children, ...props }) {
   return (
     <div
       className={cn(
-        `flex ${FX_SHEET.footerHeight} flex-none items-center justify-between gap-[16px] border-t border-border px-[24px]`,
+        `flex ${FX_SHEET.footerHeight} flex-none items-center justify-between gap-[16px] border-t border-border bg-[var(--fx-surface-subtle)] px-[24px]`,
         className,
       )}
       {...props}

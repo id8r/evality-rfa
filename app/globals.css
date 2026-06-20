@@ -1,6 +1,7 @@
 /* app/globals.css | Global theme tokens and foundation styles | Sree | 2026-06-09 */
 
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
