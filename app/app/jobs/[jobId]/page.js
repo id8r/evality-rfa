@@ -973,7 +973,7 @@ function CandidateWorkspaceSheet({
                 </div>
               </div>
 
-              <div className={`rounded-full border ${FX_COLORS.border} bg-[color:color-mix(in_srgb,var(--fx-primary)_4%,var(--fx-surface)_96%)] px-[24px] py-[18px]`}>
+              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[24px] py-[18px]`}>
                 <div className="flex justify-center overflow-x-auto overflow-y-hidden">
                   <div className="inline-flex items-center">
                   {PIPELINE_STAGE_SEQUENCE.filter((stage) => stage !== "rejected").map((stage, index) => {
@@ -1026,7 +1026,7 @@ function CandidateWorkspaceSheet({
                           </span>
                           </div>
                           {index < 3 ? (
-                            <div className="mt-[14px] ml-[2px] h-[2px] w-[120px] bg-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)]">
+                            <div className="mt-[14px] ml-[10px] h-[2px] w-[112px] bg-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)]">
                               <div
                                 className={cn(
                                   "h-full w-full",
