@@ -226,6 +226,14 @@ function normalizeCandidate(candidate, job) {
     return null;
   }
   const jobContext = candidate.jobContexts?.[job?.id] ?? null;
+  const toFiniteNumber = (value) => {
+    if (value == null || value === "") {
+      return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
 
   const trustScore =
     candidate.trustScore ||
@@ -247,10 +255,11 @@ function normalizeCandidate(candidate, job) {
     status: candidate.status ?? "unscreened",
     trustScore,
     screeningOutcome: candidate.screeningOutcome ?? candidate.screeningStatus ?? candidate.callStatus ?? "",
-    matchScore: candidate.matchScore != null ? Number(candidate.matchScore) : null,
-    availabilityDays: candidate.availabilityDays != null ? Number(candidate.availabilityDays) : null,
-    currentSalary: candidate.currentSalary != null ? Number(candidate.currentSalary) : null,
-    expectedSalary: candidate.expectedSalary != null ? Number(candidate.expectedSalary) : null,
+    matchScore: toFiniteNumber(candidate.matchScore),
+    availabilityDays: toFiniteNumber(candidate.availabilityDays),
+    currentSalary: toFiniteNumber(candidate.currentSalary),
+    expectedSalary: toFiniteNumber(candidate.expectedSalary),
+    experience: toFiniteNumber(candidate.experience),
     email: candidate.email ?? "—",
     phone: candidate.phone ?? "—",
     uploadedBy: candidate.uploadedBy ?? "Manual entry",
@@ -816,13 +825,8 @@ function CandidateWorkspaceSheet({
   onOpenChange,
   candidate,
   job,
-  onMoveToNextStage,
-  onMarkNotInterested,
-  onReject,
-  onRemoveFromJob,
-  onSetScreeningMode,
 }) {
-  const screeningMode = candidate?.jobContext?.screeningModeOverride ?? "ai";
+  const [activeTab, setActiveTab] = useState("overview");
   const isRejected = candidate?.status === "rejected";
   const currentStageLabel = isRejected
     ? "Rejected"
@@ -831,192 +835,223 @@ function CandidateWorkspaceSheet({
   const nextStageLabel = currentStageIndex >= 0 && currentStageIndex < PIPELINE_STAGE_SEQUENCE.length - 1
     ? PIPELINE_STAGES.find((stage) => stage.value === PIPELINE_STAGE_SEQUENCE[currentStageIndex + 1])?.label
     : null;
-  const candidateAnswers = (
-    [candidate?.screeningAnswers, candidate?.answers, candidate?.responses, candidate?.jobContext?.answers].find(
-      (value) => Array.isArray(value) && value.length,
-    ) ?? []
-  ).filter(Boolean);
+  const screeningResult = candidate?.screeningOutcome || candidate?.jobContext?.screeningResult || "—";
+  const resumeText = candidate?.resumeText || candidate?.jobContext?.resumeText || candidate?.resume || "";
+
+  const contactDetails = [
+    { label: "Email", value: candidate?.email || "—" },
+    { label: "Phone", value: candidate?.phone || "—" },
+  ];
 
   const profileDetails = [
     { label: "Current Role", value: candidate?.currentRole || candidate?.jobTitle || "—" },
     { label: "Current Company", value: candidate?.currentCompany || candidate?.client || "—" },
-    { label: "Email", value: candidate?.email || "—" },
-    { label: "Phone", value: candidate?.phone || "—" },
-    { label: "Experience", value: candidate?.experience != null ? `${candidate.experience} years` : "—" },
-    { label: "Job", value: job?.title || "—" },
+    { label: "Location", value: candidate?.location || candidate?.city || candidate?.jobContext?.location || "—" },
+    { label: "Source", value: candidate?.source || "—" },
   ];
 
-  const answers = [
+  const screeningSnapshot = [
+    { label: "Interested", value: candidate?.interested || "—" },
     { label: "Availability", value: candidate?.availabilityDays != null ? formatAvailability(candidate.availabilityDays) : "—" },
     { label: "Current Salary", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "—" },
     { label: "Expected Salary", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "—" },
-    { label: "Interested", value: candidate?.interested || "—" },
-    { label: "Screening Result", value: candidate?.screeningOutcome || "—" },
-    { label: "Notice Period", value: candidate?.jobContext?.noticePeriod || "Not captured" },
+    { label: "Notice Period", value: candidate?.jobContext?.noticePeriod || "—" },
+    { label: "Screening Result", value: screeningResult },
   ];
+
+  const activityItems = useMemo(() => {
+    if (!candidate) {
+      return [];
+    }
+
+    const items = [];
+
+    if (candidate.createdAt) {
+      items.push({ label: "Candidate added to job", timestamp: candidate.createdAt });
+    }
+
+    if (candidate.jobContext?.emailScreeningStartedAt) {
+      items.push({ label: "Email pre-screening started", timestamp: candidate.jobContext.emailScreeningStartedAt });
+    }
+
+    if (candidate.jobContext?.manualScreeningCompletedAt) {
+      items.push({ label: "Manual screening completed", timestamp: candidate.jobContext.manualScreeningCompletedAt });
+    }
+
+    if (candidate.status === "screened") {
+      items.push({ label: "Moved to Pre-Screened", timestamp: candidate.updatedAt || candidate.createdAt });
+    }
+
+    if (candidate.status === "shortlisted") {
+      items.push({ label: "Moved to Shortlisted", timestamp: candidate.updatedAt || candidate.createdAt });
+    }
+
+    if (candidate.status === "shared") {
+      items.push({ label: "Sent to Client", timestamp: candidate.updatedAt || candidate.createdAt });
+    }
+
+    if (candidate.status === "rejected") {
+      items.push({ label: "Rejected", timestamp: candidate.updatedAt || candidate.createdAt });
+    }
+
+    if (candidate.jobContext?.notes || candidate.notes || candidate.activity) {
+      items.push({
+        label: candidate.jobContext?.notes || candidate.notes || candidate.activity,
+        timestamp: candidate.updatedAt || candidate.createdAt,
+        isNote: true,
+      });
+    }
+
+    return items
+      .filter((item) => item.label)
+      .sort((left, right) => new Date(right.timestamp || 0).getTime() - new Date(left.timestamp || 0).getTime());
+  }, [candidate]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="lg">
         <SheetHeader
-          title={candidate?.name || "Candidate"}
-          description={`${currentStageLabel} · ${candidate?.jobTitle || job?.title || "Candidate profile"} · Job-specific review and actions`}
+          title="Candidate Details"
+          description={`${candidate?.jobTitle || job?.title || "Job"} • ${currentStageLabel}`}
         />
         <SheetBody>
           {candidate ? (
             <div className="space-y-[20px]">
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
-                <div className="flex flex-wrap items-start justify-between gap-[16px]">
-                  <div className="min-w-0 space-y-[8px]">
-                    <div className="flex flex-wrap items-center gap-[8px]">
-                      <p className={FX_TYPOGRAPHY.cardTitle}>{candidate.name}</p>
-                      {!candidate.jobContext?.viewedAt ? (
-                        <span className="inline-flex items-center rounded-full bg-[color:color-mix(in_srgb,var(--fx-primary)_12%,var(--fx-surface)_88%)] px-[8px] py-[3px] text-[12px] font-medium text-[var(--fx-primary)]">
-                          New
-                        </span>
-                      ) : null}
+              <FxTabs
+                variant="segmented"
+                value={activeTab}
+                onValueChange={setActiveTab}
+                items={[
+                  { value: "overview", label: "Overview" },
+                  { value: "resume", label: "Resume" },
+                  { value: "journey", label: "Journey" },
+                  { value: "activity", label: "Activity" },
+                ]}
+              />
+
+              {activeTab === "overview" ? (
+                <div className="space-y-[16px]">
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <div className="grid gap-[12px] sm:grid-cols-2">
+                      <MetaField label="Candidate Name" value={candidate.name || "—"} />
+                      <MetaField label="CV Match Score" value={candidate.matchScore != null ? `${candidate.matchScore}%` : "—"} />
+                      <MetaField label="Current Stage" value={currentStageLabel} />
+                      <MetaField label="Experience" value={candidate.experience != null ? `${candidate.experience} years` : "—"} />
                     </div>
-                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                      {candidate.currentRole || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
-                    </p>
                   </div>
-                  <div className="flex items-center gap-[8px]">
-                    <span className="inline-flex items-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
-                      {candidate.matchScore != null ? `${candidate.matchScore}% JD match` : "Match unavailable"}
-                    </span>
-                    <span className="inline-flex items-center rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-text-muted)]">
-                      {currentStageLabel}
-                    </span>
-                  </div>
-                </div>
-              </div>
 
-              <div className="grid gap-[16px] md:grid-cols-2">
-                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Resume / profile summary</p>
-                  <div className="mt-[12px] grid gap-[12px] sm:grid-cols-2">
-                    {profileDetails.map((item) => (
-                      <MetaField key={item.label} label={item.label} value={item.value} />
-                    ))}
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Contact</p>
+                    <div className="mt-[12px] grid gap-[12px] sm:grid-cols-2">
+                      {contactDetails.map((item) => (
+                        <MetaField key={item.label} label={item.label} value={item.value} />
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Screening result</p>
-                  <div className="mt-[12px] grid gap-[12px] sm:grid-cols-2">
-                    {answers.map((item) => (
-                      <MetaField key={item.label} label={item.label} value={item.value} />
-                    ))}
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Profile</p>
+                    <div className="mt-[12px] grid gap-[12px] sm:grid-cols-2">
+                      {profileDetails.map((item) => (
+                        <MetaField key={item.label} label={item.label} value={item.value} />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Screening Snapshot</p>
+                    <div className="mt-[12px] grid gap-[12px] sm:grid-cols-2">
+                      {screeningSnapshot.map((item) => (
+                        <MetaField key={item.label} label={item.label} value={item.value} />
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : null}
 
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <p className={FX_TYPOGRAPHY.cardTitle}>Interview journey</p>
-                <div className="mt-[12px] grid gap-[8px] md:grid-cols-4">
-                  {PIPELINE_STAGE_SEQUENCE.map((stage, index) => {
-                    const stageLabel = PIPELINE_STAGES.find((item) => item.value === stage)?.label ?? stage;
-                    const isActive = candidate.status === stage;
-                    const isComplete = currentStageIndex > index;
-
-                    return (
-                      <div
-                        key={stage}
-                        className={cn(
-                          "rounded-[12px] border px-[12px] py-[12px]",
-                          isActive
-                            ? "border-[var(--fx-primary)] bg-[color:color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)]"
-                            : isComplete
-                              ? "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)]"
-                              : "border-[var(--fx-border)] bg-[var(--fx-surface)]",
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-[8px]">
-                          <span className={cn("text-[13px] leading-[20px] font-medium", isActive ? "text-[var(--fx-primary)]" : "text-[var(--fx-text)]")}>
-                            {stageLabel}
-                          </span>
-                          {isComplete ? <Check className="size-[14px] text-[var(--fx-success)]" /> : isActive ? <Circle className="size-[14px] text-[var(--fx-primary)]" /> : <Circle className="size-[14px] text-[var(--fx-text-disabled)]" />}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-[12px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-                  Current stage: {currentStageLabel}
-                  {nextStageLabel ? ` · Next: ${nextStageLabel}` : ""}
-                </div>
-              </div>
-
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="flex items-start justify-between gap-[16px]">
-                  <div className="space-y-[4px]">
-                    <p className={FX_TYPOGRAPHY.cardTitle}>Screening mode override</p>
-                    <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                      Workspace default comes from Settings. You can override it for this candidate.
-                    </p>
-                  </div>
-                </div>
-                <RadioGroup
-                  value={screeningMode}
-                  onValueChange={(value) => onSetScreeningMode?.(candidate, value)}
-                  className="mt-[12px] grid gap-[8px]"
-                >
-                  {[
-                    { value: "ai", label: "AI Screening" },
-                    { value: "manual", label: "Manual Interview" },
-                  ].map((option) => (
-                    <label
-                      key={option.value}
-                      className="flex cursor-pointer items-center gap-[12px] rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[12px] py-[12px]"
-                    >
-                      <RadioGroupItem value={option.value} />
-                      <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{option.label}</span>
-                    </label>
-                  ))}
-                </RadioGroup>
-              </div>
-
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <p className={FX_TYPOGRAPHY.cardTitle}>Candidate answers</p>
-                <div className="mt-[12px] grid gap-[8px] md:grid-cols-2">
-                  {candidateAnswers.length ? (
-                    candidateAnswers.map((answer, index) => (
-                      <div key={`${answer.question ?? index}`} className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{answer.question ?? `Question ${index + 1}`}</p>
-                        <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{answer.answer ?? answer.value ?? "—"}</p>
-                      </div>
-                    ))
+              {activeTab === "resume" ? (
+                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Resume</p>
+                  {resumeText ? (
+                    <pre className="mt-[12px] whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                      {resumeText}
+                    </pre>
                   ) : (
-                    <div className="md:col-span-2">
-                      <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                        No screening answers captured yet. Review the candidate profile and move them through the job workflow first.
-                      </p>
-                    </div>
+                    <p className={`${FX_TYPOGRAPHY.body} mt-[12px] text-[var(--fx-text-muted)]`}>
+                      No resume available
+                    </p>
                   )}
                 </div>
-              </div>
+              ) : null}
 
-              <div className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <p className={FX_TYPOGRAPHY.cardTitle}>Notes / activity</p>
-                <p className={`${FX_TYPOGRAPHY.body} mt-[8px] text-[var(--fx-text-muted)]`}>
-                  {candidate.jobContext?.notes || candidate.notes || candidate.activity || "No notes or activity recorded yet."}
-                </p>
-              </div>
+              {activeTab === "journey" ? (
+                <div className="space-y-[16px]">
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <div className="grid gap-[8px] md:grid-cols-5">
+                      {PIPELINE_STAGE_SEQUENCE.map((stage, index) => {
+                        const stageLabel = PIPELINE_STAGES.find((item) => item.value === stage)?.label ?? stage;
+                        const isActive = candidate.status === stage;
+                        const isComplete = currentStageIndex > index;
+
+                        return (
+                          <div
+                            key={stage}
+                            className={cn(
+                              "rounded-[8px] border px-[12px] py-[12px]",
+                              isActive
+                                ? "border-[var(--fx-primary)] bg-[color:color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)]"
+                                : isComplete
+                                  ? "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)]"
+                                  : "border-[var(--fx-border)] bg-[var(--fx-surface)]",
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-[8px]">
+                              <span className={cn("text-[13px] leading-[20px] font-medium", isActive ? "text-[var(--fx-primary)]" : "text-[var(--fx-text)]")}>
+                                {stageLabel}
+                              </span>
+                              {isComplete ? <Check className="size-[14px] text-[var(--fx-success)]" /> : isActive ? <Circle className="size-[14px] text-[var(--fx-primary)]" /> : <Circle className="size-[14px] text-[var(--fx-text-disabled)]" />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <div className="grid gap-[12px] sm:grid-cols-3">
+                      <MetaField label="Current Stage" value={currentStageLabel} />
+                      <MetaField label="Next Suggested Stage" value={nextStageLabel || "—"} />
+                      <MetaField label="Last Updated" value={formatRelativeTime(candidate.updatedAt || candidate.createdAt)} />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {activeTab === "activity" ? (
+                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Activity</p>
+                  <div className="mt-[12px] space-y-[12px]">
+                    {activityItems.length ? (
+                      activityItems.map((item, index) => (
+                        <div key={`${item.label}-${index}`} className="flex items-start gap-[10px]">
+                          <span className={cn("mt-[7px] inline-flex size-[8px] shrink-0 rounded-full", item.isNote ? "bg-[var(--fx-text-muted)]" : "bg-[var(--fx-primary)]")} />
+                          <div className="min-w-0">
+                            <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">{item.label}</p>
+                            <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{formatRelativeTime(item.timestamp)}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                        No activity recorded yet.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </SheetBody>
-        <SheetFooter
-          right={(
-            <div className="flex flex-wrap items-center gap-[8px]">
-              <FxButton variant="outline" size="sm" onClick={() => candidate && onMoveToNextStage?.(candidate)}>
-                Move to Next Stage
-              </FxButton>
-              <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate)}>
-                Reject Candidate
-              </FxButton>
-            </div>
-          )}
-        />
       </SheetContent>
     </Sheet>
   );
@@ -1488,6 +1523,7 @@ export default function JobDetailsPage({ params }) {
     return [...filteredCandidates].sort((left, right) => {
       const leftValue = left[sortConfig.key];
       const rightValue = right[sortConfig.key];
+      const numericSortKeys = new Set(["matchScore", "experience", "availabilityDays", "currentSalary", "expectedSalary"]);
 
       if (sortConfig.key === "updatedAt") {
         const leftTime = new Date(leftValue ?? 0).getTime();
@@ -1495,8 +1531,23 @@ export default function JobDetailsPage({ params }) {
         return sortConfig.direction === "asc" ? leftTime - rightTime : rightTime - leftTime;
       }
 
-      if (typeof leftValue === "number" && typeof rightValue === "number") {
-        return sortConfig.direction === "asc" ? leftValue - rightValue : rightValue - leftValue;
+      if (numericSortKeys.has(sortConfig.key)) {
+        const leftNumber = leftValue == null ? null : Number(leftValue);
+        const rightNumber = rightValue == null ? null : Number(rightValue);
+
+        if (leftNumber == null && rightNumber == null) {
+          return 0;
+        }
+
+        if (leftNumber == null) {
+          return 1;
+        }
+
+        if (rightNumber == null) {
+          return -1;
+        }
+
+        return sortConfig.direction === "asc" ? leftNumber - rightNumber : rightNumber - leftNumber;
       }
 
       return sortConfig.direction === "asc"
@@ -1526,8 +1577,10 @@ export default function JobDetailsPage({ params }) {
       ? "name"
       : sortConfig?.key === "matchScore"
         ? "matchScore"
+        : sortConfig?.key === "experience"
+          ? "experience"
         : sortConfig?.key === "availabilityDays"
-          ? "availability"
+            ? "availability"
             : sortConfig?.key === "currentSalary"
               ? "currentSalary"
               : sortConfig?.key === "expectedSalary"
@@ -2721,7 +2774,7 @@ export default function JobDetailsPage({ params }) {
         hideable: false,
       },
       matchScore: { key: "matchScore", label: sortLabel("matchScore", matchScoreLabel), width: isUnscreenedStage ? 148 : 160, minWidth: isUnscreenedStage ? 136 : 148, maxWidth: isUnscreenedStage ? 156 : 168, align: "center" },
-      experience: { key: "experience", label: "Experience", width: 104, minWidth: 92, maxWidth: 120, align: "center" },
+      experience: { key: "experience", label: sortLabel("experience", "Experience"), width: 104, minWidth: 92, maxWidth: 120, align: "center" },
       phone: { key: "phone", label: "Phone", width: 176, minWidth: 156, maxWidth: isUnscreenedStage ? undefined : 184, grow: isUnscreenedStage ? 1 : undefined, flexible: isUnscreenedStage },
       email: { key: "email", label: "Email", width: 240, minWidth: 220, maxWidth: isUnscreenedStage ? undefined : 260, grow: isUnscreenedStage ? 2 : undefined, flexible: isUnscreenedStage },
       interested: { key: "interested", label: "Interested", width: 112, minWidth: 104, maxWidth: 124, align: "center" },
