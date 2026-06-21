@@ -1430,7 +1430,13 @@ export default function JobsPage() {
   function getSheetStepTabClassName(step) {
     const isActive = activeSheetStep === step;
 
-    return `relative cursor-pointer pb-[12px] ${isActive ? "text-[var(--fx-primary)]" : "text-[var(--fx-text-muted)]"} ${FX_TYPOGRAPHY.button}`;
+    return cn(
+      "relative cursor-pointer rounded-[8px] px-[12px] py-[10px] transition-colors",
+      isActive
+        ? "bg-[var(--fx-surface)] text-[var(--fx-primary)] shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+        : "text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface)]/70 hover:text-[var(--fx-text)]",
+      FX_TYPOGRAPHY.button,
+    );
   }
 
   function renderOptionCard({ value, title, description, icon: Icon, groupValue, onSelect }) {
@@ -2522,7 +2528,7 @@ export default function JobsPage() {
       </div>
 
       <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
-        <SheetContent size="lg" widthPx={700}>
+        <SheetContent size="xl" widthPx={768}>
           <SheetHeader
             title={isSheetOpen ? jobCreationTitle : editingJob ? PAGE_COPY.jobs.editCta : PAGE_COPY.jobs.createCta}
             description={jobTitleValue || (editingJob ? "Edit details for this job" : "Enter job details to get started")}
@@ -2576,8 +2582,8 @@ export default function JobsPage() {
               </div>
               */}
 
-              <div className="border-b border-[var(--fx-border)]">
-                <div className="flex gap-[24px] overflow-x-auto">
+              <div className="border-b border-[var(--fx-border)] pb-[4px]">
+                <div className="flex gap-[4px] overflow-x-auto rounded-[10px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-bg-soft)] p-[4px]">
                   {JOB_SHEET_STEPS.map((step) => (
                     <button
                       key={step.value}
@@ -2592,9 +2598,6 @@ export default function JobsPage() {
                       }}
                     >
                       {step.label}
-                      {activeSheetStep === step.value ? (
-                        <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[var(--fx-primary)]" />
-                      ) : null}
                     </button>
                   ))}
                 </div>
@@ -2959,9 +2962,9 @@ export default function JobsPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-[8px]">
-                    <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Screening Method</h4>
-                  </div>
+                      <div className="space-y-[8px]">
+                        <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Screening Method</h4>
+                      </div>
                   <RadioGroup
                     value={jobForm.preScreeningMode || "manual"}
                     onValueChange={(value) =>
@@ -3007,7 +3010,7 @@ export default function JobsPage() {
                   {shouldShowScreeningBuilder ? (
                     <>
                       <div className="space-y-[8px]">
-                        <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Questionnaire</h4>
+                        <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Questionnaire</h4>
                       </div>
 
                       <RadioGroup
@@ -3063,7 +3066,7 @@ export default function JobsPage() {
 
                       <div className="space-y-[12px]">
                         <div className="flex items-center justify-between gap-[12px]">
-                          <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Pre-Screening Questions</h4>
+                          <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Pre-Screening Questions</h4>
                         </div>
 
                         {jobForm.questions.length ? (
