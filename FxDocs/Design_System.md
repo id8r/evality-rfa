@@ -229,6 +229,25 @@ box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 | Background | Surface            |
 | Border     | Bottom Border Only |
 
+## Tabs
+
+Use the shared `FxTabs` primitive. Do not hand-roll tab styles inside pages unless a new variant is being designed and then back-ported into `FxTabs`.
+
+### Variants
+
+| Variant       | Usage                                         |
+| ------------- | --------------------------------------------- |
+| `underlined`  | Page-level workflow tabs and recruiter stages |
+| `rounded`     | Grouped step tabs inside sheets and forms     |
+| `compact`     | Dense in-sheet secondary tab switching        |
+
+### Rules
+
+* Use `underlined` for top-level workspace flows such as candidate stages.
+* Use `rounded` for grouped multi-step form flows such as Create Job.
+* Use `compact` for smaller sheet-level context switches.
+* Old aliases `stage`, `filter`, and `segmented` may exist temporarily for backward compatibility, but new code should use the named variants above.
+
 
 # Route Manifest
 

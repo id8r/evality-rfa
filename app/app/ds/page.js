@@ -14,6 +14,7 @@ import { FxSelect } from "@/components/FxSelect";
 import { FxTagInput } from "@/components/FxTagInput";
 import { useFxTheme } from "@/components/FxThemeToggle";
 import { FxTable } from "@/components/FxTable";
+import { FxTabs } from "@/components/FxTabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -263,6 +264,53 @@ export default function DesignSystemRoute() {
                 <FxButton size="md">Medium</FxButton>
                 <FxButton size="lg">Large</FxButton>
                 <FxAiButton>AI Action</FxAiButton>
+              </div>
+            </div>
+          </Section>
+
+          <Section title="Tabs" description="Shared FxTabs variants for page navigation, grouped steps, and compact in-sheet switching.">
+            <div className="space-y-[16px]">
+              <div className="space-y-[8px]">
+                <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>Underlined</div>
+                <FxTabs
+                  variant="underlined"
+                  items={[
+                    { value: "unscreened", label: "Unscreened", count: 4 },
+                    { value: "prescreened", label: "Pre-Screened", count: 2 },
+                    { value: "shortlisted", label: "Shortlisted", count: 1 },
+                  ]}
+                  value="unscreened"
+                  onValueChange={() => {}}
+                />
+              </div>
+
+              <div className="space-y-[8px]">
+                <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>Rounded</div>
+                <FxTabs
+                  variant="rounded"
+                  items={[
+                    { value: "basic", label: "Basic Details" },
+                    { value: "description", label: "Job Description" },
+                    { value: "screening", label: "Screening Method" },
+                  ]}
+                  value="screening"
+                  onValueChange={() => {}}
+                  showBorder={false}
+                />
+              </div>
+
+              <div className="space-y-[8px]">
+                <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>Compact</div>
+                <FxTabs
+                  variant="compact"
+                  items={[
+                    { value: "overview", label: "Overview" },
+                    { value: "resume", label: "Resume" },
+                    { value: "notes", label: "Notes" },
+                  ]}
+                  value="overview"
+                  onValueChange={() => {}}
+                />
               </div>
             </div>
           </Section>

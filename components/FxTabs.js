@@ -4,6 +4,7 @@
 
 import { cn } from "@/lib/FxUtils";
 import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
+/* - - - - - - - - - - - - - - - - */
 
 function normalizeItems({ tabs, items }) {
   const source = Array.isArray(items) ? items : Array.isArray(tabs) ? tabs : [];
@@ -23,6 +24,24 @@ function renderItemLabel(item) {
 
   return `${item.label} (${item.count})`;
 }
+/* - - - - - - - - - - - - - - - - */
+
+function resolveVariant(variant) {
+  if (variant === "stage") {
+    return "rounded";
+  }
+
+  if (variant === "filter") {
+    return "underlined";
+  }
+
+  if (variant === "segmented") {
+    return "compact";
+  }
+
+  return variant;
+}
+/* - - - - - - - - - - - - - - - - */
 
 export function FxTabs({
   tabs,
@@ -31,7 +50,7 @@ export function FxTabs({
   value,
   onChange,
   onValueChange,
-  variant = "stage",
+  variant = "rounded",
   className,
   itemClassName,
   showBorder = true,
@@ -39,8 +58,9 @@ export function FxTabs({
   const resolvedItems = normalizeItems({ tabs, items });
   const selectedValue = value ?? active;
   const handleValueChange = onValueChange ?? onChange;
+  const resolvedVariant = resolveVariant(variant);
 
-  if (variant === "filter") {
+  if (resolvedVariant === "underlined") {
     return (
       <div className={cn("flex min-w-0 flex-wrap items-center gap-[8px]", className)}>
         {resolvedItems.map((item) => {
@@ -71,7 +91,7 @@ export function FxTabs({
     );
   }
 
-  if (variant === "segmented") {
+  if (resolvedVariant === "compact") {
     return (
       <div className={cn("inline-flex min-w-0 items-center gap-[2px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface-subtle)] p-[2px]", className)}>
         {resolvedItems.map((item) => {
@@ -85,7 +105,7 @@ export function FxTabs({
               disabled={item.disabled}
               onClick={() => !item.disabled && handleValueChange?.(item.value)}
               className={cn(
-                "inline-flex h-[32px] shrink-0 items-center justify-center rounded-[6px] px-[12px] text-[13px] leading-[20px] font-medium transition-colors",
+                "inline-flex h-[32px] shrink-0 items-center justify-center rounded-[8px] px-[12px] text-[13px] leading-[20px] font-medium transition-colors",
                 isActive
                   ? "bg-[var(--fx-surface)] text-[var(--fx-text)]"
                   : "text-[var(--fx-text-muted)] hover:text-[var(--fx-text)]",

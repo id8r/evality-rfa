@@ -25,7 +25,7 @@ import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxSelect } from "@/components/FxSelect";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { DEMO_USER, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
+import { DEMO_USER, SCREENING_METHOD_OPTIONS, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { FX_COLORS, FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn, readStoredJSON, readStoredValue, writeStoredJSON, writeStoredValue } from "@/lib/FxUtils";
 
@@ -65,12 +65,6 @@ const RECRUITING_STATUS_OPTIONS = [
   { value: WORKSPACE_TYPES.MY_COMPANY, title: "Hiring for My Company", description: "Use Evality primarily for internal recruiting." },
   { value: WORKSPACE_TYPES.CLIENTS, title: "Hiring for Clients", description: "Default workflows for agency or client-facing recruiting." },
   { value: WORKSPACE_TYPES.BOTH, title: "Hiring for Both", description: "Support both internal and client hiring from the same workspace." },
-];
-const SCREENING_CHANNEL_OPTIONS = [
-  { value: "manual", title: "Manual", description: "Review and qualify candidates manually." },
-  { value: "email", title: "Email Screening", description: "Collect candidate responses through email." },
-  { value: "phone", title: "AI Phone Call", description: "Run AI-led phone screening as the default path." },
-  { value: "whatsapp", title: "WhatsApp (Coming Soon)", description: "WhatsApp-based screening will be added later.", disabled: true },
 ];
 const PRESCREEN_OPTIONS = [
   {
@@ -1006,7 +1000,7 @@ function SectionContent({
           <h3 className={FX_TYPOGRAPHY.button}>Default Method</h3>
         </div>
         <OptionGrid
-          options={SCREENING_CHANNEL_OPTIONS}
+          options={SCREENING_METHOD_OPTIONS}
           selectedValue={screeningChannel}
           onSelect={onScreeningChannelChange}
         />

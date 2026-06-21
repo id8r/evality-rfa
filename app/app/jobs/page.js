@@ -82,7 +82,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DEMO_EXPERIENCE_MODES, ROUTES, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
+import { DEMO_EXPERIENCE_MODES, ROUTES, SCREENING_METHOD_OPTIONS, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
 import {
   createEmptyJobForm as createJobEmptyForm,
@@ -250,12 +250,6 @@ function createFormFromJob(job) {
 const EMPLOYMENT_TYPE_OPTIONS = ["Full-time", "Part-time", "Contract", "Internship"];
 const WORKPLACE_TYPE_OPTIONS = ["Remote", "Hybrid", "On-site"];
 const CURRENCY_OPTIONS = ["INR", "USD", "EUR"];
-const SCREENING_METHOD_OPTIONS = [
-  { value: "manual", title: "Manual", description: "Review and qualify candidates manually." },
-  { value: "form", title: "Form Based", description: "Collect structured responses using a questionnaire." },
-  { value: "web_call", title: "Web Call (AI)", description: "Run AI-led web screening with editable questions." },
-  { value: "phone", title: "AI Phone Call", description: "Run AI-led phone screening with the same question flow." },
-];
 const BASIC_FORM_FIELD_STACK_CLASS = "gap-[8px]";
 const BASIC_FORM_CONTROL_CLASS = "min-h-[48px]";
 const DEFAULT_BENEFIT_SELECTIONS = [
@@ -849,10 +843,11 @@ export default function JobsPage() {
 
   function addQuestion(question) {
     const questionLabelKey = normalizeQuestionKey(question.label);
+    const resolvedQuestionText = getQuestionTemplateText(question);
 
     setJobForm((current) => ({
       ...current,
-      questions: [...current.questions, createQuestionItem(question.label, question.question, question.note)],
+      questions: [...current.questions, createQuestionItem(question.label, resolvedQuestionText, question.note)],
     }));
 
     if (questionLabelKey) {
@@ -1009,7 +1004,7 @@ export default function JobsPage() {
         const template = availableQuestions.shift();
 
         if (template) {
-          nextQuestions.push(createQuestionItem(template.label, template.question, template.note));
+          nextQuestions.push(createQuestionItem(template.label, getQuestionTemplateText(template), template.note));
           continue;
         }
 
@@ -1302,7 +1297,7 @@ export default function JobsPage() {
 
         return [
           ...current.questions,
-          ...nextSuggestions.map((question) => createQuestionItem(question.label, question.question, question.note)),
+          ...nextSuggestions.map((question) => createQuestionItem(question.label, getQuestionTemplateText(question), question.note)),
         ];
       })(),
     }));
@@ -1419,12 +1414,35 @@ export default function JobsPage() {
     return true;
   }
 
-  function formatDisplayLabel(value) {
-    return String(value ?? "")
+function formatDisplayLabel(value) {
+  return String(value ?? "")
       .split(/\s+/)
       .filter(Boolean)
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
+  }
+
+  function getQuestionTemplateText(template) {
+    if (!template) {
+      return "";
+    }
+
+    if (template.id === "job-location") {
+      const locationLabel = [jobForm.locality, jobForm.city].filter(Boolean).join(", ") || "the selected location";
+      const workplaceTypeLabel = String(jobForm.workplaceType || "").toLowerCase();
+
+      if (workplaceTypeLabel === "remote") {
+        return "This role is fully remote. Are you comfortable working in a remote setup?";
+      }
+
+      if (workplaceTypeLabel === "hybrid") {
+        return `The Job Role follows a hybrid setup based out of ${locationLabel}. Are you comfortable commuting to the location when needed?`;
+      }
+
+      return `The Job Role is on-site based out of ${locationLabel}. Are you comfortable commuting to the location?`;
+    }
+
+    return template.question;
   }
 
   function getSheetStepTabClassName(step) {
@@ -1433,10 +1451,11 @@ export default function JobsPage() {
     return cn(
       "relative cursor-pointer rounded-[8px] px-[12px] py-[10px] transition-colors",
       isActive
-        ? "bg-[var(--fx-surface)] text-[var(--fx-primary)] shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+        ? "border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)] text-[var(--fx-primary)] shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
         : "text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface)]/70 hover:text-[var(--fx-text)]",
       FX_TYPOGRAPHY.button,
     );
+    /* Sree  */
   }
 
   function renderOptionCard({ value, title, description, icon: Icon, groupValue, onSelect }) {
@@ -2563,27 +2582,9 @@ export default function JobsPage() {
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmitJob}>
             <SheetBody className="space-y-[24px]">
-              {/*
-              <div className={`grid gap-[24px] rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-primary)_24%,var(--fx-border)_76%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_4%,var(--fx-surface)_96%)] p-[20px] md:grid-cols-[minmax(0,1.9fr)_auto]`}>
-                <div className="min-w-0 space-y-[6px]">
-                  <p className={`${FX_TYPOGRAPHY.metaLabel} font-normal text-[var(--fx-text-muted)]`}>{sheetSummaryTitleItem.label}</p>
-                  <p className={`${FX_TYPOGRAPHY.button} min-w-0 truncate text-[var(--fx-text)]`}>{sheetSummaryTitleItem.value}</p>
-                </div>
-                <div className="min-w-0 md:justify-self-end">
-                  <div className="grid gap-[12px] sm:grid-cols-3">
-                    {sheetSummaryMetaItems.map((item) => (
-                      <div key={item.label} className="min-w-0 space-y-[4px] text-left">
-                        <p className={`${FX_TYPOGRAPHY.metaLabel} font-normal text-[var(--fx-text-muted)]`}>{item.label}</p>
-                        <p className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text)]`}>{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              */}
-
-              <div className="border-b border-[var(--fx-border)] pb-[4px]">
-                <div className="flex gap-[4px] overflow-x-auto rounded-[10px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-bg-soft)] p-[4px]">
+              <div className="border-none pb-[4px]">
+                <div className="flex gap-[4px] overflow-x-auto rounded-[10px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface-hover)] p-[4px]">
+                  {/* [Sree] */}
                   {JOB_SHEET_STEPS.map((step) => (
                     <button
                       key={step.value}

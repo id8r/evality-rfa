@@ -1410,25 +1410,16 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-[6px] text-[13px] leading-[20px] font-medium">
-                {RESULT_STEPS.map((step, index) => (
-                  <React.Fragment key={step.key}>
-                    <button
-                      type="button"
-                      onClick={() => setActiveStep(step.key)}
-                      className={cn(
-                        "inline-flex cursor-pointer items-center rounded-[6px] px-[8px] py-[4px] transition-colors",
-                        activeStep === step.key
-                          ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)] text-[var(--fx-primary)]"
-                          : "text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]",
-                      )}
-                    >
-                      {step.label}
-                    </button>
-                    {index < RESULT_STEPS.length - 1 ? <span className="text-[var(--fx-text-disabled)]">·</span> : null}
-                  </React.Fragment>
-                ))}
-              </div>
+              <FxTabs
+                variant="compact"
+                value={activeStep}
+                onValueChange={setActiveStep}
+                items={RESULT_STEPS.map((step) => ({
+                  value: step.key,
+                  label: step.label,
+                }))}
+                className="w-fit"
+              />
 
               {activeStep === "details" ? (
                 <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
