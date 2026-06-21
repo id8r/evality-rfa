@@ -15,6 +15,7 @@ import {
   CheckCheck,
   Eye,
   Copy,
+  ChevronDown,
   Minus,
   MoreHorizontal,
   Mail,
@@ -2569,6 +2570,7 @@ function AddCandidatesDrawer({
   candidatePool,
   onPickExistingCandidate,
   onUploadFiles,
+  onViewResume,
 }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -2720,9 +2722,14 @@ function AddCandidatesDrawer({
                             {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
                           </p>
                         </div>
-                        <FxButton type="button" variant="outline" size="sm" onClick={() => onPickExistingCandidate(candidate)}>
-                          Add to Job
-                        </FxButton>
+                        <div className="flex items-center gap-[8px]">
+                          <FxButton type="button" variant="ghost" size="sm" onClick={() => onViewResume?.(candidate)}>
+                            View CV
+                          </FxButton>
+                          <FxButton type="button" variant="outline" size="sm" onClick={() => onPickExistingCandidate(candidate)}>
+                            Add to Job
+                          </FxButton>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -2855,7 +2862,6 @@ export default function JobDetailsPage({ params }) {
   const [rejectReasonDraft, setRejectReasonDraft] = useState("");
   const [unscreenedFilter, setUnscreenedFilter] = useState("all");
   const [preScreenedFilter, setPreScreenedFilter] = useState("ready");
-  const [sharedFilter, setSharedFilter] = useState("all");
   const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [sortConfig, setSortConfig] = useState(null);
@@ -2882,7 +2888,7 @@ export default function JobDetailsPage({ params }) {
     [candidateRows],
   );
   const pipelineCandidates = useMemo(
-    () => candidateRows.filter((candidate) => candidate.status === activeStage),
+    () => candidateRows.filter((candidate) => matchesPipelineStage(candidate, activeStage)),
     [candidateRows, activeStage],
   );
   const unscreenedFilterCounts = useMemo(() => {
@@ -2913,19 +2919,6 @@ export default function JobDetailsPage({ params }) {
   }, [candidateRows]);
 /* - - - - - - - - - - - - - - - - */
 
-  const sharedFilterCounts = useMemo(() => {
-    const sharedCandidates = candidateRows.filter((candidate) => candidate.status === "shared");
-    const counts = SHARED_FILTERS.reduce((accumulator, filter) => ({ ...accumulator, [filter.key]: 0 }), {});
-
-    counts.all = sharedCandidates.length;
-    sharedCandidates.forEach((candidate) => {
-      const statusKey = candidate.clientStatus || "Feedback Awaited";
-      counts[statusKey] = (counts[statusKey] || 0) + 1;
-    });
-
-    return counts;
-  }, [candidateRows]);
-
   const filteredCandidates = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     const stageFilteredCandidates =
@@ -2936,8 +2929,6 @@ export default function JobDetailsPage({ params }) {
               const interestedValue = String(candidate.interested ?? "").trim().toLowerCase();
               return preScreenedFilter === "interested" ? interestedValue === "yes" : interestedValue === "no";
             })
-          : activeStage === "shared" && sharedFilter !== "all"
-            ? pipelineCandidates.filter((candidate) => (candidate.clientStatus || "Feedback Awaited") === sharedFilter)
         : pipelineCandidates;
 
     if (!query) {
@@ -2948,7 +2939,7 @@ export default function JobDetailsPage({ params }) {
       const haystack = [candidate.name, candidate.email, candidate.phone].join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [activeStage, pipelineCandidates, preScreenedFilter, searchTerm, sharedFilter, unscreenedFilter]);
+  }, [activeStage, pipelineCandidates, preScreenedFilter, searchTerm, unscreenedFilter]);
 
   const sortedCandidates = useMemo(() => {
     if (!sortConfig) {
@@ -3022,6 +3013,25 @@ export default function JobDetailsPage({ params }) {
   const selectedCount = selectedVisibleCandidates.length;
   const selectedCountLabel = selectedCount === 1 ? "1 candidate selected" : `${selectedCount} candidates selected`;
   const bulkStage = activeStage;
+  const activeFilterItems =
+    activeStage === "unscreened"
+      ? UNSCREENED_FILTERS
+      : activeStage === "screened"
+        ? PRE_SCREENED_FILTERS
+        : null;
+  const activeFilterCounts =
+    activeStage === "unscreened"
+      ? unscreenedFilterCounts
+      : activeStage === "screened"
+        ? preScreenedFilterCounts
+        : null;
+  const activeFilterValue =
+    activeStage === "unscreened"
+      ? unscreenedFilter
+      : activeStage === "screened"
+        ? preScreenedFilter
+        : null;
+  const activeFilterLabel = activeFilterItems?.find((item) => item.key === activeFilterValue)?.label ?? "Filter";
   const tableSortedColumnKey =
     sortConfig?.key === "name"
       ? "name"
@@ -4446,7 +4456,7 @@ export default function JobDetailsPage({ params }) {
       );
     }
 
-    if (activeStage === "shared") {
+    if (isClientProgressStage(activeStage)) {
       return null;
     }
 
@@ -4618,7 +4628,7 @@ export default function JobDetailsPage({ params }) {
               Move back to Pre-Screened
             </DropdownMenuItem>
           ) : null}
-          {activeStage === "shared" ? (
+          {isClientProgressStage(activeStage) ? (
             <DropdownMenuItem onClick={() => handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted")}>
               Move back to Shortlisted
             </DropdownMenuItem>
@@ -4634,12 +4644,12 @@ export default function JobDetailsPage({ params }) {
             </>
           ) : null}
           <DropdownMenuSeparator />
-          {activeStage === "shared" ? null : activeStage !== "rejected" ? (
+          {isClientProgressStage(activeStage) ? null : activeStage !== "rejected" ? (
             <DropdownMenuItem onClick={() => handleRemoveCandidateFromJob(candidate)}>
               Remove from Job
             </DropdownMenuItem>
           ) : null}
-          {activeStage === "shared" ? (
+          {isClientProgressStage(activeStage) ? (
             <DropdownMenuItem className="text-[var(--fx-danger)] focus:text-[var(--fx-danger)]" onClick={() => handleOpenRejectDialog(candidate)}>
               Reject Candidate
             </DropdownMenuItem>
@@ -4705,6 +4715,9 @@ export default function JobDetailsPage({ params }) {
       screened: ["name", "phone", "email", "strengthsGaps", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome", "actions", "menuActions"],
       shortlisted: ["name", "phone", "email", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome", "actions", "menuActions"],
       shared: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "menuActions"],
+      offered: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "menuActions"],
+      joined: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "menuActions"],
+      dropped: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "menuActions"],
       rejected: [...commonKeys, "rejectionReason", "actions", "menuActions"],
     };
 
@@ -4724,7 +4737,7 @@ export default function JobDetailsPage({ params }) {
     },
     name: (
       <div className="flex min-w-0 items-center gap-[10px]">
-        {activeStage === "shared" ? renderClientStatusDot(candidate.clientStatus || "Feedback Awaited") : null}
+        {isClientProgressStage(activeStage) ? renderClientStatusDot(candidate.clientStatus || "Feedback Awaited") : null}
         <button
           type="button"
           className="block min-w-0 truncate text-left text-[14px] leading-[22px] font-medium text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
@@ -4808,7 +4821,7 @@ export default function JobDetailsPage({ params }) {
         </div>
       </button>
     ),
-    clientStatus: activeStage === "shared" ? renderClientStatusControl(candidate) : renderClientStatusChip(candidate.clientStatus || "Feedback Awaited"),
+    clientStatus: isClientProgressStage(activeStage) ? renderClientStatusControl(candidate) : renderClientStatusChip(candidate.clientStatus || "Feedback Awaited"),
     updatedAt: (
       <span className="inline-flex min-w-[96px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-normal text-[var(--fx-text)]">
         {formatCompactDate(candidate.updatedAt)}
@@ -4816,8 +4829,8 @@ export default function JobDetailsPage({ params }) {
     ),
     rejectionReason: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.rejectionReason || "Rejected for this role"}</span>,
     actions: (
-      <div className="flex items-center justify-start gap-[8px]">
-        {activeStage === "shared" ? null : renderStageActionButton(candidate)}
+        <div className="flex items-center justify-start gap-[8px]">
+        {isClientProgressStage(activeStage) ? null : renderStageActionButton(candidate)}
       </div>
     ),
     menuActions: (
@@ -5042,48 +5055,37 @@ export default function JobDetailsPage({ params }) {
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)]">
                   <div className="grid min-h-[64px] items-center gap-[12px] border-b border-[var(--fx-border)] px-[12px] py-[10px] lg:grid-cols-[minmax(0,1fr)_auto]">
                     <div className="min-w-0">
-                      {activeStage === "unscreened" ? (
-                        <div className="flex min-w-0 flex-wrap items-center gap-[10px]">
-                          <FxTabs
-                            variant="filter"
-                            items={UNSCREENED_FILTERS.map((filter) => ({
-                              value: filter.key,
-                              label: filter.label,
-                              count: unscreenedFilterCounts[filter.key] ?? 0,
-                            }))}
-                            value={unscreenedFilter}
-                            onValueChange={setUnscreenedFilter}
-                            className="min-w-0"
-                          />
-                        </div>
-                      ) : activeStage === "screened" ? (
-                        <div className="flex min-w-0 flex-wrap items-center gap-[10px]">
-                          <FxTabs
-                            variant="filter"
-                            items={PRE_SCREENED_FILTERS.map((filter) => ({
-                              value: filter.key,
-                              label: filter.label,
-                              count: preScreenedFilterCounts[filter.key] ?? 0,
-                            }))}
-                            value={preScreenedFilter}
-                            onValueChange={setPreScreenedFilter}
-                            className="min-w-0"
-                          />
-                        </div>
-                      ) : activeStage === "shared" ? (
-                        <div className="flex min-w-0 flex-wrap items-center gap-[10px]">
-                          <FxTabs
-                            variant="filter"
-                            items={SHARED_FILTERS.map((filter) => ({
-                              value: filter.key,
-                              label: filter.label,
-                              count: sharedFilterCounts[filter.key] ?? 0,
-                            }))}
-                            value={sharedFilter}
-                            onValueChange={setSharedFilter}
-                            className="min-w-0"
-                          />
-                        </div>
+                      {activeFilterItems ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <FxButton variant="outline" size="sm">
+                              {activeFilterLabel} ({activeFilterCounts?.[activeFilterValue] ?? 0})
+                              <ChevronDown className="size-[14px]" />
+                            </FxButton>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-[240px]">
+                            {activeFilterItems.map((filter) => (
+                              <DropdownMenuItem
+                                key={filter.key}
+                                onClick={() => {
+                                  if (activeStage === "unscreened") {
+                                    setUnscreenedFilter(filter.key);
+                                    return;
+                                  }
+
+                                  if (activeStage === "screened") {
+                                    setPreScreenedFilter(filter.key);
+                                  }
+                                }}
+                              >
+                                <span className="flex min-w-0 flex-1 items-center justify-between gap-[12px]">
+                                  <span>{filter.label}</span>
+                                  <span className="text-[var(--fx-text-muted)]">{activeFilterCounts?.[filter.key] ?? 0}</span>
+                                </span>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       ) : null}
                     </div>
 
@@ -5147,9 +5149,9 @@ export default function JobDetailsPage({ params }) {
                         emptyMessage="No candidates in this stage yet."
                         enableColumnPicker
                         storageKey={`${STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}:${activeStage}`}
-                        enableRowSelection={activeStage !== "shared"}
-                        selectedRowKeys={activeStage !== "shared" ? selectedCandidateIds : []}
-                        onSelectedRowKeysChange={activeStage !== "shared" ? setSelectedCandidateIds : undefined}
+                        enableRowSelection={!isClientProgressStage(activeStage)}
+                        selectedRowKeys={!isClientProgressStage(activeStage) ? selectedCandidateIds : []}
+                        onSelectedRowKeysChange={!isClientProgressStage(activeStage) ? setSelectedCandidateIds : undefined}
                       />
                     </div>
                   ) : (
@@ -5193,7 +5195,10 @@ export default function JobDetailsPage({ params }) {
         candidatePool={recommendedCandidates}
         onPickExistingCandidate={handleAttachExistingCandidate}
         onUploadFiles={handleUploadCandidateFiles}
-        onAddSingleCandidate={handleAddSingleCandidate}
+        onViewResume={(candidate) => {
+          setAddCandidatesOpen(false);
+          handleOpenCandidateSheet(candidate, "resume");
+        }}
       />
         <CandidateWorkspaceSheet
           open={candidateSheetOpen}
