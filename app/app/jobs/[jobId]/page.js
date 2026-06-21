@@ -2570,18 +2570,19 @@ function AddCandidatesDrawer({
   candidatePool,
   onPickExistingCandidate,
   onUploadFiles,
-  onViewResume,
 }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [activeMode, setActiveMode] = useState("upload");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
 
   useEffect(() => {
     if (!open) {
       setIsDragging(false);
       setActiveMode("upload");
       setSearchTerm("");
+      setSelectedCandidateId(null);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -2613,6 +2614,32 @@ function AddCandidatesDrawer({
       .toLowerCase()
       .includes(query);
   });
+  const selectedCandidate = filteredCandidates.find((candidate) => candidate.id === selectedCandidateId) ?? filteredCandidates[0] ?? null;
+  const selectedCandidateResumePreview = selectedCandidate?.resumeText || selectedCandidate?.jobContext?.resumeText || selectedCandidate?.resume || [
+    `${selectedCandidate?.name || "Candidate"}`,
+    `${selectedCandidate?.currentRole || selectedCandidate?.jobTitle || "Current Role"}${selectedCandidate?.currentCompany ? ` · ${selectedCandidate.currentCompany}` : ""}`,
+    "",
+    "Summary",
+    `Profile with ${selectedCandidate?.experience != null ? `${selectedCandidate.experience} years` : "relevant"} experience aligned to ${job?.title || "the selected role"}.`,
+    "",
+    "Highlights",
+    `• CV Match Score: ${selectedCandidate?.matchScore != null ? `${selectedCandidate.matchScore}%` : "—"}`,
+    `• Email: ${selectedCandidate?.email || "—"}`,
+    `• Phone: ${selectedCandidate?.phone || "—"}`,
+    "",
+    "Resume preview is derived from demo candidate data.",
+  ].join("\n");
+
+  useEffect(() => {
+    if (!filteredCandidates.length) {
+      setSelectedCandidateId(null);
+      return;
+    }
+
+    if (!filteredCandidates.some((candidate) => candidate.id === selectedCandidateId)) {
+      setSelectedCandidateId(filteredCandidates[0].id);
+    }
+  }, [filteredCandidates, selectedCandidateId]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -2709,38 +2736,78 @@ function AddCandidatesDrawer({
                   </div>
                 </div>
 
-                <div className="mt-[16px] space-y-[10px]">
-                  {filteredCandidates.length ? (
-                    filteredCandidates.map((candidate) => (
-                      <div
-                        key={candidate.id}
-                        className={`flex items-center justify-between gap-[12px] rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[16px] py-[14px]`}
-                      >
-                        <div className="min-w-0 space-y-[4px]">
-                          <p className={`${FX_TYPOGRAPHY.button} truncate text-[var(--fx-text)]`}>{candidate.name}</p>
-                          <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
-                            {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-[8px]">
-                          <FxButton type="button" variant="ghost" size="sm" onClick={() => onViewResume?.(candidate)}>
-                            View CV
-                          </FxButton>
-                          <FxButton type="button" variant="outline" size="sm" onClick={() => onPickExistingCandidate(candidate)}>
-                            Add to Job
-                          </FxButton>
+                {filteredCandidates.length ? (
+                  <div className="mt-[16px] grid min-h-[420px] gap-[16px] lg:grid-cols-[320px_minmax(0,1fr)]">
+                    <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)]`}>
+                      <div className="max-h-[520px] overflow-y-auto p-[8px]">
+                        <div className="space-y-[8px]">
+                          {filteredCandidates.map((candidate) => {
+                            const isSelected = selectedCandidate?.id === candidate.id;
+
+                            return (
+                              <button
+                                key={candidate.id}
+                                type="button"
+                                onClick={() => setSelectedCandidateId(candidate.id)}
+                                className={cn(
+                                  `flex w-full items-start justify-between gap-[12px] rounded-[10px] border px-[12px] py-[12px] text-left transition-colors`,
+                                  isSelected
+                                    ? "border-[var(--fx-primary)] bg-[var(--fx-surface)]"
+                                    : `border-transparent bg-transparent hover:border-[var(--fx-border)] hover:bg-[var(--fx-surface)]`,
+                                )}
+                              >
+                                <div className="min-w-0 space-y-[4px]">
+                                  <p className={`${FX_TYPOGRAPHY.button} truncate text-[var(--fx-text)]`}>{candidate.name}</p>
+                                  <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
+                                    {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
+                                  </p>
+                                  <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
+                                    {candidate.email || "—"} {candidate.phone && candidate.phone !== "—" ? `· ${candidate.phone}` : ""}
+                                  </p>
+                                </div>
+                                <span className="rounded-full bg-[var(--fx-surface-selected)] px-[8px] py-[3px] text-[12px] font-medium text-[var(--fx-primary)]">
+                                  {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className={`rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px] text-center`}>
-                      <p className={FX_TYPOGRAPHY.button}>No candidates found</p>
-                      <p className={`${FX_TYPOGRAPHY.fieldHint} mt-[4px] text-[var(--fx-text-muted)]`}>
-                        Try another name or switch to upload.
-                      </p>
                     </div>
-                  )}
-                </div>
+
+                    <div className={`flex min-h-0 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                      {selectedCandidate ? (
+                        <>
+                          <div className={`border-b ${FX_COLORS.border} px-[16px] py-[14px]`}>
+                            <div className="flex items-start justify-between gap-[12px]">
+                              <div className="min-w-0 space-y-[4px]">
+                                <p className={`${FX_TYPOGRAPHY.cardTitle} truncate`}>{selectedCandidate.name}</p>
+                                <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
+                                  {selectedCandidate.currentRole || selectedCandidate.jobTitle || "Candidate"}{selectedCandidate.currentCompany ? ` · ${selectedCandidate.currentCompany}` : ""}
+                                </p>
+                              </div>
+                              <FxButton type="button" variant="outline" size="sm" onClick={() => onPickExistingCandidate(selectedCandidate)}>
+                                Add to Job
+                              </FxButton>
+                            </div>
+                          </div>
+                          <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
+                            <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                              {selectedCandidateResumePreview}
+                            </pre>
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`mt-[16px] rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px] text-center`}>
+                    <p className={FX_TYPOGRAPHY.button}>No candidates found</p>
+                    <p className={`${FX_TYPOGRAPHY.fieldHint} mt-[4px] text-[var(--fx-text-muted)]`}>
+                      Try another name or switch to upload.
+                    </p>
+                  </div>
+                )}
               </section>
             ) : null}
           </div>
@@ -5195,10 +5262,6 @@ export default function JobDetailsPage({ params }) {
         candidatePool={recommendedCandidates}
         onPickExistingCandidate={handleAttachExistingCandidate}
         onUploadFiles={handleUploadCandidateFiles}
-        onViewResume={(candidate) => {
-          setAddCandidatesOpen(false);
-          handleOpenCandidateSheet(candidate, "resume");
-        }}
       />
         <CandidateWorkspaceSheet
           open={candidateSheetOpen}

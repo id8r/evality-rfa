@@ -125,7 +125,7 @@ const CURRENCY_FORMAT_LOCALES = {
 const JOB_SHEET_STEPS = [
   { value: "basic", label: "Basic Details" },
   { value: "description", label: "Job Description" },
-  { value: "questionnaire", label: "Questionnaire" },
+  { value: "questionnaire", label: "Screening Method" },
   { value: "benefits", label: "Benefits" },
   { value: "evaluation", label: "Evaluation" },
   { value: "review", label: "Review" },
@@ -2736,7 +2736,7 @@ export default function JobsPage() {
                 <section className="space-y-[24px]">
                   <div className="space-y-[4px]">
                     {renderSectionHeader(
-                      "Questionnaire",
+                      "Screening Method",
                       null,
                       null,
                     )}
@@ -2853,7 +2853,7 @@ export default function JobsPage() {
                     })}
 
                     {renderReviewSummaryRow({
-                      title: "Questionnaire",
+                      title: "Screening Method",
                       step: "questionnaire",
                       complete: reviewQuestionnaireComplete,
                       lines: reviewQuestionnaireComplete ? [] : ["Set at least 1 pre-screen question."],
