@@ -135,6 +135,47 @@ const UNSCREENED_FILTERS = [
   { key: "rescheduled", label: "Rescheduled" },
   { key: "failed", label: "Failed" },
 ];
+const PRE_SCREENED_FILTERS = [
+  { key: "ready", label: "Ready for Review" },
+  { key: "interested", label: "Interested" },
+  { key: "not_interested", label: "Not Interested" },
+];
+/* - - - - - - - - - - - - - - - - */
+
+const JOB_WORKSPACE_TABLE_HEADERS = {
+  base: {
+    name: "Name",
+    matchScore: "CV Match Score",
+    experience: "Experience",
+    phone: "Phone",
+    email: "Email",
+    interested: "Interested",
+    availability: "Availability",
+    noticePeriod: "Notice Period",
+    currentSalary: "Current CTC",
+    expectedSalary: "Expected CTC",
+    screeningOutcome: "Screening",
+    strengthsGaps: "Relevance",
+    clientStatus: "Client Status",
+    rejectionReason: "Rejection Reason",
+    actions: "Actions",
+  },
+  unscreened: {
+    matchScore: "CV Match Score",
+  },
+  screened: {
+    matchScore: "Fit Score",
+  },
+  shortlisted: {
+    matchScore: "Fit Score",
+  },
+  shared: {
+    matchScore: "Fit Score",
+  },
+  rejected: {
+    matchScore: "Fit Score",
+  },
+};
 /* - - - - - - - - - - - - - - - - */
 
 const CV_MATCH_BREAKDOWN_SECTIONS = [
@@ -272,6 +313,7 @@ function normalizeCandidate(candidate, job) {
     clientStatus: candidate.clientStatus ?? jobContext?.clientStatus ?? "Feedback Awaited",
     rejectionReason: candidate.rejectionReason ?? jobContext?.rejectionReason ?? "Rejected for this role",
     unscreenedFilterStatus: normalizeUnscreenedFilterStatus(candidate, jobContext),
+    noticePeriodSortValue: toFiniteNumber(candidate.noticePeriodSortValue ?? jobContext?.noticePeriod ?? candidate.availabilityDays),
     jobContext,
   };
 }
@@ -347,6 +389,127 @@ function formatAvailability(value) {
   }
 
   return `${dayCount} day${dayCount === 1 ? "" : "s"}`;
+}
+/* - - - - - - - - - - - - - - - - */
+
+function formatNoticePeriod(candidate) {
+  const rawNoticePeriod = candidate?.jobContext?.noticePeriod || candidate?.noticePeriod || "";
+  const availabilityDate = candidate?.jobContext?.availabilityDate || "";
+
+  if (rawNoticePeriod) {
+    return rawNoticePeriod;
+  }
+
+  if (availabilityDate) {
+    return formatDate(availabilityDate);
+  }
+
+  if (candidate?.availabilityDays != null) {
+    return formatAvailability(candidate.availabilityDays);
+  }
+
+  return "—";
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getPreScreeningSourceLabel(candidate) {
+  const mode = String(candidate?.jobContext?.screeningModeOverride ?? "").trim().toLowerCase();
+
+  if (mode === "manual") {
+    return "Manual Pre-Screening";
+  }
+
+  if (mode === "ai") {
+    return "Email Pre-Screening";
+  }
+
+  return "Manual Pre-Screening";
+}
+/* - - - - - - - - - - - - - - - - */
+
+function generateMockPreScreenInsights(candidate, job) {
+  const score = Number(candidate?.matchScore) || 0;
+  const roleKeyword = job?.title || candidate?.jobTitle || "the role";
+  const currentRole = candidate?.currentRole || "current role";
+  const currentCompany = candidate?.currentCompany || "recent company";
+  const workplaceType = job?.workplaceType || "On-site";
+  const location = job?.location || "the job location";
+
+  const strengths = [];
+  const gaps = [];
+
+  if (score >= 70) {
+    strengths.push(`Strong alignment with ${roleKeyword}`);
+  } else if (score >= 55) {
+    strengths.push(`Relevant overlap with ${roleKeyword}`);
+  } else {
+    gaps.push(`Role fit for ${roleKeyword} needs deeper validation`);
+  }
+
+  if (candidate?.experience != null) {
+    strengths.push(`${candidate.experience} years of relevant experience`);
+  } else {
+    gaps.push("Experience depth still needs validation");
+  }
+
+  if (candidate?.interested === "Yes") {
+    strengths.push("Interested in exploring the role");
+  } else if (candidate?.interested === "No") {
+    gaps.push("Interest level is low");
+  }
+
+  if (candidate?.jobContext?.commuteComfortable === "No") {
+    gaps.push(`${workplaceType} commute to ${location} may be a blocker`);
+  } else if (candidate?.jobContext?.commuteComfortable === "Yes" && workplaceType !== "Remote") {
+    strengths.push(`Comfortable with ${workplaceType.toLowerCase()} setup`);
+  }
+
+  if ((candidate?.jobContext?.manualScreeningNotes || "").trim()) {
+    strengths.push("Recruiter conversation notes captured");
+  }
+
+  if (!strengths.length) {
+    strengths.push(`Experience in ${currentRole} at ${currentCompany}`);
+  }
+
+  if (!gaps.length) {
+    gaps.push("No major gaps flagged during pre-screening");
+  }
+
+  return {
+    strengths: strengths.slice(0, 3),
+    gaps: gaps.slice(0, 3),
+    source: getPreScreeningSourceLabel(candidate),
+  };
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getStrengthGapSummary(candidate, job) {
+  const insights = generateMockPreScreenInsights(candidate, job);
+  const strengthText = insights.strengths.slice(0, 2).map((item) => item.replace(/^Strong alignment with /, "").replace(/^Relevant overlap with /, "")).join(", ");
+  const gapText = insights.gaps[0] ? insights.gaps[0].replace(/^No major gaps flagged during pre-screening$/, "No major gaps") : "—";
+
+  return {
+    strengths: strengthText || "—",
+    gaps: gapText || "—",
+  };
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getPreScreenResultSummary(candidate) {
+  const source = getPreScreeningSourceLabel(candidate);
+  const outcome = String(candidate?.screeningOutcome ?? "").trim();
+
+  if (!outcome || outcome.toLowerCase() === "passed") {
+    return source;
+  }
+
+  return `${source} · ${outcome}`;
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getPreScreeningIcon(candidate) {
+  return getPreScreeningSourceLabel(candidate) === "Email Pre-Screening" ? Mail : Users;
 }
 
 function getStoredPipelineCounts(candidateRows) {
@@ -938,11 +1101,249 @@ function ManualScreeningSheet({
 }
 /* - - - - - - - - - - - - - - - - */
 
+function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist, onReject, onDownloadResume }) {
+  const RESULT_STEPS = [
+    { key: "summary", label: "Summary" },
+    { key: "answers", label: "Screening Answers" },
+    { key: "analysis", label: "Analysis" },
+    { key: "resume", label: "Resume Review" },
+    { key: "notes", label: "Recruiter Notes" },
+  ];
+  const [activeStep, setActiveStep] = useState("summary");
+  const insights = useMemo(() => generateMockPreScreenInsights(candidate, job), [candidate, job]);
+  const screeningSummary = [
+    { label: "Interested", value: candidate?.interested || "Not Answered" },
+    { label: "Notice Period", value: formatNoticePeriod(candidate) !== "—" ? formatNoticePeriod(candidate) : "Not Answered" },
+    { label: "Comfortable with location", value: candidate?.jobContext?.commuteComfortable || "Not Answered" },
+    { label: "Current Salary", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "Not Answered" },
+    { label: "Expected Salary", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "Not Answered" },
+    { label: "Current Company", value: candidate?.currentCompany || "Not Answered" },
+  ];
+  const activeIndex = RESULT_STEPS.findIndex((step) => step.key === activeStep);
+  const nextStepKey = RESULT_STEPS[Math.min(activeIndex + 1, RESULT_STEPS.length - 1)]?.key ?? "summary";
+  const prevStepKey = RESULT_STEPS[Math.max(activeIndex - 1, 0)]?.key ?? "summary";
+  const screeningDate = candidate?.jobContext?.manualScreeningCompletedAt || candidate?.updatedAt || candidate?.createdAt;
+  const screeningMethod = getPreScreeningSourceLabel(candidate);
+  const resumePreview = candidate ? [
+    `${candidate.name || "Candidate"}`,
+    `${candidate.currentRole || candidate.jobTitle || "Current Role"}${candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}`,
+    "",
+    "Summary",
+    `Resume preview for ${candidate.name || "this candidate"} aligned to ${job?.title || "this role"}.`,
+    "",
+    "Highlights",
+    `• Fit Score: ${candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}`,
+    `• Experience: ${candidate.experience != null ? `${candidate.experience} years` : "—"}`,
+    `• Current Company: ${candidate.currentCompany || "—"}`,
+  ].join("\n") : "";
+
+  useEffect(() => {
+    if (open) {
+      setActiveStep("summary");
+    }
+  }, [open, candidate?.id]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="lg">
+        <SheetHeader
+          title="Results"
+          description={`${candidate?.name || "Candidate"} · ${RESULT_STEPS[activeIndex]?.label || "Summary"}`}
+        />
+        <SheetBody>
+          {candidate ? (
+            <div className="space-y-[16px]">
+              <div className="flex flex-wrap items-center gap-[8px] text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">
+                {RESULT_STEPS.map((step, index) => (
+                  <React.Fragment key={step.key}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveStep(step.key)}
+                      className={cn(
+                        "inline-flex items-center rounded-[6px] px-[8px] py-[4px] transition-colors",
+                        activeStep === step.key
+                          ? "bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]"
+                          : "text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]",
+                      )}
+                    >
+                      {index + 1}. {step.label}
+                    </button>
+                    {index < RESULT_STEPS.length - 1 ? <span className="text-[var(--fx-text-disabled)]">/</span> : null}
+                  </React.Fragment>
+                ))}
+              </div>
+
+              {activeStep === "summary" ? (
+                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <div className="grid gap-[16px] md:grid-cols-2">
+                    <MetaField label="Candidate" value={candidate.name || "—"} />
+                    <MetaField label="Fit Score" value={candidate.matchScore != null ? `${candidate.matchScore}%` : "—"} />
+                    <MetaField label="Screening method" value={screeningMethod} />
+                    <MetaField label="Screening date" value={screeningDate ? formatDate(screeningDate) : "—"} />
+                    <MetaField label="Screening status/result" value={candidate.screeningOutcome || "—"} />
+                    <div className="min-w-0 space-y-[4px]">
+                      <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Resume</p>
+                      <button type="button" onClick={() => setActiveStep("resume")} className="text-[14px] leading-[22px] font-medium text-[var(--fx-primary)] hover:underline">
+                        View / Download Resume
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {activeStep === "answers" ? (
+                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <div className="grid gap-[16px] md:grid-cols-2">
+                    {screeningSummary.map((item) => (
+                      <MetaField key={item.label} label={item.label} value={item.value} />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {activeStep === "analysis" ? (
+                <div className="space-y-[12px]">
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Role / CV Questions</p>
+                    <p className="mt-[8px] text-[14px] leading-[22px] text-[var(--fx-text-muted)]">Placeholder for AI generated role questions, candidate responses, and role-fit prompts.</p>
+                  </div>
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Strengths</p>
+                    <ul className="mt-[8px] space-y-[8px] text-[14px] leading-[22px] text-[var(--fx-text)]">
+                      {insights.strengths.map((item) => <li key={item}>• {item}</li>)}
+                    </ul>
+                  </div>
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Missing gaps</p>
+                    <ul className="mt-[8px] space-y-[8px] text-[14px] leading-[22px] text-[var(--fx-text)]">
+                      {insights.gaps.map((item) => <li key={item}>• {item}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              ) : null}
+
+              {activeStep === "notes" ? (
+                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Recruiter Notes</p>
+                  <p className="mt-[8px] text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                    {screeningMethod === "Email Pre-Screening"
+                      ? "Email response thread placeholder."
+                      : screeningMethod === "Manual Pre-Screening"
+                        ? (candidate?.jobContext?.manualScreeningNotes || "Recruiter notes placeholder.")
+                        : "Transcript placeholder."}
+                  </p>
+                </div>
+              ) : null}
+
+              {activeStep === "resume" ? (
+                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <div className="flex items-center justify-between gap-[12px]">
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Resume</p>
+                    <FxButton type="button" variant="outline" size="sm" onClick={() => candidate && onDownloadResume?.(candidate)}>
+                      Download Resume
+                    </FxButton>
+                  </div>
+                  <div className={`mt-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[16px]`}>
+                    <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                      {resumePreview}
+                    </pre>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </SheetBody>
+        <SheetFooter
+          left={(
+            <FxButton variant="ghost" size="sm" onClick={() => setActiveStep(prevStepKey)} disabled={activeIndex === 0}>
+              <ArrowLeft className="size-[16px]" />
+              Back
+            </FxButton>
+          )}
+          right={(
+            <div className="flex items-center gap-[8px]">
+              <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate)}>
+                Reject
+              </FxButton>
+              <FxButton size="sm" onClick={() => candidate && onShortlist?.(candidate)}>
+                Shortlist
+              </FxButton>
+              <FxButton size="sm" onClick={() => setActiveStep(nextStepKey)} disabled={activeIndex === RESULT_STEPS.length - 1}>
+                Next
+                <ArrowRight className="size-[16px]" />
+              </FxButton>
+            </div>
+          )}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function ShareForReviewSheet({ open, onOpenChange, candidate }) {
+  const [emailValue, setEmailValue] = useState("");
+  const [messageValue, setMessageValue] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setEmailValue("");
+      setMessageValue("");
+    }
+  }, [open]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="sm">
+        <SheetHeader title="Share Candidate for Review" />
+        <SheetBody>
+          <div className="space-y-[16px]">
+            <FxInput
+              label="Email Address(es)"
+              value={emailValue}
+              onChange={(event) => setEmailValue(event.target.value)}
+              placeholder="reviewer@company.com, hiring.manager@company.com"
+            />
+            <FxInput
+              textarea
+              label="Optional Message"
+              value={messageValue}
+              onChange={(event) => setMessageValue(event.target.value)}
+              placeholder={`Sharing ${candidate?.name || "this candidate"} for review.`}
+              className="min-h-[160px]"
+            />
+          </div>
+        </SheetBody>
+        <SheetFooter
+          left={(
+            <FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Cancel
+            </FxButton>
+          )}
+          right={(
+            <FxButton
+              size="sm"
+              onClick={() => {
+                showSuccess("Review shared", `${candidate?.name || "Candidate"} was shared for review.`);
+                onOpenChange(false);
+              }}
+            >
+              Send
+            </FxButton>
+          )}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
 function CandidateWorkspaceSheet({
   open,
   onOpenChange,
   candidate,
   job,
+  initialTab = "overview",
   onSaveNote,
   onDeleteNote,
   onOpenCandidatePool,
@@ -976,9 +1377,9 @@ function CandidateWorkspaceSheet({
   ].join("\n");
 
   useEffect(() => {
-    setActiveTab("overview");
+    setActiveTab(initialTab);
     setNoteDraft(candidate?.jobContext?.notes || candidate?.notes || "");
-  }, [candidate?.id]);
+  }, [candidate?.id, initialTab]);
 
   const profileDetails = [
     { label: "Current Role", value: candidate?.currentRole || candidate?.jobTitle || "—" },
@@ -989,11 +1390,11 @@ function CandidateWorkspaceSheet({
 
   const screeningSnapshot = [
     { label: "Interested", value: candidate?.interested || "—" },
-    { label: "Availability", value: candidate?.availabilityDays != null ? formatAvailability(candidate.availabilityDays) : "—" },
-    { label: "Current Salary", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "—" },
-    { label: "Expected Salary", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "—" },
-    { label: "Notice Period", value: candidate?.jobContext?.noticePeriod || "—" },
-    { label: "Screening Result", value: screeningResult },
+    { label: "Notice Period", value: formatNoticePeriod(candidate) },
+    { label: "Current CTC", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "—" },
+    { label: "Expected CTC", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "—" },
+    { label: "Pre-Screen Result", value: screeningResult },
+    { label: "Screening Source", value: getPreScreeningSourceLabel(candidate) },
   ];
 
   const scoreToneClassName =
@@ -1664,7 +2065,10 @@ export default function JobDetailsPage({ params }) {
   const [recommendedOpen, setRecommendedOpen] = useState(false);
   const [addCandidatesOpen, setAddCandidatesOpen] = useState(false);
   const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
+  const [candidateSheetInitialTab, setCandidateSheetInitialTab] = useState("overview");
   const [cvMatchSheetOpen, setCvMatchSheetOpen] = useState(false);
+  const [preScreenResultOpen, setPreScreenResultOpen] = useState(false);
+  const [shareForReviewOpen, setShareForReviewOpen] = useState(false);
   const [emailScreeningOpen, setEmailScreeningOpen] = useState(false);
   const [manualScreeningOpen, setManualScreeningOpen] = useState(false);
   const [callPreviewOpen, setCallPreviewOpen] = useState(false);
@@ -1672,6 +2076,7 @@ export default function JobDetailsPage({ params }) {
   const [candidateToReject, setCandidateToReject] = useState(null);
   const [rejectReasonDraft, setRejectReasonDraft] = useState("");
   const [unscreenedFilter, setUnscreenedFilter] = useState("all");
+  const [preScreenedFilter, setPreScreenedFilter] = useState("ready");
   const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [sortConfig, setSortConfig] = useState(null);
@@ -1713,12 +2118,30 @@ export default function JobDetailsPage({ params }) {
 
     return counts;
   }, [candidateRows]);
+/* - - - - - - - - - - - - - - - - */
+
+  const preScreenedFilterCounts = useMemo(() => {
+    const stageCandidates = candidateRows.filter((candidate) => candidate.status === "screened");
+    const interestedCount = stageCandidates.filter((candidate) => String(candidate.interested ?? "").trim().toLowerCase() === "yes").length;
+    const notInterestedCount = stageCandidates.filter((candidate) => String(candidate.interested ?? "").trim().toLowerCase() === "no").length;
+
+    return {
+      ready: stageCandidates.length,
+      interested: interestedCount,
+      not_interested: notInterestedCount,
+    };
+  }, [candidateRows]);
 
   const filteredCandidates = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     const stageFilteredCandidates =
       activeStage === "unscreened" && unscreenedFilter !== "all"
         ? pipelineCandidates.filter((candidate) => candidate.unscreenedFilterStatus === unscreenedFilter)
+        : activeStage === "screened" && preScreenedFilter !== "ready"
+          ? pipelineCandidates.filter((candidate) => {
+              const interestedValue = String(candidate.interested ?? "").trim().toLowerCase();
+              return preScreenedFilter === "interested" ? interestedValue === "yes" : interestedValue === "no";
+            })
         : pipelineCandidates;
 
     if (!query) {
@@ -1729,17 +2152,28 @@ export default function JobDetailsPage({ params }) {
       const haystack = [candidate.name, candidate.email, candidate.phone].join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [activeStage, pipelineCandidates, searchTerm, unscreenedFilter]);
+  }, [activeStage, pipelineCandidates, preScreenedFilter, searchTerm, unscreenedFilter]);
 
   const sortedCandidates = useMemo(() => {
     if (!sortConfig) {
+      if (activeStage === "screened") {
+        return [...filteredCandidates].sort((left, right) => (Number(right.matchScore) || 0) - (Number(left.matchScore) || 0));
+      }
+
       return filteredCandidates;
     }
 
     return [...filteredCandidates].sort((left, right) => {
       const leftValue = left[sortConfig.key];
       const rightValue = right[sortConfig.key];
-      const numericSortKeys = new Set(["matchScore", "experience", "availabilityDays", "currentSalary", "expectedSalary"]);
+      const numericSortKeys = new Set(["matchScore", "experience", "availabilityDays", "currentSalary", "expectedSalary", "noticePeriodSortValue"]);
+
+      if (sortConfig.key === "interested") {
+        const order = { yes: 0, no: 1, "not answered": 2, "": 2 };
+        const leftRank = order[String(leftValue ?? "").trim().toLowerCase()] ?? 2;
+        const rightRank = order[String(rightValue ?? "").trim().toLowerCase()] ?? 2;
+        return sortConfig.direction === "asc" ? leftRank - rightRank : rightRank - leftRank;
+      }
 
       if (sortConfig.key === "updatedAt") {
         const leftTime = new Date(leftValue ?? 0).getTime();
@@ -1770,7 +2204,7 @@ export default function JobDetailsPage({ params }) {
         ? String(leftValue ?? "").localeCompare(String(rightValue ?? ""))
         : String(rightValue ?? "").localeCompare(String(leftValue ?? ""));
     });
-  }, [filteredCandidates, sortConfig]);
+  }, [activeStage, filteredCandidates, sortConfig]);
 
   useEffect(() => {
     const visibleIds = new Set(filteredCandidates.map((candidate) => candidate.id));
@@ -1796,11 +2230,13 @@ export default function JobDetailsPage({ params }) {
         : sortConfig?.key === "experience"
           ? "experience"
         : sortConfig?.key === "availabilityDays"
-            ? "availability"
-            : sortConfig?.key === "currentSalary"
-              ? "currentSalary"
-              : sortConfig?.key === "expectedSalary"
-                ? "expectedSalary"
+          ? "availability"
+          : sortConfig?.key === "currentSalary"
+            ? "currentSalary"
+            : sortConfig?.key === "expectedSalary"
+              ? "expectedSalary"
+              : sortConfig?.key === "noticePeriodSortValue"
+                ? "noticePeriod"
                 : sortConfig?.key === "updatedAt"
                   ? "updatedAt"
                   : null;
@@ -1857,12 +2293,13 @@ export default function JobDetailsPage({ params }) {
   );
 
   const handleOpenCandidateSheet = useCallback(
-    (candidate) => {
+    (candidate, initialTab = "overview") => {
       if (!candidate) {
         return;
       }
 
       setSelectedCandidateId(candidate.id);
+      setCandidateSheetInitialTab(initialTab);
       setCandidateSheetOpen(true);
       markCandidateViewed(candidate.id);
     },
@@ -1974,6 +2411,34 @@ export default function JobDetailsPage({ params }) {
     },
     [updateWorkspaceCandidate],
   );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleOpenPreScreenResult = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      setSelectedCandidateId(candidate.id);
+      setPreScreenResultOpen(true);
+      markCandidateViewed(candidate.id);
+    },
+    [markCandidateViewed],
+  );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleOpenShareForReview = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      setSelectedCandidateId(candidate.id);
+      setShareForReviewOpen(true);
+      markCandidateViewed(candidate.id);
+    },
+    [markCandidateViewed],
+  );
 
   const handleMoveCandidateToNextStage = useCallback(
     (candidate) => {
@@ -2008,7 +2473,6 @@ export default function JobDetailsPage({ params }) {
     },
     [updateWorkspaceCandidate],
   );
-
   const handleOpenRejectDialog = useCallback((candidate) => {
     if (!candidate) {
       return;
@@ -2188,6 +2652,7 @@ export default function JobDetailsPage({ params }) {
       const availabilityMode = formState?.availabilityMode === "date" ? "date" : "days";
       const availabilityDays = String(formState?.availabilityDays ?? "").trim();
       const availabilityDate = String(formState?.availabilityDate ?? "").trim();
+      const noticePeriod = availabilityMode === "date" ? (availabilityDate ? formatDate(availabilityDate) : "") : (availabilityDays ? `${availabilityDays} days` : "");
       const commuteComfortable = String(formState?.commuteComfortable ?? "").trim() || "Yes";
       const currentSalary = String(formState?.currentSalary ?? "").trim();
       const expectedSalary = String(formState?.expectedSalary ?? "").trim();
@@ -2261,6 +2726,7 @@ export default function JobDetailsPage({ params }) {
               answers: normalizedAnswers,
               screeningModeOverride: "manual",
               unscreenedFilterStatus: "processing",
+              noticePeriod,
               availabilityDate: availabilityMode === "date" ? availabilityDate : "",
               availabilityMode,
               commuteComfortable: job?.workplaceType === "On-site" || job?.workplaceType === "Hybrid" ? commuteComfortable : "",
@@ -2317,6 +2783,32 @@ export default function JobDetailsPage({ params }) {
       );
     },
     [updateWorkspaceCandidate],
+  );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleShortlistCandidate = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted");
+      setPreScreenResultOpen(false);
+    },
+    [handleMoveCandidateToStage],
+  );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleRejectCandidateFromResults = useCallback(
+    (candidate) => {
+      if (!candidate) {
+        return;
+      }
+
+      handleRejectCandidate(candidate);
+      setPreScreenResultOpen(false);
+    },
+    [handleRejectCandidate],
   );
 
   const handleUpdateClientStatus = useCallback(
@@ -2936,7 +3428,7 @@ export default function JobDetailsPage({ params }) {
           <TooltipTrigger asChild>
             <span className="inline-flex">
               <button type="button" className={className} aria-label={`Shortlist ${candidate.name}`} onClick={() => handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted")}>
-                <ArrowRight className="size-[14px]" />
+                <Check className="size-[14px]" />
               </button>
             </span>
           </TooltipTrigger>
@@ -3016,11 +3508,21 @@ export default function JobDetailsPage({ params }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[280px]">
           <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate)}>
-            Open Candidate
+            {activeStage === "screened" ? "View Candidate" : "Open Candidate"}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate)}>
+          <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate, "resume")}>
             View Resume
           </DropdownMenuItem>
+          {activeStage === "screened" ? (
+            <DropdownMenuItem onClick={() => handleOpenPreScreenResult(candidate)}>
+              View Result
+            </DropdownMenuItem>
+          ) : null}
+          {activeStage === "screened" ? (
+            <DropdownMenuItem onClick={() => handleOpenShareForReview(candidate)}>
+              Share For Review
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onClick={() => handleDownloadCandidateResume(candidate)}>
             Download Resume
           </DropdownMenuItem>
@@ -3066,14 +3568,16 @@ export default function JobDetailsPage({ params }) {
       </button>
     );
 
-    const nameLabel = activeStage === "unscreened" ? "Name" : "Candidate Name";
-    const matchScoreLabel = activeStage === "unscreened" ? "CV Match Score" : "JD Match Score";
     const isUnscreenedStage = activeStage === "unscreened";
+    const stageHeaderLabels = {
+      ...JOB_WORKSPACE_TABLE_HEADERS.base,
+      ...(JOB_WORKSPACE_TABLE_HEADERS[activeStage] ?? {}),
+    };
 
     const columnsByKey = {
       name: {
         key: "name",
-        label: sortLabel("name", nameLabel),
+        label: sortLabel("name", stageHeaderLabels.name),
         width: isUnscreenedStage ? 240 : 220,
         minWidth: isUnscreenedStage ? 220 : 200,
         maxWidth: isUnscreenedStage ? undefined : 260,
@@ -3084,25 +3588,27 @@ export default function JobDetailsPage({ params }) {
         locked: true,
         hideable: false,
       },
-      matchScore: { key: "matchScore", label: sortLabel("matchScore", matchScoreLabel), width: isUnscreenedStage ? 148 : 160, minWidth: isUnscreenedStage ? 136 : 148, maxWidth: isUnscreenedStage ? 156 : 168, align: "center" },
-      experience: { key: "experience", label: sortLabel("experience", "Experience"), width: 104, minWidth: 92, maxWidth: 120, align: "center" },
-      phone: { key: "phone", label: "Phone", width: 176, minWidth: 156, maxWidth: isUnscreenedStage ? undefined : 184, grow: isUnscreenedStage ? 1 : undefined, flexible: isUnscreenedStage },
-      email: { key: "email", label: "Email", width: 240, minWidth: 220, maxWidth: isUnscreenedStage ? undefined : 260, grow: isUnscreenedStage ? 2 : undefined, flexible: isUnscreenedStage },
-      interested: { key: "interested", label: "Interested", width: 112, minWidth: 104, maxWidth: 124, align: "center" },
-      availability: { key: "availability", label: sortLabel("availabilityDays", "Availability"), width: 132, minWidth: 120, maxWidth: 148, align: "center" },
-      currentSalary: { key: "currentSalary", label: sortLabel("currentSalary", "Current Salary"), width: 144, minWidth: 130, maxWidth: 156, align: "right" },
-      expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", "Expectation"), width: 136, minWidth: 124, maxWidth: 148, align: "right" },
-      screeningOutcome: { key: "screeningOutcome", label: "Pre-Screen", width: 132, minWidth: 120, maxWidth: 148, align: "center" },
-      clientStatus: { key: "clientStatus", label: "Client Status", width: 156, minWidth: 144, maxWidth: 172, align: "center" },
-      rejectionReason: { key: "rejectionReason", label: "Rejection Reason", width: 188, minWidth: 172, maxWidth: 220 },
-      actions: { key: "actions", label: "Actions", width: 104, minWidth: 104, maxWidth: 104, align: "left", sticky: "right", required: true, locked: true, hideable: false },
+      matchScore: { key: "matchScore", label: sortLabel("matchScore", stageHeaderLabels.matchScore), width: isUnscreenedStage ? 148 : 160, minWidth: isUnscreenedStage ? 136 : 148, maxWidth: isUnscreenedStage ? 156 : 168, align: "center" },
+      experience: { key: "experience", label: sortLabel("experience", stageHeaderLabels.experience), width: 104, minWidth: 92, maxWidth: 120, align: "center" },
+      phone: { key: "phone", label: stageHeaderLabels.phone, width: 176, minWidth: 156, maxWidth: isUnscreenedStage ? undefined : 184, grow: isUnscreenedStage ? 1 : undefined, flexible: isUnscreenedStage },
+      email: { key: "email", label: stageHeaderLabels.email, width: 240, minWidth: 220, maxWidth: isUnscreenedStage ? undefined : 260, grow: isUnscreenedStage ? 2 : undefined, flexible: isUnscreenedStage },
+      interested: { key: "interested", label: sortLabel("interested", stageHeaderLabels.interested), width: 112, minWidth: 104, maxWidth: 124, align: "center" },
+      availability: { key: "availability", label: sortLabel("availabilityDays", stageHeaderLabels.availability), width: 132, minWidth: 120, maxWidth: 148, align: "center" },
+      noticePeriod: { key: "noticePeriod", label: sortLabel("noticePeriodSortValue", stageHeaderLabels.noticePeriod), width: 126, minWidth: 118, maxWidth: 146, align: "center" },
+      currentSalary: { key: "currentSalary", label: sortLabel("currentSalary", stageHeaderLabels.currentSalary), width: 144, minWidth: 132, maxWidth: 160, align: "right" },
+      expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", stageHeaderLabels.expectedSalary), width: 150, minWidth: 136, maxWidth: 168, align: "right" },
+      screeningOutcome: { key: "screeningOutcome", label: stageHeaderLabels.screeningOutcome, width: 168, minWidth: 152, maxWidth: 196, align: "center" },
+      strengthsGaps: { key: "strengthsGaps", label: stageHeaderLabels.strengthsGaps, width: 280, minWidth: 248, maxWidth: 320, grow: 1, flexible: true },
+      clientStatus: { key: "clientStatus", label: stageHeaderLabels.clientStatus, width: 156, minWidth: 144, maxWidth: 172, align: "center" },
+      rejectionReason: { key: "rejectionReason", label: stageHeaderLabels.rejectionReason, width: 188, minWidth: 172, maxWidth: 220 },
+      actions: { key: "actions", label: stageHeaderLabels.actions, width: 104, minWidth: 104, maxWidth: 104, align: "left", sticky: "right", required: true, locked: true, hideable: false },
       menuActions: { key: "menuActions", label: null, width: 56, minWidth: 56, maxWidth: 56, align: "center", sticky: "right", cellClassName: "px-0 pr-0", required: true, locked: true, hideable: false },
     };
 
-    const commonKeys = ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome"];
+    const commonKeys = ["name", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome"];
     const keysByStage = {
       unscreened: ["name", "matchScore", "experience", "phone", "email", "actions", "menuActions"],
-      screened: [...commonKeys, "actions", "menuActions"],
+      screened: ["name", "phone", "email", "strengthsGaps", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome", "actions", "menuActions"],
       shortlisted: [...commonKeys, "actions", "menuActions"],
       shared: [...commonKeys, "clientStatus", "actions", "menuActions"],
       rejected: [...commonKeys, "rejectionReason", "actions", "menuActions"],
@@ -3169,10 +3675,41 @@ export default function JobDetailsPage({ params }) {
         {formatCurrency(candidate.expectedSalary)}
       </span>
     ),
-    screeningOutcome: (
-      <span className="inline-flex min-w-[88px] items-center justify-center rounded-full bg-[var(--fx-bg-soft)] px-[10px] py-[4px] text-[12px] leading-[18px] font-medium text-[var(--fx-text)]">
-        {candidate.screeningOutcome || "Pending"}
+    noticePeriod: (
+      <span className="inline-flex min-w-[64px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-normal text-[var(--fx-text)]">
+        {formatNoticePeriod(candidate)}
       </span>
+    ),
+    screeningOutcome: (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => handleOpenPreScreenResult(candidate)}
+            className="inline-flex min-w-[120px] items-center justify-center gap-[8px] rounded-[6px] px-[8px] py-[2px] text-center text-[13px] leading-[20px] font-medium text-[var(--fx-primary)] hover:bg-[var(--fx-surface-hover)]"
+          >
+            {React.createElement(getPreScreeningIcon(candidate), { className: "size-[14px]" })}
+            <span>Result</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={8}>
+          {getPreScreeningSourceLabel(candidate)}
+        </TooltipContent>
+      </Tooltip>
+    ),
+    strengthsGaps: (
+      <button
+        type="button"
+        onClick={() => handleOpenPreScreenResult(candidate)}
+        className="block min-w-0 text-left"
+      >
+        <div className="truncate text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+          {getStrengthGapSummary(candidate, job).strengths}
+        </div>
+        <div className="truncate text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+          Missing: {getStrengthGapSummary(candidate, job).gaps}
+        </div>
+      </button>
     ),
     clientStatus: renderClientStatusChip(candidate.clientStatus || "Feedback Awaited"),
     rejectionReason: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.rejectionReason || "Rejected for this role"}</span>,
@@ -3283,8 +3820,7 @@ export default function JobDetailsPage({ params }) {
 
     if (bulkStage === "screened") {
       return [
-        renderBulkButton("shortlisted", ArrowRight, "Move to Shortlisted", bulkActionHandlers.moveToShortlisted, "accent"),
-        renderBulkButton("sent-to-client", Share2, "Move to Sent to Client", bulkActionHandlers.moveToSentToClient),
+        renderBulkButton("shortlisted", Check, "Shortlist", bulkActionHandlers.moveToShortlisted, "accent"),
         renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
         renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
@@ -3425,6 +3961,20 @@ export default function JobDetailsPage({ params }) {
                             className="min-w-0"
                           />
                         </div>
+                      ) : activeStage === "screened" ? (
+                        <div className="flex min-w-0 flex-wrap items-center gap-[10px]">
+                          <FxTabs
+                            variant="filter"
+                            items={PRE_SCREENED_FILTERS.map((filter) => ({
+                              value: filter.key,
+                              label: filter.label,
+                              count: preScreenedFilterCounts[filter.key] ?? 0,
+                            }))}
+                            value={preScreenedFilter}
+                            onValueChange={setPreScreenedFilter}
+                            className="min-w-0"
+                          />
+                        </div>
                       ) : null}
                     </div>
 
@@ -3541,10 +4091,25 @@ export default function JobDetailsPage({ params }) {
           onOpenChange={setCandidateSheetOpen}
           candidate={selectedCandidate}
           job={job}
+          initialTab={candidateSheetInitialTab}
           onSaveNote={handleSaveCandidateNote}
           onDeleteNote={handleDeleteCandidateNote}
           onOpenCandidatePool={handleOpenCandidatePool}
           onDownloadResume={handleDownloadCandidateResume}
+        />
+        <PreScreenResultSheet
+          open={preScreenResultOpen}
+          onOpenChange={setPreScreenResultOpen}
+          candidate={selectedCandidate}
+          job={job}
+          onShortlist={handleShortlistCandidate}
+          onReject={handleRejectCandidateFromResults}
+          onDownloadResume={handleDownloadCandidateResume}
+        />
+        <ShareForReviewSheet
+          open={shareForReviewOpen}
+          onOpenChange={setShareForReviewOpen}
+          candidate={selectedCandidate}
         />
         <CvMatchBreakdownSheet
           open={cvMatchSheetOpen}
