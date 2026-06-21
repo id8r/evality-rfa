@@ -960,7 +960,8 @@ function SectionContent({
   onCalendarPreferenceChange,
 }) {
   if (sectionId === "organization") {
-    const logoPreviewLabel = organizationProfile.logoFileName || "No logo uploaded";
+    const safeOrganizationProfile = organizationProfile ?? buildIdentityOrganizationSeed();
+    const logoPreviewLabel = safeOrganizationProfile.logoFileName || "No logo uploaded";
 
     return (
       <SettingsCard
@@ -971,59 +972,63 @@ function SectionContent({
         <div className="grid gap-[16px] md:grid-cols-2">
           <FxInput
             label="Company Name"
-            value={organizationProfile.companyName}
+            value={safeOrganizationProfile.companyName ?? ""}
             onChange={(event) => onOrganizationProfileChange("companyName", event?.target?.value ?? "")}
           />
           <FxInput
             label="Company Website"
-            value={organizationProfile.companyWebsite}
+            value={safeOrganizationProfile.companyWebsite ?? ""}
             onChange={(event) => onOrganizationProfileChange("companyWebsite", event?.target?.value ?? "")}
           />
         </div>
-        <div className="grid gap-[16px] md:grid-cols-2">
+        <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px]">
           <FxInput
             label="Company LinkedIn Page"
-            value={organizationProfile.companyLinkedIn}
+            value={safeOrganizationProfile.companyLinkedIn ?? ""}
             onChange={(event) => onOrganizationProfileChange("companyLinkedIn", event?.target?.value ?? "")}
           />
           <FxInput
             label="Career Page URL"
-            value={organizationProfile.careerPageUrl}
+            value={safeOrganizationProfile.careerPageUrl ?? ""}
             onChange={(event) => onOrganizationProfileChange("careerPageUrl", event?.target?.value ?? "")}
           />
-        </div>
-        <FxInput
-          textarea
-          label="About Company"
-          value={organizationProfile.aboutCompany}
-          onChange={(event) => onOrganizationProfileChange("aboutCompany", event?.target?.value ?? "")}
-          className="min-h-[120px]"
-        />
-        <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:items-start">
           <FxSelect
             label="Company Size"
-            value={organizationProfile.companySize}
+            value={safeOrganizationProfile.companySize ?? COMPANY_SIZE_OPTIONS[1]}
             onChange={(event) => onOrganizationProfileChange("companySize", event?.target?.value ?? COMPANY_SIZE_OPTIONS[1])}
             options={COMPANY_SIZE_OPTIONS}
           />
+        </div>
+        <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_300px] md:items-stretch">
+          <FxInput
+            textarea
+            label="About Company"
+            value={safeOrganizationProfile.aboutCompany ?? ""}
+            onChange={(event) => onOrganizationProfileChange("aboutCompany", event?.target?.value ?? "")}
+            className="min-h-[120px]"
+          />
           <div className="space-y-[8px]">
             <FxFieldLabel>Company Logo</FxFieldLabel>
-            <div className="flex items-center gap-[12px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface-subtle)] px-[12px] py-[12px]">
-              <div className="flex size-[56px] shrink-0 items-center justify-center rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)]">
-                {organizationProfile.logoUrl ? (
-                  <img src={organizationProfile.logoUrl} alt="" className="size-full rounded-[10px] object-cover" />
-                ) : (
-                  <Building2 className="size-[24px] text-[var(--fx-text-muted)]" strokeWidth={1.8} />
-                )}
+            <div className="flex min-h-[120px] flex-col justify-between rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface-subtle)] p-[12px]">
+              <div className="flex items-start gap-[12px]">
+                <div className="flex size-[64px] shrink-0 items-center justify-center rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)]">
+                  {safeOrganizationProfile.logoUrl ? (
+                    <img src={safeOrganizationProfile.logoUrl} alt="" className="size-full rounded-[10px] object-cover" />
+                  ) : (
+                    <Building2 className="size-[28px] text-[var(--fx-text-muted)]" strokeWidth={1.8} />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className={`${FX_TYPOGRAPHY.body} truncate text-[var(--fx-text)]`}>{logoPreviewLabel}</div>
+                  <div className={`${FX_TYPOGRAPHY.fieldHint} mt-[4px] text-[var(--fx-text-muted)]`}>Square or landscape logo recommended.</div>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className={`${FX_TYPOGRAPHY.body} truncate text-[var(--fx-text)]`}>{logoPreviewLabel}</div>
-                <div className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Square or landscape logo recommended.</div>
+              <div className="pt-[12px]">
+                <FxButton variant="ghost" size="md" className="h-[40px]">
+                  <Upload className="size-[16px]" />
+                  Upload
+                </FxButton>
               </div>
-              <FxButton variant="ghost" size="md" className="h-[40px] shrink-0">
-                <Upload className="size-[16px]" />
-                Upload
-              </FxButton>
             </div>
           </div>
         </div>
@@ -1238,6 +1243,7 @@ function SectionContent({
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile");
+  const [organizationProfile, setOrganizationProfile] = useState(() => buildIdentityOrganizationSeed());
   const [recruitingStatus, setRecruitingStatus] = useState(WORKSPACE_TYPES.MY_COMPANY);
   const [screeningChannel, setScreeningChannel] = useState("email");
   const [prescreenMode, setPrescreenMode] = useState("cv_and_prescreen");
@@ -1286,6 +1292,10 @@ export default function SettingsPage() {
     ) {
       setRecruitingStatus(storedWorkspaceType);
     }
+  }, []);
+
+  useEffect(() => {
+    setOrganizationProfile(buildIdentityOrganizationSeed());
   }, []);
 
   useEffect(() => {
@@ -1368,6 +1378,19 @@ export default function SettingsPage() {
   function handleRecruitingStatusChange(nextValue) {
     setRecruitingStatus(nextValue);
     writeStoredValue(STORAGE_KEYS.WORKSPACE_TYPE, nextValue);
+  }
+/* - - - - - - - - - - - - - - - - */
+
+  function handleOrganizationProfileChange(key, value) {
+    setOrganizationProfile((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+/* - - - - - - - - - - - - - - - - */
+
+  function handleSaveOrganizationProfile() {
+    writeStoredJSON(STORAGE_KEYS.ORGANIZATION_PROFILE, organizationProfile);
   }
 
   function handleEmailSenderAccountChange(event) {
@@ -1562,6 +1585,9 @@ export default function SettingsPage() {
               <div className="px-[24px] py-[32px] md:px-[32px]">
                 <SectionContent
                   sectionId={activeSection}
+                  organizationProfile={organizationProfile}
+                  onOrganizationProfileChange={handleOrganizationProfileChange}
+                  onSaveOrganizationProfile={handleSaveOrganizationProfile}
                   recruitingStatus={recruitingStatus}
                   onRecruitingStatusChange={handleRecruitingStatusChange}
                   organizationIndustries={organizationIndustries}
