@@ -8,6 +8,7 @@ import {
   Building2,
   CalendarDays,
   Check,
+  Circle,
   ChevronDown,
   Cog,
   CreditCard,
@@ -36,7 +37,7 @@ const SETTINGS_SECTIONS = [
   { id: "recruiting-status", label: "Recruiting Status", description: "Default recruiting context", icon: BriefcaseBusiness },
   { id: "screening", label: "Screening Method", description: "AI screening defaults", icon: ListChecks },
   { id: "email-settings", label: "Email", description: "Connected mailboxes defaults", icon: Mail },
-  { id: "calendar", label: "Calender", description: "Calendar connection preferences", icon: CalendarDays },
+  { id: "calendar", label: "Calendar", description: "Calendar connection preferences", icon: CalendarDays },
   { id: "billing", label: "Billing", description: "Plan and invoices", icon: CreditCard },
   // { id: "ai-context", label: "AI Context", description: "Default recruiting context and evaluation guidance", icon: FileText },
   // { id: "scheduling", label: "Scheduling", description: "Interview scheduling defaults", icon: Settings2 },
@@ -94,6 +95,38 @@ const DEFAULT_WEEKLY_AVAILABILITY = [
   { day: "Sat", enabled: false, start: "09:00", end: "18:00" },
   { day: "Sun", enabled: false, start: "09:00", end: "18:00" },
 ];
+/* - - - - - - - - - - - - - - - - */
+
+function toTitleCase(value) {
+  return value
+    .split(/[-_\s]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+/* - - - - - - - - - - - - - - - - */
+
+function buildIdentityOrganizationSeed() {
+  const storedOrganization = readStoredJSON(STORAGE_KEYS.ORGANIZATION_PROFILE);
+  const authProvider = readStoredValue(STORAGE_KEYS.AUTH_PROVIDER) || "email";
+  const authEmail = readStoredValue(STORAGE_KEYS.AUTH_EMAIL) || DEMO_USER.email;
+  const normalizedEmail = (authEmail || DEMO_USER.email).trim() || DEMO_USER.email;
+  const domain = normalizedEmail.includes("@") ? normalizedEmail.split("@")[1] : "evality.ai";
+  const cleanDomain = domain.replace(/^www\./, "");
+  const companyToken = cleanDomain.split(".")[0] || "evality";
+  const derivedCompanyName = authProvider === "linkedin" ? "ThinkJS" : toTitleCase(companyToken) || "Evality";
+
+  return {
+    companyName: storedOrganization?.companyName || derivedCompanyName,
+    companyWebsite: storedOrganization?.companyWebsite || `https://${cleanDomain}`,
+    companyLinkedIn: storedOrganization?.companyLinkedIn || `https://linkedin.com/company/${companyToken.toLowerCase()}`,
+    aboutCompany: storedOrganization?.aboutCompany || "Evality is building a recruiter-first workspace to make screening, candidate flow, and hiring operations easier to run.",
+    companySize: storedOrganization?.companySize || COMPANY_SIZE_OPTIONS[1],
+    careerPageUrl: storedOrganization?.careerPageUrl || `https://${cleanDomain}/careers`,
+    logoUrl: storedOrganization?.logoUrl || "",
+    logoFileName: storedOrganization?.logoFileName || "",
+  };
+}
 
 function getScrollMetrics(element) {
   if (!element) {
@@ -251,29 +284,27 @@ function RecruitingStatusGroup({ options, selectedValue, onSelect }) {
   );
 }
 
-function ChecklistItem({ children }) {
-  return (
-    <div className="flex items-center gap-[8px] px-[4px] py-[4px]">
-      <Check className="size-[14px] shrink-0 text-[var(--fx-success)]" strokeWidth={2.5} />
-      <span className="truncate text-[15px] leading-[22px] font-normal text-[var(--fx-text-muted)]">{children}</span>
-    </div>
-  );
-}
-
-function DueChecklistItem({ children, onClick }) {
-  if (!onClick) {
-    return null;
-  }
-
+function SetupChecklistItem({ children, completed = false, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-[8px] rounded-[8px] px-[4px] py-[4px] text-left transition-colors hover:bg-[var(--fx-surface-hover)]/40"
+      className={cn(
+        "inline-flex min-w-0 items-start gap-[8px] rounded-full border px-[10px] py-[6px] text-left transition-colors",
+        completed
+          ? "border-[color:color-mix(in_srgb,var(--fx-success)_42%,var(--fx-border)_58%)] bg-[color:color-mix(in_srgb,var(--fx-success)_12%,var(--fx-surface)_88%)] text-[var(--fx-success)] hover:bg-[color:color-mix(in_srgb,var(--fx-success)_16%,var(--fx-surface)_84%)]"
+          : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:border-[color:color-mix(in_srgb,var(--fx-text-muted)_26%,var(--fx-border)_74%)] hover:bg-[var(--fx-surface-hover)]/40",
+      )}
     >
-      <span className="inline-flex size-[14px] shrink-0" aria-hidden="true" />
-      <span className="truncate text-[15px] leading-[22px] font-normal text-[var(--fx-primary)]">{children}</span>
-      <span className="shrink-0 text-[15px] leading-[22px] font-normal text-[var(--fx-primary)]">&rarr;</span>
+      {completed ? (
+        <Check className="mt-[3px] size-[14px] shrink-0 text-[var(--fx-success)]" strokeWidth={2.5} />
+      ) : (
+        <Circle className="mt-[3px] size-[14px] shrink-0 text-[var(--fx-text-disabled)]" strokeWidth={1.9} />
+      )}
+      <span className={cn(
+        "text-[15px] leading-[22px] font-normal",
+        completed ? "text-[var(--fx-success)]" : "text-[var(--fx-primary)]",
+      )}>{children}</span>
     </button>
   );
 }
@@ -819,17 +850,17 @@ function ProfileCompletionBanner({
   calendarConnected,
 }) {
   const checklist = [
-    { label: "Profile Details", completed: profileComplete, sectionId: null },
-    { label: "Organization Details", completed: organizationComplete, sectionId: null },
+    { label: "Profile", completed: profileComplete, sectionId: "profile" },
+    { label: "Organization", completed: organizationComplete, sectionId: "organization" },
     { label: "Career Page", completed: false, sectionId: "career-page" },
-    { label: "Recruiting Status", completed: recruitingComplete, sectionId: null },
+    { label: "Recruiting Status", completed: recruitingComplete, sectionId: "recruiting-status" },
     { label: "Screening Method", completed: false, sectionId: "screening" },
     { label: "Billing", completed: false, sectionId: "billing" },
     { label: "Email", completed: emailConnected, sectionId: "email-settings" },
-    { label: "Calender", completed: calendarConnected, sectionId: "calendar" },
+    { label: "Calendar", completed: calendarConnected, sectionId: "calendar" },
   ];
   const completedCount = checklist.filter((item) => item.completed).length;
-  const completedSegments = completedCount;
+  const completionPercent = Math.round((completedCount / checklist.length) * 100);
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -837,29 +868,29 @@ function ProfileCompletionBanner({
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
-        className="flex w-full items-center justify-between gap-[20px] bg-[color:color-mix(in_srgb,var(--fx-surface-selected)_62%,var(--fx-surface)_38%)] px-[24px] py-[18px] text-left transition-colors hover:bg-[color:color-mix(in_srgb,var(--fx-surface-selected)_72%,var(--fx-surface)_28%)]"
+        className="flex w-full items-start justify-between gap-[20px] bg-[color:color-mix(in_srgb,var(--fx-surface-selected)_62%,var(--fx-surface)_38%)] px-[24px] py-[16px] text-left transition-colors hover:bg-[color:color-mix(in_srgb,var(--fx-surface-selected)_72%,var(--fx-surface)_28%)]"
       >
-        <div className="min-w-0 space-y-[6px]">
+        <div className="min-w-0 space-y-[4px]">
           <div className={`${FX_TYPOGRAPHY.cardTitle} text-[var(--fx-text)]`}>Complete Your Workspace Setup</div>
           <p className={`${FX_TYPOGRAPHY.body} text-[color:color-mix(in_srgb,var(--fx-text)_78%,var(--fx-text-muted)_22%)]`}>
             These setup items need to be completed before the workspace is fully ready.
           </p>
         </div>
-        <div className="flex w-full max-w-[240px] items-center gap-[14px]">
-          <div className="grid h-[6px] min-w-0 flex-1 gap-[2px]" style={{ gridTemplateColumns: `repeat(${checklist.length}, minmax(0, 1fr))` }}>
-            {checklist.map((item, index) => (
+        <div className="flex shrink-0 self-center items-center gap-[16px]">
+          <div className="flex w-[144px] flex-col gap-[6px]">
+            <div className="h-[8px] overflow-hidden rounded-full bg-[color:color-mix(in_srgb,var(--fx-border)_72%,white_28%)]">
               <div
-                key={item.label}
-                className={cn(
-                  "h-full rounded-[1.5px] transition-colors",
-                  index < completedSegments ? "bg-[var(--fx-primary)]" : "bg-[color:color-mix(in_srgb,var(--fx-border)_72%,white_28%)]",
-                )}
+                className="h-full rounded-full bg-[var(--fx-primary)] transition-[width] duration-200"
+                style={{ width: `${completionPercent}%` }}
               />
-            ))}
+            </div>
+            <div className={`${FX_TYPOGRAPHY.fieldHint} text-right text-[var(--fx-text-muted)]`}>
+              {completedCount} of {checklist.length} completed
+            </div>
           </div>
           <ChevronDown
             className={cn(
-              "size-[18px] shrink-0 text-[var(--fx-primary)] transition-transform duration-200",
+              "mr-[2px] size-[18px] shrink-0 text-[var(--fx-primary)] transition-transform duration-200",
               expanded ? "rotate-180" : "rotate-0",
             )}
           />
@@ -867,17 +898,17 @@ function ProfileCompletionBanner({
       </button>
 
       {expanded ? (
-        <div className="border-t border-[color:color-mix(in_srgb,var(--fx-primary)_14%,var(--fx-border)_86%)] bg-[var(--fx-surface)] px-[24px] py-[16px]">
-          <div className="grid gap-[4px] md:grid-cols-4">
-            {checklist.map((item) =>
-              item.completed ? (
-                <ChecklistItem key={item.label}>{item.label}</ChecklistItem>
-              ) : (
-                <DueChecklistItem key={item.label} onClick={() => onNavigate(item.sectionId)}>
-                  {item.label}
-                </DueChecklistItem>
-              ),
-            )}
+        <div className="border-t border-[color:color-mix(in_srgb,var(--fx-primary)_14%,var(--fx-border)_86%)] bg-[var(--fx-surface)] px-[24px] py-[24px]">
+          <div className="flex flex-wrap gap-[16px]">
+            {checklist.map((item) => (
+              <SetupChecklistItem
+                key={item.label}
+                completed={item.completed}
+                onClick={() => onNavigate(item.sectionId)}
+              >
+                {item.label}
+              </SetupChecklistItem>
+            ))}
           </div>
         </div>
       ) : null}
@@ -898,6 +929,9 @@ function LinkedInIcon() {
 
 function SectionContent({
   sectionId,
+  organizationProfile,
+  onOrganizationProfileChange,
+  onSaveOrganizationProfile,
   recruitingStatus,
   onRecruitingStatusChange,
   organizationIndustries,
@@ -926,39 +960,71 @@ function SectionContent({
   onCalendarPreferenceChange,
 }) {
   if (sectionId === "organization") {
+    const logoPreviewLabel = organizationProfile.logoFileName || "No logo uploaded";
+
     return (
       <SettingsCard
         title="Organization"
         description="This represents the Hiring for My Company settings context."
-        action={<FxButton variant="secondary" size="md">Save</FxButton>}
+        action={<FxButton variant="secondary" size="md" onClick={onSaveOrganizationProfile}>Save</FxButton>}
       >
         <div className="grid gap-[16px] md:grid-cols-2">
-          <FxInput label="Company Name" defaultValue="Evality" />
-          <FxInput label="Company Website" defaultValue="https://evality.ai" />
+          <FxInput
+            label="Company Name"
+            value={organizationProfile.companyName}
+            onChange={(event) => onOrganizationProfileChange("companyName", event?.target?.value ?? "")}
+          />
+          <FxInput
+            label="Company Website"
+            value={organizationProfile.companyWebsite}
+            onChange={(event) => onOrganizationProfileChange("companyWebsite", event?.target?.value ?? "")}
+          />
         </div>
         <div className="grid gap-[16px] md:grid-cols-2">
-          <FxInput label="Company LinkedIn Page" defaultValue="https://linkedin.com/company/evality" />
-          <FxInput label="Career Page" defaultValue="https://evality.ai/careers" />
+          <FxInput
+            label="Company LinkedIn Page"
+            value={organizationProfile.companyLinkedIn}
+            onChange={(event) => onOrganizationProfileChange("companyLinkedIn", event?.target?.value ?? "")}
+          />
+          <FxInput
+            label="Career Page URL"
+            value={organizationProfile.careerPageUrl}
+            onChange={(event) => onOrganizationProfileChange("careerPageUrl", event?.target?.value ?? "")}
+          />
         </div>
         <FxInput
           textarea
           label="About Company"
-          defaultValue="Evality is building a recruiter-first workspace to make screening, candidate flow, and hiring operations easier to run."
+          value={organizationProfile.aboutCompany}
+          onChange={(event) => onOrganizationProfileChange("aboutCompany", event?.target?.value ?? "")}
           className="min-h-[120px]"
         />
         <div className="grid gap-[16px] md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:items-start">
-          <SelectField label="Company Size" defaultValue={COMPANY_SIZE_OPTIONS[1]} options={COMPANY_SIZE_OPTIONS} />
-          <div className="flex items-end gap-[8px]">
-            <div className="min-w-0 flex-1 space-y-[8px] pt-[8px]">
-              <FxFieldLabel>Company Logo</FxFieldLabel>
-              <div className="flex h-[40px] min-w-0 items-center rounded-[4px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[16px] text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                <span className="truncate">No logo selected</span>
+          <FxSelect
+            label="Company Size"
+            value={organizationProfile.companySize}
+            onChange={(event) => onOrganizationProfileChange("companySize", event?.target?.value ?? COMPANY_SIZE_OPTIONS[1])}
+            options={COMPANY_SIZE_OPTIONS}
+          />
+          <div className="space-y-[8px]">
+            <FxFieldLabel>Company Logo</FxFieldLabel>
+            <div className="flex items-center gap-[12px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface-subtle)] px-[12px] py-[12px]">
+              <div className="flex size-[56px] shrink-0 items-center justify-center rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)]">
+                {organizationProfile.logoUrl ? (
+                  <img src={organizationProfile.logoUrl} alt="" className="size-full rounded-[10px] object-cover" />
+                ) : (
+                  <Building2 className="size-[24px] text-[var(--fx-text-muted)]" strokeWidth={1.8} />
+                )}
               </div>
+              <div className="min-w-0 flex-1">
+                <div className={`${FX_TYPOGRAPHY.body} truncate text-[var(--fx-text)]`}>{logoPreviewLabel}</div>
+                <div className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Square or landscape logo recommended.</div>
+              </div>
+              <FxButton variant="ghost" size="md" className="h-[40px] shrink-0">
+                <Upload className="size-[16px]" />
+                Upload
+              </FxButton>
             </div>
-            <FxButton variant="secondary" size="md" className="h-[40px] shrink-0">
-              <Upload className="size-[16px]" />
-              Upload Logo
-            </FxButton>
           </div>
         </div>
         <FxMultiSelectInput

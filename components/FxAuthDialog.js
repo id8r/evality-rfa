@@ -14,11 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DEMO_EXPERIENCE_MODES, ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
+import { DEMO_EXPERIENCE_MODES, DEMO_USER, ROUTES, STORAGE_KEYS } from "@/lib/FxConstants";
 import { FX_CONTROL_HEIGHT, FX_SURFACE, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { AUTH_COPY, LANDING_COPY } from "@/lib/FxCopy";
 import { seedDemoJobsStore, writeStoredDemoExperience, writeStoredJobsViewMode } from "@/lib/FxStore";
-import { writeStoredValue } from "@/lib/FxUtils";
+import { writeStoredJSON, writeStoredValue } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
 
 function GoogleIcon() {
@@ -63,6 +63,28 @@ const AUTH_ICONS = {
 };
 /* - - - - - - - - - - - - - - - - */
 
+function getIdentitySeed({ provider, email }) {
+  const normalizedEmail = (email || DEMO_USER.email).trim() || DEMO_USER.email;
+  const domain = normalizedEmail.includes("@") ? normalizedEmail.split("@")[1] : "evality.ai";
+  const cleanDomain = domain.replace(/^www\./, "");
+  const companyToken = cleanDomain.split(".")[0] || "evality";
+  const companyName = provider === "linkedin"
+    ? "ThinkJS"
+    : companyToken
+        .split(/[-_]/g)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ") || "Evality";
+
+  return {
+    email: normalizedEmail,
+    companyName,
+    companyWebsite: `https://${cleanDomain}`,
+    companyLinkedIn: `https://linkedin.com/company/${companyToken.toLowerCase()}`,
+  };
+}
+/* - - - - - - - - - - - - - - - - */
+
 export function FxAuthDialog({
   defaultOpen = false,
   intent = "signup",
@@ -88,9 +110,17 @@ export function FxAuthDialog({
     onOpenChange?.(value);
   }
 
-  function completeAuth() {
+  function completeAuth(provider = "email", authEmail = "") {
     if (typeof window !== "undefined") {
+      const identitySeed = getIdentitySeed({ provider, email: authEmail || email || DEMO_USER.email });
       writeStoredValue(STORAGE_KEYS.AUTH_COMPLETE, "true");
+      writeStoredValue(STORAGE_KEYS.AUTH_PROVIDER, provider);
+      writeStoredValue(STORAGE_KEYS.AUTH_EMAIL, identitySeed.email);
+      writeStoredJSON(STORAGE_KEYS.ORGANIZATION_PROFILE, {
+        companyName: identitySeed.companyName,
+        companyWebsite: identitySeed.companyWebsite,
+        companyLinkedIn: identitySeed.companyLinkedIn,
+      });
       if (intent === "login") {
         seedDemoJobsStore();
         writeStoredDemoExperience(DEMO_EXPERIENCE_MODES.LOGIN);
@@ -107,18 +137,18 @@ export function FxAuthDialog({
     router.refresh();
   }
 
-  function handleAuthSuccess() {
-    completeAuth(null);
+  function handleAuthSuccess(provider = "email", authEmail = "") {
+    completeAuth(provider, authEmail);
   }
 
-  function handleSocialAuth() {
-    handleAuthSuccess();
+  function handleSocialAuth(provider) {
+    handleAuthSuccess(provider);
   }
 
   function handleEmailSubmit(event) {
     event.preventDefault();
     if (email) {
-      handleAuthSuccess();
+      handleAuthSuccess("email", email);
     }
   }
 
