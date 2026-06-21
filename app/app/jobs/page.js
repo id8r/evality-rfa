@@ -27,10 +27,13 @@ import {
   ListChecks,
   Mail,
   MoreHorizontal,
+  Pencil,
   PiggyBank,
   Plus,
   Plane,
   RefreshCcw,
+  GripVertical,
+  Save,
   Sparkles,
   Trash2,
   Upload,
@@ -247,6 +250,12 @@ function createFormFromJob(job) {
 const EMPLOYMENT_TYPE_OPTIONS = ["Full-time", "Part-time", "Contract", "Internship"];
 const WORKPLACE_TYPE_OPTIONS = ["Remote", "Hybrid", "On-site"];
 const CURRENCY_OPTIONS = ["INR", "USD", "EUR"];
+const SCREENING_METHOD_OPTIONS = [
+  { value: "manual", title: "Manual", description: "Review and qualify candidates manually." },
+  { value: "form", title: "Form Based", description: "Collect structured responses using a questionnaire." },
+  { value: "web_call", title: "Web Call (AI)", description: "Run AI-led web screening with editable questions." },
+  { value: "phone", title: "AI Phone Call", description: "Run AI-led phone screening with the same question flow." },
+];
 const BASIC_FORM_FIELD_STACK_CLASS = "gap-[8px]";
 const BASIC_FORM_CONTROL_CLASS = "min-h-[48px]";
 const DEFAULT_BENEFIT_SELECTIONS = [
@@ -430,6 +439,9 @@ export default function JobsPage() {
   const [customQuestionDraft, setCustomQuestionDraft] = useState("");
   const [customQuestionSuggestion, setCustomQuestionSuggestion] = useState("");
   const [removedPresetQuestionLabels, setRemovedPresetQuestionLabels] = useState([]);
+  const [editingQuestionId, setEditingQuestionId] = useState(null);
+  const [editingQuestionDraft, setEditingQuestionDraft] = useState(null);
+  const [draggedQuestionId, setDraggedQuestionId] = useState(null);
   const [searchTerm, setSearchTerm] = useState(initialPageState.searchTerm ?? DEFAULT_PAGE_STATE.searchTerm);
   const [selectedTab, setSelectedTab] = useState(initialPageState.selectedTab ?? DEFAULT_PAGE_STATE.selectedTab);
   const [sortConfig, setSortConfig] = useState(initialPageState.sortConfig ?? DEFAULT_PAGE_STATE.sortConfig);
@@ -871,6 +883,97 @@ export default function JobsPage() {
       ...current,
       questions: current.questions.filter((question) => question.id !== questionId),
     }));
+  }
+
+  function updateQuestion(questionId, field, value) {
+    setJobForm((current) => ({
+      ...current,
+      questions: current.questions.map((question) =>
+        question.id === questionId
+          ? {
+              ...question,
+              [field]: value,
+            }
+          : question,
+      ),
+    }));
+  }
+
+  function beginQuestionEdit(question) {
+    setEditingQuestionId(question.id);
+    setEditingQuestionDraft({
+      label: question.label,
+      question: question.question,
+    });
+  }
+
+  function cancelQuestionEdit() {
+    setEditingQuestionId(null);
+    setEditingQuestionDraft(null);
+  }
+
+  function saveQuestionEdit(questionId) {
+    if (!editingQuestionDraft) {
+      setEditingQuestionId(null);
+      return;
+    }
+
+    setJobForm((current) => ({
+      ...current,
+      questions: current.questions.map((question) =>
+        question.id === questionId
+          ? {
+              ...question,
+              label: editingQuestionDraft.label,
+              question: editingQuestionDraft.question,
+            }
+          : question,
+      ),
+    }));
+
+    setEditingQuestionId(null);
+    setEditingQuestionDraft(null);
+  }
+
+  function moveQuestion(questionId, direction) {
+    setJobForm((current) => {
+      const currentIndex = current.questions.findIndex((question) => question.id === questionId);
+      if (currentIndex === -1) {
+        return current;
+      }
+
+      const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (nextIndex < 0 || nextIndex >= current.questions.length) {
+        return current;
+      }
+
+      const nextQuestions = [...current.questions];
+      const [question] = nextQuestions.splice(currentIndex, 1);
+      nextQuestions.splice(nextIndex, 0, question);
+
+      return {
+        ...current,
+        questions: nextQuestions,
+      };
+    });
+  }
+
+  function moveQuestionToIndex(questionId, targetIndex) {
+    setJobForm((current) => {
+      const currentIndex = current.questions.findIndex((question) => question.id === questionId);
+      if (currentIndex === -1 || targetIndex < 0 || targetIndex >= current.questions.length || currentIndex === targetIndex) {
+        return current;
+      }
+
+      const nextQuestions = [...current.questions];
+      const [question] = nextQuestions.splice(currentIndex, 1);
+      nextQuestions.splice(targetIndex, 0, question);
+
+      return {
+        ...current,
+        questions: nextQuestions,
+      };
+    });
   }
 
   function handleQuestionCountChange(event) {
@@ -1570,27 +1673,133 @@ export default function JobsPage() {
   }
 
   function renderQuestionCard(question) {
+    const questionIndex = jobForm.questions.findIndex((item) => item.id === question.id);
+    const isEditing = editingQuestionId === question.id;
+    const draft = isEditing && editingQuestionDraft
+      ? editingQuestionDraft
+      : { label: question.label, question: question.question };
+
     return (
       <div
         key={question.id}
-        className="flex items-start justify-between gap-[12px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[14px] py-[12px]"
+        draggable
+        onDragStart={() => setDraggedQuestionId(question.id)}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={() => {
+          if (draggedQuestionId) {
+            moveQuestionToIndex(draggedQuestionId, questionIndex);
+          }
+          setDraggedQuestionId(null);
+        }}
+        onDragEnd={() => setDraggedQuestionId(null)}
+        className={cn(
+          "rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[14px] py-[12px]",
+          draggedQuestionId === question.id ? "opacity-60" : "",
+        )}
       >
-        <div className="min-w-0 flex-1 space-y-[6px]">
-          <span className="block text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">
-            {formatDisplayLabel(question.label || "General")}
-          </span>
-          <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
-            {question.question}
-          </p>
+        <div className="flex items-start gap-[12px]">
+          <button
+            type="button"
+            aria-label="Reorder question"
+            className="mt-[2px] inline-flex shrink-0 cursor-grab items-center justify-center rounded-[6px] p-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)] active:cursor-grabbing"
+          >
+            <GripVertical className="size-[16px]" />
+          </button>
+
+          <div className="min-w-0 flex-1 space-y-[6px]">
+            {isEditing ? (
+              <>
+                <FxInput
+                  label="Question Type"
+                  value={draft.label}
+                  onChange={(event) =>
+                    setEditingQuestionDraft((current) => ({
+                      ...(current ?? { label: question.label, question: question.question }),
+                      label: event.target.value,
+                    }))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      cancelQuestionEdit();
+                    }
+                  }}
+                  stackClassName="gap-[6px]"
+                  className="h-[40px]"
+                />
+                <FxInput
+                  label="Question"
+                  value={draft.question}
+                  onChange={(event) =>
+                    setEditingQuestionDraft((current) => ({
+                      ...(current ?? { label: question.label, question: question.question }),
+                      question: event.target.value,
+                    }))
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      cancelQuestionEdit();
+                    }
+                  }}
+                  stackClassName="gap-[6px]"
+                  className="h-[40px]"
+                />
+              </>
+            ) : (
+              <>
+                <span className="block text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">
+                  {formatDisplayLabel(question.label || "General")}
+                </span>
+                <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+                  {question.question}
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className={cn("flex shrink-0 items-start gap-[4px]", isEditing ? "pt-[29px]" : "pt-[20px]")}>
+            {isEditing ? (
+              <>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-[6px] p-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                  onClick={cancelQuestionEdit}
+                  aria-label="Cancel question edit"
+                >
+                  <span className="text-[12px] leading-none font-medium">Cancel</span>
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-[6px] p-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                  onClick={() => saveQuestionEdit(question.id)}
+                  aria-label="Save question"
+                >
+                  <Save className="size-[15px]" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-[6px] p-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                onClick={() => beginQuestionEdit(question)}
+                aria-label="Edit question"
+              >
+                <Pencil className="size-[15px]" />
+              </button>
+            )}
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-[6px] p-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+              onClick={() => removeQuestion(question.id)}
+              aria-label="Remove question"
+            >
+              <Trash2 className="size-[16px]" />
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          className="inline-flex items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:text-[var(--fx-danger)]"
-          onClick={() => removeQuestion(question.id)}
-          aria-label="Remove question"
-        >
-          <Trash2 className="size-[16px]" />
-        </button>
       </div>
     );
   }
@@ -1829,6 +2038,7 @@ export default function JobsPage() {
     `Mode: ${reviewQuestionMode}`,
     `Questions: ${reviewQuestionCount}`,
   ]);
+  const shouldShowScreeningBuilder = jobForm.preScreeningMode !== "manual";
   const jobTitleValue = jobForm.title?.trim() || "";
   const jobCreationTitle = editingJob ? "Edit Job" : "Create Job";
   const navbarTitle = isSheetOpen ? jobCreationTitle : "Jobs";
@@ -2713,7 +2923,7 @@ export default function JobsPage() {
                 <section className="space-y-[16px]">
                   {renderSectionHeader(
                     "Evaluation Context",
-                    "Define what matters most when evaluating candidates for this role.",
+                    "Used for Candidate Fit Score, Candidate AI Analysis, AI Screening, Candidate Recommendations, and Question Generation.",
                     <FxAiButton
                       onClick={() => {
                         setEvaluationContextStep(0);
@@ -2740,71 +2950,210 @@ export default function JobsPage() {
                 <section className="space-y-[24px]">
                   <div className="space-y-[4px]">
                     {renderSectionHeader(
-                      "Screening Method",
+                      "Setup Screening Method",
                       null,
                       null,
                     )}
                     <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                      Candidates will answer these questions during AI-led pre-screening.
+                      Candidates will answer these configured pre-screening questions. Default settings can be managed in Settings. Changes made here apply only to this job.
                     </p>
                   </div>
 
+                  <div className="space-y-[8px]">
+                    <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Screening Method</h4>
+                  </div>
                   <RadioGroup
-                    value={jobForm.questionFormat || "cv_and_prescreen"}
+                    value={jobForm.preScreeningMode || "manual"}
                     onValueChange={(value) =>
                       setJobForm((current) => ({
                         ...current,
-                        questionFormat: value,
+                        preScreeningMode: value,
                       }))
                     }
-                    className="mt-[16px] grid gap-[12px] md:grid-cols-2"
+                    className="grid gap-[12px] md:grid-cols-2"
                   >
-                    <label
-                      htmlFor="question-format-cv-and-prescreen"
-                      className={`flex cursor-pointer items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
-                        jobForm.questionFormat === "cv_and_prescreen"
-                          ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-                          : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
-                      }`}
-                    >
-                      <RadioGroupItem
-                        id="question-format-cv-and-prescreen"
-                        value="cv_and_prescreen"
-                        className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
-                      />
-                      <span className="min-w-0 space-y-[4px]">
-                        <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-                          Ask both CV related questions and pre-screening
+                    {SCREENING_METHOD_OPTIONS.map((option) => (
+                      <label
+                        key={option.value}
+                        htmlFor={`screening-method-${option.value}`}
+                        className={`flex items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
+                          option.disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                        } ${
+                          jobForm.preScreeningMode === option.value
+                            ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                            : "border-[var(--fx-border)] bg-[var(--fx-surface)]"
+                        } ${
+                          !option.disabled ? "hover:bg-[var(--fx-surface-hover)]" : ""
+                        }`}
+                      >
+                        <RadioGroupItem
+                          id={`screening-method-${option.value}`}
+                          value={option.value}
+                          disabled={Boolean(option.disabled)}
+                          className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+                        />
+                        <span className="min-w-0 space-y-[4px]">
+                          <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                            {option.title}
+                          </span>
+                          <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                            {option.description}
+                          </span>
                         </span>
-                        <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-                          Use candidate CV context first, then ask the focused screening questions below.
-                        </span>
-                      </span>
-                    </label>
-
-                    <label
-                      htmlFor="question-format-prescreen-only"
-                      className={`flex cursor-pointer items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
-                        jobForm.questionFormat === "prescreen_only"
-                          ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-                          : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
-                      }`}
-                    >
-                      <RadioGroupItem
-                        id="question-format-prescreen-only"
-                        value="prescreen_only"
-                        className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
-                      />
-                      <span className="min-w-0 space-y-[4px]">
-                        <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-                          Ask only pre-screening questions
-                        </span>
-                        <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-                          Only Pre-Screening Questions listed below will be asked by the AI Agent.
-                        </span>
-                      </span>
-                    </label>
+                      </label>
+                    ))}
                   </RadioGroup>
+
+                  {shouldShowScreeningBuilder ? (
+                    <>
+                      <div className="space-y-[8px]">
+                        <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Questionnaire</h4>
+                      </div>
+
+                      <RadioGroup
+                        value={jobForm.questionFormat || "cv_and_prescreen"}
+                        onValueChange={(value) =>
+                          setJobForm((current) => ({
+                            ...current,
+                            questionFormat: value,
+                          }))
+                        }
+                        className="mt-[16px] grid gap-[12px] md:grid-cols-2"
+                      >
+                        <label
+                          htmlFor="question-format-cv-and-prescreen"
+                          className={`flex cursor-pointer items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
+                            jobForm.questionFormat === "cv_and_prescreen"
+                              ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                              : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
+                          }`}
+                        >
+                          <RadioGroupItem
+                            id="question-format-cv-and-prescreen"
+                            value="cv_and_prescreen"
+                            className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+                          />
+                          <span className="min-w-0 space-y-[4px]">
+                            <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                              CV + Pre-Screening
+                            </span>
+                          </span>
+                        </label>
+
+                        <label
+                          htmlFor="question-format-prescreen-only"
+                          className={`flex cursor-pointer items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
+                            jobForm.questionFormat === "prescreen_only"
+                              ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                              : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
+                          }`}
+                        >
+                          <RadioGroupItem
+                            id="question-format-prescreen-only"
+                            value="prescreen_only"
+                            className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+                          />
+                          <span className="min-w-0 space-y-[4px]">
+                            <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
+                              Pre-Screening Questions Only
+                            </span>
+                          </span>
+                        </label>
+                      </RadioGroup>
+
+                      <div className="space-y-[12px]">
+                        <div className="flex items-center justify-between gap-[12px]">
+                          <h4 className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Pre-Screening Questions</h4>
+                        </div>
+
+                        {jobForm.questions.length ? (
+                          <div className="space-y-[10px]">
+                            {jobForm.questions.map((question) => renderQuestionCard(question))}
+                          </div>
+                        ) : (
+                          <div className="rounded-[10px] border border-dashed border-[var(--fx-border)] bg-[var(--fx-surface)] px-[14px] py-[12px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                            No questions added yet.
+                          </div>
+                        )}
+
+                        {availableDefaultQuestions.length ? (
+                          <div className="flex flex-wrap gap-[8px]">
+                            {availableDefaultQuestions.map((question) => (
+                              <FxButton
+                                key={question.id}
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="gap-[6px]"
+                                onClick={() => addQuestion(question)}
+                              >
+                                <Plus className="size-[14px]" />
+                                {question.label}
+                              </FxButton>
+                            ))}
+                            <FxButton
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="gap-[6px] text-[var(--fx-primary)] hover:bg-[var(--fx-surface-selected)] hover:text-[var(--fx-primary)]"
+                              onClick={() => {
+                                setIsCustomQuestionComposerOpen(true);
+                                requestAnimationFrame(() => customQuestionInputRef.current?.focus?.());
+                              }}
+                            >
+                              <Plus className="size-[14px]" />
+                              Add Custom
+                            </FxButton>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-[8px]">
+                            <FxButton
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="gap-[6px] text-[var(--fx-primary)] hover:bg-[var(--fx-surface-selected)] hover:text-[var(--fx-primary)]"
+                              onClick={() => {
+                                setIsCustomQuestionComposerOpen(true);
+                                requestAnimationFrame(() => customQuestionInputRef.current?.focus?.());
+                              }}
+                            >
+                              <Plus className="size-[14px]" />
+                              Add Custom
+                            </FxButton>
+                          </div>
+                        )}
+
+                        {isCustomQuestionComposerOpen ? (
+                          <div className="space-y-[10px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[14px]">
+                            <FxInput
+                              ref={customQuestionInputRef}
+                              label="Question Text"
+                              value={customQuestionDraft}
+                              onChange={handleCustomQuestionChange}
+                              placeholder="Enter a screening question"
+                            />
+                            {customQuestionSuggestion ? (
+                              <button
+                                type="button"
+                                onClick={acceptCustomQuestionSuggestion}
+                                className="text-[13px] leading-[20px] text-[var(--fx-primary)] hover:text-[var(--fx-primary)]"
+                              >
+                                Suggested: {customQuestionSuggestion}
+                              </button>
+                            ) : null}
+                            <div className="flex items-center justify-end gap-[8px]">
+                              <FxButton type="button" variant="ghost" size="sm" onClick={() => setIsCustomQuestionComposerOpen(false)}>
+                                Cancel
+                              </FxButton>
+                              <FxButton type="button" variant="secondary" size="sm" onClick={() => commitCustomQuestion()}>
+                                Add Question
+                              </FxButton>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
 
                 </section>
               ) : null}
@@ -2881,6 +3230,15 @@ export default function JobsPage() {
                       })
                     )}
                   </div>
+                  <FxInput
+                    textarea
+                    name="additionalInformation"
+                    label="Additional Information"
+                    placeholder="Add recruiter notes before publishing"
+                    value={jobForm.additionalInformation}
+                    onChange={handleJobFormChange}
+                    className="min-h-[120px]"
+                  />
                 </section>
               ) : null}
 

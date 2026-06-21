@@ -8,6 +8,7 @@ import {
   Building2,
   CalendarDays,
   Check,
+  ChevronDown,
   Cog,
   CreditCard,
   ListChecks,
@@ -33,10 +34,10 @@ const SETTINGS_SECTIONS = [
   { id: "organization", label: "Organization", description: "Workspace identity for internal hiring", icon: Building2 },
   { id: "career-page", label: "Career Page", description: "Public application and branding", icon: Cog },
   { id: "recruiting-status", label: "Recruiting Status", description: "Default recruiting context", icon: BriefcaseBusiness },
-  { id: "screening", label: "Screening Method", description: "AI screening defaults and question flow", icon: ListChecks },
-  { id: "billing", label: "Billing", description: "Plan and invoices", icon: CreditCard },
-  { id: "email-settings", label: "Email", description: "Connected mailboxes and sender defaults", icon: Mail },
+  { id: "screening", label: "Screening Method", description: "AI screening defaults", icon: ListChecks },
+  { id: "email-settings", label: "Email", description: "Connected mailboxes defaults", icon: Mail },
   { id: "calendar", label: "Calender", description: "Calendar connection preferences", icon: CalendarDays },
+  { id: "billing", label: "Billing", description: "Plan and invoices", icon: CreditCard },
   // { id: "ai-context", label: "AI Context", description: "Default recruiting context and evaluation guidance", icon: FileText },
   // { id: "scheduling", label: "Scheduling", description: "Interview scheduling defaults", icon: Settings2 },
   // { id: "notifications", label: "Notifications", description: "Recruiting alerts and digests", icon: Bell },
@@ -66,11 +67,10 @@ const RECRUITING_STATUS_OPTIONS = [
   { value: WORKSPACE_TYPES.BOTH, title: "Hiring for Both", description: "Support both internal and client hiring from the same workspace." },
 ];
 const SCREENING_CHANNEL_OPTIONS = [
+  { value: "manual", title: "Manual", description: "Review and qualify candidates manually." },
   { value: "email", title: "Email Screening", description: "Collect candidate responses through email." },
-  { value: "manual", title: "Manual Screening", description: "Review and qualify candidates manually." },
-  { value: "whatsapp", title: "WhatsApp Screening", description: "Run lightweight screening on WhatsApp." },
-  { value: "sms", title: "SMS Screening", description: "Use short text-based screening when needed." },
-  { value: "phone", title: "Phone Screening", description: "Use recruiter-led phone conversations as the default path." },
+  { value: "phone", title: "AI Phone Call", description: "Run AI-led phone screening as the default path." },
+  { value: "whatsapp", title: "WhatsApp (Coming Soon)", description: "WhatsApp-based screening will be added later.", disabled: true },
 ];
 const PRESCREEN_OPTIONS = [
   {
@@ -187,21 +187,25 @@ function OptionGrid({ options, selectedValue, onSelect, columns = "md:grid-cols-
       {options.map((option) => {
         const active = selectedValue === option.value;
         const optionId = `option-${option.value}`;
+        const disabled = Boolean(option.disabled);
 
         return (
           <label
             key={option.value}
             htmlFor={optionId}
             className={cn(
-              "flex cursor-pointer items-start gap-[12px] rounded-[10px] border px-[14px] py-[14px] text-left transition-colors",
+              "flex items-start gap-[12px] rounded-[10px] border px-[14px] py-[14px] text-left transition-colors",
+              disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
               active
                 ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-                : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-transparent hover:bg-[var(--fx-surface-hover)]/60",
+                : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-transparent",
+              !disabled ? "hover:bg-[var(--fx-surface-hover)]/60" : "",
             )}
           >
             <RadioGroupItem
               id={optionId}
               value={option.value}
+              disabled={disabled}
               className="mt-[1px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
             />
             <span className="space-y-[2px]">
@@ -832,52 +836,57 @@ function ProfileCompletionBanner({
   ];
   const completedCount = checklist.filter((item) => item.completed).length;
   const completedSegments = completedCount;
+  const [expanded, setExpanded] = useState(true);
 
   return (
-    <div className={`overflow-hidden rounded-[16px] border ${FX_COLORS.border}`}>
-      <div className="border-b border-[color:color-mix(in_srgb,var(--fx-border)_56%,transparent)] bg-[var(--fx-surface-subtle)] px-[20px] py-[14px]">
-        <div className="flex flex-col gap-[10px] lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-[4px]">
-          <div className={`${FX_TYPOGRAPHY.cardTitle} text-[var(--fx-text-muted)]`}>Complete Your Workspace Setup</div>
-            <p className={`${FX_TYPOGRAPHY.sidebarEmail} text-[var(--fx-text-muted)]`}>
-              These setup items need to be completed before the workspace is fully ready.
-            </p>
-          </div>
-          <div className="w-full max-w-[180px] space-y-[6px]">
-            <div
-              className="grid h-[6px] gap-[2px]"
-              style={{ gridTemplateColumns: `repeat(${checklist.length}, minmax(0, 1fr))` }}
-            >
-              {checklist.map((item, index) => (
-                <div
-                  key={item.label}
-                  className={cn(
-                    "h-full rounded-[1.5px] transition-colors",
-                    index < completedSegments ? "bg-[var(--fx-text-muted)]" : "bg-[var(--fx-disabled-bg)]",
-                  )}
-                />
-              ))}
-            </div>
-            {/* <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>
-              {completedCount}/{checklist.length} Complete
-            </div> */}
-          </div>
+    <div className="w-full overflow-hidden rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-primary)_22%,var(--fx-border)_78%)] bg-[var(--fx-surface)] shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <button
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        className="flex w-full items-center justify-between gap-[20px] bg-[color:color-mix(in_srgb,var(--fx-surface-selected)_62%,var(--fx-surface)_38%)] px-[24px] py-[18px] text-left transition-colors hover:bg-[color:color-mix(in_srgb,var(--fx-surface-selected)_72%,var(--fx-surface)_28%)]"
+      >
+        <div className="min-w-0 space-y-[6px]">
+          <div className={`${FX_TYPOGRAPHY.cardTitle} text-[var(--fx-text)]`}>Complete Your Workspace Setup</div>
+          <p className={`${FX_TYPOGRAPHY.body} text-[color:color-mix(in_srgb,var(--fx-text)_78%,var(--fx-text-muted)_22%)]`}>
+            These setup items need to be completed before the workspace is fully ready.
+          </p>
         </div>
-      </div>
+        <div className="flex w-full max-w-[240px] items-center gap-[14px]">
+          <div className="grid h-[6px] min-w-0 flex-1 gap-[2px]" style={{ gridTemplateColumns: `repeat(${checklist.length}, minmax(0, 1fr))` }}>
+            {checklist.map((item, index) => (
+              <div
+                key={item.label}
+                className={cn(
+                  "h-full rounded-[1.5px] transition-colors",
+                  index < completedSegments ? "bg-[var(--fx-primary)]" : "bg-[color:color-mix(in_srgb,var(--fx-border)_72%,white_28%)]",
+                )}
+              />
+            ))}
+          </div>
+          <ChevronDown
+            className={cn(
+              "size-[18px] shrink-0 text-[var(--fx-primary)] transition-transform duration-200",
+              expanded ? "rotate-180" : "rotate-0",
+            )}
+          />
+        </div>
+      </button>
 
-      <div className="bg-[var(--fx-surface)] px-[20px] py-[14px]">
-        <div className="grid gap-[4px] md:grid-cols-4">
-          {checklist.map((item) =>
-            item.completed ? (
-              <ChecklistItem key={item.label}>{item.label}</ChecklistItem>
-            ) : (
-              <DueChecklistItem key={item.label} onClick={() => onNavigate(item.sectionId)}>
-                {item.label}
-              </DueChecklistItem>
-            ),
-          )}
+      {expanded ? (
+        <div className="border-t border-[color:color-mix(in_srgb,var(--fx-primary)_14%,var(--fx-border)_86%)] bg-[var(--fx-surface)] px-[24px] py-[16px]">
+          <div className="grid gap-[4px] md:grid-cols-4">
+            {checklist.map((item) =>
+              item.completed ? (
+                <ChecklistItem key={item.label}>{item.label}</ChecklistItem>
+              ) : (
+                <DueChecklistItem key={item.label} onClick={() => onNavigate(item.sectionId)}>
+                  {item.label}
+                </DueChecklistItem>
+              ),
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -989,15 +998,12 @@ function SectionContent({
   if (sectionId === "screening") {
     return (
       <SettingsCard
-        title="Screening Method"
-        description="Set the default screening flow used when new roles are created."
+        title="Screening Setup"
+        description="Choose the default screening path and question flow applied to new roles."
         action={<FxButton variant="secondary" size="md">Save</FxButton>}
       >
         <div className="space-y-[8px]">
-          <h3 className={FX_TYPOGRAPHY.button}>Default Screening Channel</h3>
-          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-            Choose the channel that should guide new screening workflows by default.
-          </p>
+          <h3 className={FX_TYPOGRAPHY.button}>Default Method</h3>
         </div>
         <OptionGrid
           options={SCREENING_CHANNEL_OPTIONS}
@@ -1006,50 +1012,13 @@ function SectionContent({
         />
 
         <div className="space-y-[8px]">
-          <h3 className={FX_TYPOGRAPHY.button}>Default pre-screen flow</h3>
-          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-            Decide whether new roles should use CV context along with pre-screening questions.
-          </p>
+          <h3 className={FX_TYPOGRAPHY.button}>Default Flow</h3>
         </div>
         <OptionGrid
           options={PRESCREEN_OPTIONS}
           selectedValue={prescreenMode}
           onSelect={onPrescreenModeChange}
         />
-
-        <FxInput
-          textarea
-          label="Evaluation Context"
-          defaultValue="Evaluate candidates on role-aligned skills, communication clarity, recruiter readiness, and likely interview fit."
-          className="min-h-[120px]"
-        />
-        <p className={`${FX_TYPOGRAPHY.fieldHint} -mt-[8px] text-[var(--fx-text-muted)]`}>
-          This default context guides AI-assisted screening for newly created roles.
-        </p>
-
-        <div className="space-y-[12px]">
-          <div className="space-y-[4px]">
-            <h3 className={FX_TYPOGRAPHY.button}>Default Candidate Pre-Screening Questions</h3>
-            <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-              Keep these broad and recruiter-facing. New jobs can start from this default set.
-            </p>
-          </div>
-          {[
-            "What relevant experience do you have for this role?",
-            "Are you comfortable with the expected notice period and work setup?",
-            "What are your salary expectations for a role like this?",
-          ].map((question, index) => (
-            <div key={question} className={cn(
-              "flex items-start gap-[12px] py-[10px]",
-              index > 0 ? "border-t border-[color:color-mix(in_srgb,var(--fx-border)_38%,transparent)]" : "",
-            )}>
-              <span className="inline-flex shrink-0 items-center justify-center text-[13px] font-medium leading-[20px] text-[var(--fx-text-muted)]">
-                {index + 1}
-              </span>
-              <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text)]`}>{question}</p>
-            </div>
-          ))}
-        </div>
       </SettingsCard>
     );
   }
@@ -1494,8 +1463,11 @@ export default function SettingsPage() {
 
   return (
     <FxProtectedAppPage pageId="settings">
-      <section className={`${FX_LAYOUT.contentWidthWide} flex w-full min-w-0 flex-1 flex-col gap-[24px] bg-transparent`}>
+      <section className={`${FX_LAYOUT.contentWidthWide} flex w-full min-w-0 flex-1 flex-col gap-[24px] bg-transparent pt-[16px]`}>
         <div className="grid gap-[24px] lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="hidden lg:block" aria-hidden="true" />
+          <ProfileCompletionBanner onNavigate={setActiveSection} {...profileCompletion} />
+
           <aside className="sticky top-0 self-start h-[calc(100vh-64px)] overflow-hidden py-[32px]">
             <div className="fx-scrollbar-hidden h-full min-h-0 overflow-y-auto px-[4px]" ref={sidebarScrollRef} onScroll={updateSidebarScrollState}>
               <div className="space-y-[8px] pr-[4px]">
@@ -1526,38 +1498,35 @@ export default function SettingsPage() {
           </aside>
 
           <main className="min-w-0 py-[32px]">
-            <div className="flex flex-col gap-[16px]">
-              <ProfileCompletionBanner onNavigate={setActiveSection} {...profileCompletion} />
-              <div className={`flex flex-col rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                <div className="px-[24px] py-[32px] md:px-[32px]">
-                  <SectionContent
-                    sectionId={activeSection}
-                    recruitingStatus={recruitingStatus}
-                    onRecruitingStatusChange={handleRecruitingStatusChange}
-                    organizationIndustries={organizationIndustries}
-                    onOrganizationIndustriesChange={setOrganizationIndustries}
-                    screeningChannel={screeningChannel}
-                    onScreeningChannelChange={setScreeningChannel}
-                    prescreenMode={prescreenMode}
-                    onPrescreenModeChange={setPrescreenMode}
-                    emailProviderConnections={emailProviderConnections}
-                    emailSenderAccount={emailSenderAccount}
-                    onEmailSenderAccountChange={handleEmailSenderAccountChange}
-                    connectingEmailProvider={connectingEmailProvider}
-                    onConnectEmailProvider={handleConnectEmailProvider}
-                    emailCommunicationPreferences={emailCommunicationPreferences}
-                    onEmailPreferenceChange={handleEmailPreferenceChange}
-                    calendarProviderConnections={calendarProviderConnections}
-                    calendarDefaultAccount={calendarDefaultAccount}
-                    onCalendarDefaultAccountChange={handleCalendarDefaultAccountChange}
-                    connectingCalendarProvider={connectingCalendarProvider}
-                    onConnectCalendarProvider={handleConnectCalendarProvider}
-                    calendarWeeklyAvailability={calendarWeeklyAvailability}
-                    onCalendarWeeklyAvailabilityChange={handleCalendarWeeklyAvailabilityChange}
-                    calendarPreferences={calendarPreferences}
-                    onCalendarPreferenceChange={handleCalendarPreferenceChange}
-                  />
-                </div>
+            <div className={`flex flex-col rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+              <div className="px-[24px] py-[32px] md:px-[32px]">
+                <SectionContent
+                  sectionId={activeSection}
+                  recruitingStatus={recruitingStatus}
+                  onRecruitingStatusChange={handleRecruitingStatusChange}
+                  organizationIndustries={organizationIndustries}
+                  onOrganizationIndustriesChange={setOrganizationIndustries}
+                  screeningChannel={screeningChannel}
+                  onScreeningChannelChange={setScreeningChannel}
+                  prescreenMode={prescreenMode}
+                  onPrescreenModeChange={setPrescreenMode}
+                  emailProviderConnections={emailProviderConnections}
+                  emailSenderAccount={emailSenderAccount}
+                  onEmailSenderAccountChange={handleEmailSenderAccountChange}
+                  connectingEmailProvider={connectingEmailProvider}
+                  onConnectEmailProvider={handleConnectEmailProvider}
+                  emailCommunicationPreferences={emailCommunicationPreferences}
+                  onEmailPreferenceChange={handleEmailPreferenceChange}
+                  calendarProviderConnections={calendarProviderConnections}
+                  calendarDefaultAccount={calendarDefaultAccount}
+                  onCalendarDefaultAccountChange={handleCalendarDefaultAccountChange}
+                  connectingCalendarProvider={connectingCalendarProvider}
+                  onConnectCalendarProvider={handleConnectCalendarProvider}
+                  calendarWeeklyAvailability={calendarWeeklyAvailability}
+                  onCalendarWeeklyAvailabilityChange={handleCalendarWeeklyAvailabilityChange}
+                  calendarPreferences={calendarPreferences}
+                  onCalendarPreferenceChange={handleCalendarPreferenceChange}
+                />
               </div>
             </div>
           </main>
