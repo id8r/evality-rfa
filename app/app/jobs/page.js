@@ -17,6 +17,7 @@ import {
   BusFront,
   CalendarDays,
   Coffee,
+  Circle,
   Dumbbell,
   Gift,
   GraduationCap,
@@ -1468,19 +1469,22 @@ export default function JobsPage() {
     );
   }
 
-  function renderReviewStatusDot(isComplete) {
+  function renderReviewStatusIndicator(isComplete) {
     const label = isComplete ? "Complete" : "Needs review";
 
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
+          <span
             aria-label={label}
-            className={`size-[8px] shrink-0 rounded-full ${
-              isComplete ? "bg-[var(--fx-success)]" : "bg-[var(--fx-warning)]"
+            className={`inline-flex size-[16px] shrink-0 items-center justify-center rounded-full ${
+              isComplete
+                ? "text-[var(--fx-success)]"
+                : "text-[var(--fx-warning)]"
             }`}
-          />
+          >
+            {isComplete ? <BadgeCheck className="size-[14px]" /> : <Circle className="size-[8px] fill-current" />}
+          </span>
         </TooltipTrigger>
         <TooltipContent side="top" sideOffset={6}>
           {label}
@@ -1493,10 +1497,10 @@ export default function JobsPage() {
     const inlineSummary = lines.length ? lines.join(" ") : null;
 
     return (
-      <div className="space-y-[12px] rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
+      <div className="space-y-[8px] py-[8px]">
         <div className="flex items-center justify-between gap-[12px]">
           <div className="flex min-w-0 items-center gap-[8px]">
-            {renderReviewStatusDot(complete)}
+            {renderReviewStatusIndicator(complete)}
             <div className="min-w-0">
               <h4 className={`${FX_TYPOGRAPHY.button} flex min-w-0 items-center gap-[6px] text-[var(--fx-text-muted)]`}>
                 <span className="truncate">{title}</span>
@@ -2837,7 +2841,7 @@ export default function JobsPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-[12px]">
+                  <div className="space-y-[8px] rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]">
                     {renderReviewSummaryRow({
                       title: "Basic Details",
                       step: "basic",

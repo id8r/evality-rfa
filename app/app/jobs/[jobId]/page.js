@@ -5262,6 +5262,10 @@ export default function JobDetailsPage({ params }) {
         candidatePool={recommendedCandidates}
         onPickExistingCandidate={handleAttachExistingCandidate}
         onUploadFiles={handleUploadCandidateFiles}
+        onViewResume={(candidate) => {
+          setAddCandidatesOpen(false);
+          handleOpenCandidateSheet(candidate, "resume");
+        }}
       />
         <CandidateWorkspaceSheet
           open={candidateSheetOpen}
