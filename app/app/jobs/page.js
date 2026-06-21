@@ -1771,7 +1771,7 @@ export default function JobsPage() {
     positions: `${Number(jobForm.positions) || 0} Position${Number(jobForm.positions) === 1 ? "" : "s"}`,
     location: sheetSummaryLocation,
     compensationRange: buildSalaryRangeLabel(jobForm.salaryMin, jobForm.salaryMax, jobForm.currency) || "—",
-    compensationVisibility: jobForm.hideCompensationFromCandidates ? "Salary hidden" : "Show Salary to Candidates on the job portal",
+    compensationVisibility: jobForm.hideCompensationFromCandidates ? "Don't Show Salary to Candidates" : "Show Salary to Candidates",
   };
   const reviewDescriptionStatus = hasRichTextContent(jobForm.jobDescription) ? "Description Added" : "Description Missing";
   const reviewPrimarySkillCount = fromCommaList(jobForm.primarySkills).length;
@@ -1806,16 +1806,16 @@ export default function JobsPage() {
       </p>
       <label className="flex shrink-0 items-center gap-[8px] whitespace-nowrap text-[14px] leading-[22px] text-[var(--fx-text)]">
         <Checkbox
-          checked={!jobForm.hideCompensationFromCandidates}
+          checked={Boolean(jobForm.hideCompensationFromCandidates)}
           onCheckedChange={(checked) =>
             setJobForm((current) => ({
               ...current,
-              hideCompensationFromCandidates: !Boolean(checked),
+              hideCompensationFromCandidates: Boolean(checked),
             }))
           }
           className="mt-[2px]"
         />
-        <span>Show Salary to Candidates on the job portal</span>
+        <span>Don't Show Salary to Candidates</span>
       </label>
     </div>
   );
@@ -2619,7 +2619,7 @@ export default function JobsPage() {
                               }))
                             }
                           />
-                          <span className={FX_TYPOGRAPHY.fieldLabel}>Show Salary to Candidates on the job portal</span>
+                          <span className={FX_TYPOGRAPHY.fieldLabel}>Don't Show Salary to Candidates</span>
                         </label>
                       </div>
                     </div>
