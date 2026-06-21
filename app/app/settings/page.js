@@ -127,6 +127,45 @@ function buildIdentityOrganizationSeed() {
     logoFileName: storedOrganization?.logoFileName || "",
   };
 }
+/* - - - - - - - - - - - - - - - - */
+
+function getPhoneSeedFromCurrency(currency = "INR") {
+  if (currency === "USD") {
+    return {
+      value: "",
+      placeholder: "+1 (012) 345-6789",
+    };
+  }
+
+  if (currency === "GBP") {
+    return {
+      value: "",
+      placeholder: "+44 01234 56789",
+    };
+  }
+
+  return {
+    value: "",
+    placeholder: "+91 01234 56789",
+  };
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getProfileSeed() {
+  const authEmail = readStoredValue(STORAGE_KEYS.AUTH_EMAIL) || DEMO_USER.email;
+  const jobStore = readStoredJSON(STORAGE_KEYS.JOBS);
+  const firstJobCurrency = Array.isArray(jobStore?.jobs) ? jobStore.jobs[0]?.currency : null;
+  const phoneSeed = getPhoneSeedFromCurrency(firstJobCurrency || "INR");
+
+  return {
+    name: DEMO_USER.name,
+    email: authEmail,
+    phone: phoneSeed.value,
+    phonePlaceholder: phoneSeed.placeholder,
+    role: ROLE_OPTIONS[0],
+    aboutMe: "Recruiter focused on building structured screening workflows and a calm candidate experience.",
+  };
+}
 
 function getScrollMetrics(element) {
   if (!element) {
@@ -932,6 +971,8 @@ function SectionContent({
   organizationProfile,
   onOrganizationProfileChange,
   onSaveOrganizationProfile,
+  profileForm,
+  onProfileFieldChange,
   recruitingStatus,
   onRecruitingStatusChange,
   organizationIndustries,
@@ -1210,17 +1251,41 @@ function SectionContent({
       action={<FxButton variant="secondary" size="md">Save</FxButton>}
     >
       <div className="grid gap-[16px] md:grid-cols-2">
-        <FxInput label="Name" defaultValue={DEMO_USER.name} />
-        <FxInput label="Email" defaultValue={DEMO_USER.email} />
+        <FxInput
+          label="Name"
+          value={profileForm.name}
+          onChange={(event) => onProfileFieldChange("name", event?.target?.value ?? "")}
+          helperText="Retrieved from email or LinkedIn profile."
+        />
+        <FxInput
+          label="Email"
+          value={profileForm.email}
+          onChange={(event) => onProfileFieldChange("email", event?.target?.value ?? "")}
+          helperText="Retrieved from email or LinkedIn profile."
+        />
       </div>
       <div className="grid gap-[16px] md:grid-cols-2">
-        <FxInput label="Phone" defaultValue="+1 (415) 555-0124" />
-        <SelectField label="Role" defaultValue={ROLE_OPTIONS[0]} options={ROLE_OPTIONS} />
+        <FxInput
+          label="Phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={profileForm.phone}
+          placeholder={profileForm.phonePlaceholder}
+          onChange={(event) => onProfileFieldChange("phone", event?.target?.value ?? "")}
+        />
+        <FxSelect
+          label="Role"
+          value={profileForm.role}
+          onChange={(event) => onProfileFieldChange("role", event?.target?.value ?? ROLE_OPTIONS[0])}
+          options={ROLE_OPTIONS}
+        />
       </div>
       <FxInput
         textarea
         label="About Me"
-        defaultValue="Recruiter focused on building structured screening workflows and a calm candidate experience."
+        value={profileForm.aboutMe}
+        onChange={(event) => onProfileFieldChange("aboutMe", event?.target?.value ?? "")}
         className="min-h-[120px]"
       />
       <div className="flex flex-col gap-[8px]">
@@ -1244,6 +1309,7 @@ function SectionContent({
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile");
   const [organizationProfile, setOrganizationProfile] = useState(() => buildIdentityOrganizationSeed());
+  const [profileForm, setProfileForm] = useState(() => getProfileSeed());
   const [recruitingStatus, setRecruitingStatus] = useState(WORKSPACE_TYPES.MY_COMPANY);
   const [screeningChannel, setScreeningChannel] = useState("email");
   const [prescreenMode, setPrescreenMode] = useState("cv_and_prescreen");
@@ -1296,6 +1362,10 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setOrganizationProfile(buildIdentityOrganizationSeed());
+  }, []);
+
+  useEffect(() => {
+    setProfileForm(getProfileSeed());
   }, []);
 
   useEffect(() => {
@@ -1391,6 +1461,14 @@ export default function SettingsPage() {
 
   function handleSaveOrganizationProfile() {
     writeStoredJSON(STORAGE_KEYS.ORGANIZATION_PROFILE, organizationProfile);
+  }
+/* - - - - - - - - - - - - - - - - */
+
+  function handleProfileFieldChange(key, value) {
+    setProfileForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
   }
 
   function handleEmailSenderAccountChange(event) {
@@ -1588,6 +1666,8 @@ export default function SettingsPage() {
                   organizationProfile={organizationProfile}
                   onOrganizationProfileChange={handleOrganizationProfileChange}
                   onSaveOrganizationProfile={handleSaveOrganizationProfile}
+                  profileForm={profileForm}
+                  onProfileFieldChange={handleProfileFieldChange}
                   recruitingStatus={recruitingStatus}
                   onRecruitingStatusChange={handleRecruitingStatusChange}
                   organizationIndustries={organizationIndustries}
