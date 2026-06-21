@@ -1767,7 +1767,7 @@ export default function JobsPage() {
     positions: `${Number(jobForm.positions) || 0} Position${Number(jobForm.positions) === 1 ? "" : "s"}`,
     location: sheetSummaryLocation,
     compensationRange: buildSalaryRangeLabel(jobForm.salaryMin, jobForm.salaryMax, jobForm.currency) || "—",
-    compensationVisibility: jobForm.hideCompensationFromCandidates ? "Salary hidden" : "Show Salary to Candidates",
+    compensationVisibility: jobForm.hideCompensationFromCandidates ? "Salary hidden" : "Show Salary to Candidates on the job portal",
   };
   const reviewDescriptionStatus = hasRichTextContent(jobForm.jobDescription) ? "Description Added" : "Description Missing";
   const reviewPrimarySkillCount = fromCommaList(jobForm.primarySkills).length;
@@ -1811,7 +1811,7 @@ export default function JobsPage() {
           }
           className="mt-[2px]"
         />
-        <span>Show Salary to Candidates</span>
+        <span>Show Salary to Candidates on the job portal</span>
       </label>
     </div>
   );
@@ -2548,7 +2548,7 @@ export default function JobsPage() {
                         <div className="xl:col-span-3">
                           <FxInput
                             name="questionCount"
-                            label="Number of Rounds"
+                            label="Interview Rounds"
                             min="0"
                             type="number"
                             value={jobForm.questions?.length ?? 0}
@@ -2615,7 +2615,7 @@ export default function JobsPage() {
                               }))
                             }
                           />
-                          <span className={FX_TYPOGRAPHY.fieldLabel}>Show Salary to Candidates</span>
+                          <span className={FX_TYPOGRAPHY.fieldLabel}>Show Salary to Candidates on the job portal</span>
                         </label>
                       </div>
                     </div>

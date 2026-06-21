@@ -80,6 +80,9 @@ const PIPELINE_STAGES = [
   { value: "screened", label: "Pre-Screened" },
   { value: "shortlisted", label: "Shortlisted" },
   { value: "shared", label: "Interviewing" },
+  { value: "offered", label: "Offered" },
+  { value: "joined", label: "Joined" },
+  { value: "dropped", label: "Dropped" },
   { value: "rejected", label: "Rejected" },
 ];
 
@@ -89,6 +92,12 @@ const PIPELINE_STAGE_COUNT_KEYS = {
   screened: "preScreenedCount",
   shortlisted: "shortlistedCount",
   shared: "sentToClientCount",
+};
+const CLIENT_PROGRESS_STAGE_STATUS = {
+  shared: "Interviewing",
+  offered: "Offered",
+  joined: "Joined",
+  dropped: "Candidate Dropped Off",
 };
 
 const EMPTY_STAGE_COPY = {
@@ -109,8 +118,20 @@ const EMPTY_STAGE_COPY = {
     body: "Shortlist strong candidates to prepare them for client review.",
   },
   shared: {
-    title: "No candidates sent to client yet",
-    body: "Candidates shared with the client will appear here.",
+    title: "No interviewing candidates yet",
+    body: "Candidates moved to interviewing will appear here.",
+  },
+  offered: {
+    title: "No offered candidates yet",
+    body: "Candidates marked as offered will appear here.",
+  },
+  joined: {
+    title: "No joined candidates yet",
+    body: "Candidates marked as joined will appear here.",
+  },
+  dropped: {
+    title: "No dropped candidates yet",
+    body: "Candidates who dropped after client sharing will appear here.",
   },
   rejected: {
     title: "No rejected candidates yet",
@@ -226,6 +247,32 @@ function normalizeUnscreenedFilterStatus(candidate, jobContext) {
 
 function normalizeJob(job) {
   return normalizeJobRecord(job);
+}
+/* - - - - - - - - - - - - - - - - */
+
+function isClientProgressStage(stage) {
+  return ["shared", "offered", "joined", "dropped"].includes(stage);
+}
+/* - - - - - - - - - - - - - - - - */
+
+function matchesPipelineStage(candidate, stage) {
+  if (!candidate) {
+    return false;
+  }
+
+  if (stage === "shared" || stage === "offered" || stage === "joined") {
+    return candidate.status === "shared" && (candidate.clientStatus || "Feedback Awaited") === CLIENT_PROGRESS_STAGE_STATUS[stage];
+  }
+
+  if (stage === "dropped") {
+    return candidate.status === "rejected" && (candidate.clientStatus || "") === CLIENT_PROGRESS_STAGE_STATUS.dropped;
+  }
+
+  if (stage === "rejected") {
+    return candidate.status === "rejected" && (candidate.clientStatus || "") !== CLIENT_PROGRESS_STAGE_STATUS.dropped;
+  }
+
+  return candidate.status === stage;
 }
 
 function getPipelineCountKey(status) {
@@ -567,10 +614,29 @@ function getPreScreeningIcon(candidate) {
 function getStoredPipelineCounts(candidateRows) {
   return candidateRows.reduce(
     (counts, candidate) => {
-      counts[candidate.status] = (counts[candidate.status] || 0) + 1;
+      if (candidate.status === "shared") {
+        const clientStatus = candidate.clientStatus || "Feedback Awaited";
+
+        if (clientStatus === CLIENT_PROGRESS_STAGE_STATUS.shared) {
+          counts.shared += 1;
+        }
+
+        if (clientStatus === CLIENT_PROGRESS_STAGE_STATUS.offered) {
+          counts.offered += 1;
+        }
+
+        if (clientStatus === CLIENT_PROGRESS_STAGE_STATUS.joined) {
+          counts.joined += 1;
+        }
+      } else if (candidate.status === "rejected" && (candidate.clientStatus || "") === CLIENT_PROGRESS_STAGE_STATUS.dropped) {
+        counts.dropped += 1;
+      } else {
+        counts[candidate.status] = (counts[candidate.status] || 0) + 1;
+      }
+
       return counts;
     },
-    { unscreened: 0, screened: 0, shortlisted: 0, shared: 0, rejected: 0 },
+    { unscreened: 0, screened: 0, shortlisted: 0, shared: 0, offered: 0, joined: 0, dropped: 0, rejected: 0 },
   );
 }
 
@@ -2503,19 +2569,16 @@ function AddCandidatesDrawer({
   candidatePool,
   onPickExistingCandidate,
   onUploadFiles,
-  onAddSingleCandidate,
 }) {
   const fileInputRef = useRef(null);
-  const [draft, setDraft] = useState({ name: "", email: "", phone: "", currentCompany: "", currentRole: "", experience: "" });
   const [isDragging, setIsDragging] = useState(false);
-  const [activeMode, setActiveMode] = useState("pick");
+  const [activeMode, setActiveMode] = useState("upload");
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (!open) {
-      setDraft({ name: "", email: "", phone: "", currentCompany: "", currentRole: "", experience: "" });
       setIsDragging(false);
-      setActiveMode("pick");
+      setActiveMode("upload");
       setSearchTerm("");
 
       if (fileInputRef.current) {
@@ -2523,10 +2586,6 @@ function AddCandidatesDrawer({
       }
     }
   }, [open]);
-
-  function resetDraft() {
-    setDraft({ name: "", email: "", phone: "", currentCompany: "", currentRole: "", experience: "" });
-  }
 
   function handleFileSelection(event) {
     onUploadFiles(event.target.files);
@@ -2564,62 +2623,13 @@ function AddCandidatesDrawer({
           <div className="space-y-[16px]">
             <FxTabs
               tabs={[
-                { value: "pick", label: "From Candidates" },
                 { value: "upload", label: "Upload" },
-                { value: "manual", label: "Manual Entry" },
+                { value: "pick", label: "Recommend Candidates" },
               ]}
               active={activeMode}
               onChange={setActiveMode}
               className="justify-start"
             />
-
-            {activeMode === "pick" ? (
-              <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
-                <div className="flex items-start justify-between gap-[16px]">
-                  <div className="space-y-[4px]">
-                    <p className={FX_TYPOGRAPHY.cardTitle}>Pick from candidates</p>
-                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                      Add an existing candidate to this job without re-entering their details.
-                    </p>
-                  </div>
-                  <div className="w-full max-w-[280px]">
-                    <FxInput
-                      placeholder="Search candidates"
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-[16px] space-y-[10px]">
-                  {filteredCandidates.length ? (
-                    filteredCandidates.map((candidate) => (
-                      <div
-                        key={candidate.id}
-                        className={`flex items-center justify-between gap-[12px] rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[16px] py-[14px]`}
-                      >
-                        <div className="min-w-0 space-y-[4px]">
-                          <p className={`${FX_TYPOGRAPHY.button} truncate text-[var(--fx-text)]`}>{candidate.name}</p>
-                          <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
-                            {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
-                          </p>
-                        </div>
-                        <FxButton type="button" variant="outline" size="sm" onClick={() => onPickExistingCandidate(candidate)}>
-                          Add to Job
-                        </FxButton>
-                      </div>
-                    ))
-                  ) : (
-                    <div className={`rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px] text-center`}>
-                      <p className={FX_TYPOGRAPHY.button}>No candidates found</p>
-                      <p className={`${FX_TYPOGRAPHY.fieldHint} mt-[4px] text-[var(--fx-text-muted)]`}>
-                        Try another name or use upload/manual entry.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            ) : null}
 
             {activeMode === "upload" ? (
               <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
@@ -2677,70 +2687,59 @@ function AddCandidatesDrawer({
               </section>
             ) : null}
 
-            {activeMode === "manual" ? (
+            {activeMode === "pick" ? (
               <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
-                <div className="grid gap-[16px] md:grid-cols-2">
-                  <FxInput
-                    label="Full Name"
-                    placeholder="Aarav Mehta"
-                    value={draft.name}
-                    onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                  />
-                  <FxInput
-                    label="Email"
-                    placeholder="aarav@example.com"
-                    value={draft.email}
-                    onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
-                  />
-                  <FxInput
-                    label="Phone"
-                    placeholder="+91 98765 43210"
-                    value={draft.phone}
-                    onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))}
-                  />
-                  <FxInput
-                    label="Current Company"
-                    placeholder="ThinkJS"
-                    value={draft.currentCompany || ""}
-                    onChange={(event) => setDraft((current) => ({ ...current, currentCompany: event.target.value }))}
-                  />
-                  <FxInput
-                    label="Current Role"
-                    placeholder="Frontend Engineer"
-                    value={draft.currentRole || ""}
-                    onChange={(event) => setDraft((current) => ({ ...current, currentRole: event.target.value }))}
-                  />
-                  <FxInput
-                    label="Experience (Years)"
-                    placeholder="4"
-                    type="number"
-                    min="0"
-                    value={draft.experience || ""}
-                    onChange={(event) => setDraft((current) => ({ ...current, experience: event.target.value }))}
-                  />
+                <div className="flex items-start justify-between gap-[16px]">
+                  <div className="space-y-[4px]">
+                    <FxAiButton type="button" onClick={() => {}}>
+                      Recommend Candidates
+                    </FxAiButton>
+                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                      Add an existing candidate to this job without re-entering details.
+                    </p>
+                  </div>
+                  <div className="w-full max-w-[280px]">
+                    <FxInput
+                      placeholder="Search candidates"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                    />
+                  </div>
                 </div>
 
-                <div className="mt-[16px] flex items-center gap-[8px]">
-                  <FxButton
-                    type="button"
-                    onClick={() => {
-                      onAddSingleCandidate(draft, resetDraft);
-                    }}
-                    disabled={!draft.name.trim()}
-                  >
-                    <Plus className="size-[16px]" />
-                    Add Candidate
-                  </FxButton>
-                  <FxButton type="button" variant="ghost" onClick={resetDraft}>
-                    Clear
-                  </FxButton>
+                <div className="mt-[16px] space-y-[10px]">
+                  {filteredCandidates.length ? (
+                    filteredCandidates.map((candidate) => (
+                      <div
+                        key={candidate.id}
+                        className={`flex items-center justify-between gap-[12px] rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[16px] py-[14px]`}
+                      >
+                        <div className="min-w-0 space-y-[4px]">
+                          <p className={`${FX_TYPOGRAPHY.button} truncate text-[var(--fx-text)]`}>{candidate.name}</p>
+                          <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
+                            {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
+                          </p>
+                        </div>
+                        <FxButton type="button" variant="outline" size="sm" onClick={() => onPickExistingCandidate(candidate)}>
+                          Add to Job
+                        </FxButton>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={`rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px] text-center`}>
+                      <p className={FX_TYPOGRAPHY.button}>No candidates found</p>
+                      <p className={`${FX_TYPOGRAPHY.fieldHint} mt-[4px] text-[var(--fx-text-muted)]`}>
+                        Try another name or switch to upload.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </section>
             ) : null}
           </div>
         </SheetBody>
         <SheetFooter
-          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Bulk upload and manual entry update the current job immediately.</span>}
+          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Upload and candidate selection update the current job immediately.</span>}
           right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
         />
       </SheetContent>
