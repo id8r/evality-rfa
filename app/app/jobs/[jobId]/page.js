@@ -126,7 +126,7 @@ const CLIENT_STATUS_OPTIONS = [
   "Joined",
   "Rejected",
   "On Hold",
-  "Dropped Off",
+  "Candidate Dropped Off",
 ];
 
 const UNSCREENED_FILTERS = [
@@ -152,7 +152,7 @@ const SHARED_FILTERS = [
   { key: "Joined", label: "Joined" },
   { key: "Rejected", label: "Rejected" },
   { key: "On Hold", label: "On Hold" },
-  { key: "Dropped Off", label: "Dropped Off" },
+  { key: "Candidate Dropped Off", label: "Candidate Dropped Off" },
 ];
 /* - - - - - - - - - - - - - - - - */
 
@@ -203,7 +203,7 @@ const CV_MATCH_BREAKDOWN_SECTIONS = [
 ];
 
 function getClientOutcomeStage(status) {
-  if (status === "Rejected" || status === "Dropped Off") {
+  if (status === "Rejected" || status === "Candidate Dropped Off") {
     return "rejected";
   }
 
@@ -1959,80 +1959,134 @@ function ClientStatusUpdateSheet({
   open,
   onOpenChange,
   candidate,
+  pendingStatus,
+  mode = "status",
   onSave,
   onOpenResume,
 }) {
-  const [statusValue, setStatusValue] = useState("Feedback Awaited");
   const [commentValue, setCommentValue] = useState("");
+  const commentRef = useRef(null);
 
   useEffect(() => {
-    setStatusValue(candidate?.clientStatus || "Feedback Awaited");
     setCommentValue("");
-  }, [candidate?.id, candidate?.clientStatus, open]);
+  }, [candidate?.id, candidate?.clientStatus, open, pendingStatus, mode]);
 
-  const commentHistory = Array.isArray(candidate?.jobContext?.clientComments) ? candidate.jobContext.clientComments : [];
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      commentRef.current?.focus?.();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [open, pendingStatus, mode]);
+
+  const activityHistory = useMemo(() => {
+    const clientActivity = Array.isArray(candidate?.jobContext?.clientActivity) ? candidate.jobContext.clientActivity : [];
+    const legacyComments = Array.isArray(candidate?.jobContext?.clientComments)
+      ? candidate.jobContext.clientComments.map((entry) => ({
+          ...entry,
+          type: "note",
+          text: entry.text || "Recruiter note",
+        }))
+      : [];
+
+    return [...clientActivity, ...legacyComments]
+      .filter(Boolean)
+      .sort((left, right) => new Date(left.timestamp || 0).getTime() - new Date(right.timestamp || 0).getTime());
+  }, [candidate?.jobContext?.clientActivity, candidate?.jobContext?.clientComments]);
+  const currentStatus = candidate?.clientStatus || "Feedback Awaited";
+  const newStatus = pendingStatus || currentStatus;
+  const trimmedComment = String(commentValue ?? "").trim();
+  const canSave = Boolean(trimmedComment);
+  const isStatusChange = Boolean(pendingStatus);
+  const sheetDescription = isStatusChange ? `${currentStatus} → ${newStatus}` : `Current status: ${currentStatus}`;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="lg">
-        <SheetHeader title="Update Status & Recruiter Comments" />
+      <SheetContent size="xl">
+        <SheetHeader
+          title={candidate?.name || "Candidate Activity"}
+          description={sheetDescription}
+        />
         <SheetBody>
           {candidate ? (
             <div className="space-y-[16px]">
-              <div className={`grid gap-[16px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px] md:grid-cols-2`}>
-                <MetaField label="Email" value={candidate.email || "—"} />
-                <MetaField label="Phone" value={candidate.phone || "—"} />
-                <MetaField label="Resume" value={(
-                  <button type="button" className="text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]" onClick={() => onOpenResume?.(candidate)}>
-                    View Resume
-                  </button>
-                )} />
-                <MetaField label="Availability / Joining" value={formatAvailability(candidate.availabilityDays)} />
-                <MetaField label="Current CTC" value={formatCurrency(candidate.currentSalary)} />
-                <MetaField label="Expected CTC" value={formatCurrency(candidate.expectedSalary)} />
-              </div>
-
               <div className={`space-y-[14px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="space-y-[6px]">
-                  <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>Status</p>
-                  <select
-                    value={statusValue}
-                    onChange={(event) => setStatusValue(event.target.value)}
-                    className={`h-[40px] w-full rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px] text-[14px] leading-[22px] text-[var(--fx-text)] outline-none`}
-                  >
-                    {CLIENT_STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
+                <div className="flex items-start justify-between gap-[16px]">
+                  <div className="space-y-[4px]">
+                    <p className={`${FX_TYPOGRAPHY.cardTitle} text-[var(--fx-text-muted)]`}>Activity</p>
+                    <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">
+                      {isStatusChange
+                        ? `Add a recruiter comment before saving ${newStatus}.`
+                        : "Review the status timeline and add a recruiter note if needed."}
+                    </p>
+                  </div>
+                  {isStatusChange ? (
+                    <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--fx-primary)_24%,var(--fx-border)_76%)] bg-[color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)] px-[10px] py-[4px] text-[12px] leading-[18px] font-medium text-[var(--fx-primary)]">
+                      {newStatus}
+                    </span>
+                  ) : null}
                 </div>
-                <div className="space-y-[6px]">
-                  <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>Recruiter Comment</p>
-                  <textarea
-                    value={commentValue}
-                    onChange={(event) => setCommentValue(event.target.value)}
-                    placeholder="Add recruiter comments"
-                    className={`min-h-[120px] w-full resize-none rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px] py-[10px] text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)]`}
-                  />
+
+                <textarea
+                  ref={commentRef}
+                  value={commentValue}
+                  onChange={(event) => setCommentValue(event.target.value)}
+                  placeholder={isStatusChange ? "Recruiter comment required to save status change" : "Add recruiter note"}
+                  className={`min-h-[108px] w-full resize-none rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px] py-[10px] text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)]`}
+                />
+
+                <div className="space-y-[12px]">
+                  <div className="flex items-center justify-between gap-[12px]">
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Timeline</p>
+                    <span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                      {activityHistory.length ? `${activityHistory.length} item${activityHistory.length === 1 ? "" : "s"}` : "No activity yet"}
+                    </span>
+                  </div>
+                  {activityHistory.length ? (
+                    <div className="space-y-[10px]">
+                      {activityHistory.map((entry) => (
+                        <div key={entry.id} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                          <div className="flex items-center justify-between gap-[12px]">
+                            <div className="flex items-center gap-[8px]">
+                              <span className={`inline-flex size-[8px] shrink-0 rounded-full ${entry.type === "status" ? "bg-[var(--fx-primary)]" : "bg-[var(--fx-text-muted)]"}`} aria-hidden="true" />
+                              <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">{entry.author || "Recruiter"}</p>
+                            </div>
+                            <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">{entry.timestamp ? `${formatCompactDate(entry.timestamp)} · ${formatTime(entry.timestamp)}` : "—"}</p>
+                          </div>
+                          <p className="mt-[6px] text-[14px] leading-[22px] text-[var(--fx-text)]">
+                            {entry.type === "status"
+                              ? `Status updated to ${entry.status || "Feedback Awaited"}`
+                              : entry.text || "Recruiter note"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">No activity yet.</p>
+                  )}
                 </div>
               </div>
 
               <div className={`space-y-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <p className={FX_TYPOGRAPHY.cardTitle}>Comment History</p>
-                {commentHistory.length ? (
-                  <div className="space-y-[12px]">
-                    {commentHistory.map((entry) => (
-                      <div key={entry.id} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                        <div className="flex items-center justify-between gap-[12px]">
-                          <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">{entry.author || "Recruiter"}</p>
-                          <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">{entry.timestamp ? `${formatCompactDate(entry.timestamp)} · ${formatTime(entry.timestamp)}` : "—"}</p>
-                        </div>
-                        <p className="mt-[6px] text-[14px] leading-[22px] text-[var(--fx-text)]">{entry.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">No recruiter comments yet.</p>
-                )}
+                <p className={FX_TYPOGRAPHY.cardTitle}>Candidate Snapshot</p>
+                <div className="grid gap-[16px] md:grid-cols-2">
+                  <MetaField label="Email" value={candidate.email || "—"} />
+                  <MetaField label="Phone" value={candidate.phone || "—"} />
+                  <MetaField label="Resume" value={(
+                    <button type="button" className="text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]" onClick={() => onOpenResume?.(candidate)}>
+                      View Resume
+                    </button>
+                  )} />
+                  <MetaField label="Availability / Joining" value={formatAvailability(candidate.availabilityDays)} />
+                  <MetaField label="Current CTC" value={formatCurrency(candidate.currentSalary)} />
+                  <MetaField label="Expected CTC" value={formatCurrency(candidate.expectedSalary)} />
+                  <MetaField label="Current Stage" value={candidate.clientStatus || "Feedback Awaited"} />
+                  <MetaField label="Last Updated" value={candidate.updatedAt ? formatCompactDate(candidate.updatedAt) : "—"} />
+                </div>
               </div>
             </div>
           ) : null}
@@ -2044,8 +2098,8 @@ function ClientStatusUpdateSheet({
             </FxButton>
           )}
           right={(
-            <FxButton size="sm" onClick={() => candidate && onSave?.(candidate, statusValue, commentValue)}>
-              Save Update
+            <FxButton size="sm" disabled={!canSave} onClick={() => candidate && onSave?.(candidate, pendingStatus, trimmedComment)}>
+              {isStatusChange ? "Save Status" : "Save Note"}
             </FxButton>
           )}
         />
@@ -2795,6 +2849,8 @@ export default function JobDetailsPage({ params }) {
   const [manualScreeningOpen, setManualScreeningOpen] = useState(false);
   const [callPreviewOpen, setCallPreviewOpen] = useState(false);
   const [clientStatusSheetOpen, setClientStatusSheetOpen] = useState(false);
+  const [clientStatusPendingStatus, setClientStatusPendingStatus] = useState(null);
+  const [clientStatusSheetMode, setClientStatusSheetMode] = useState("status");
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [candidateToReject, setCandidateToReject] = useState(null);
   const [rejectReasonDraft, setRejectReasonDraft] = useState("");
@@ -3565,24 +3621,15 @@ export default function JobDetailsPage({ params }) {
     [handleRejectCandidate],
   );
 
-  const handleUpdateClientStatus = useCallback(
+  const handleCommitClientStatus = useCallback(
     (candidate, nextStatus = null, recruiterComment = "") => {
       if (!candidate) {
         return;
       }
 
-      const currentIndex = CLIENT_STATUS_OPTIONS.indexOf(candidate.clientStatus || "Feedback Awaited");
-      const resolvedStatus =
-        nextStatus ??
-        CLIENT_STATUS_OPTIONS[(currentIndex + 1 + CLIENT_STATUS_OPTIONS.length) % CLIENT_STATUS_OPTIONS.length] ??
-        CLIENT_STATUS_OPTIONS[0];
-      const nextStage = getClientOutcomeStage(resolvedStatus);
-      const rejectionReason =
-        resolvedStatus === "Rejected"
-          ? "Rejected by client"
-          : resolvedStatus === "Dropped Off"
-            ? "Candidate dropped off after sharing"
-            : candidate.rejectionReason;
+      const resolvedStatus = CLIENT_STATUS_OPTIONS.includes(nextStatus)
+        ? nextStatus
+        : CLIENT_STATUS_OPTIONS[0];
       const trimmedComment = String(recruiterComment ?? "").trim();
       const commentEntry = trimmedComment
         ? {
@@ -3592,48 +3639,79 @@ export default function JobDetailsPage({ params }) {
             timestamp: new Date().toISOString(),
           }
         : null;
+      const now = new Date().toISOString();
+      const historyEntries = [
+        {
+          id: `client-status-${Date.now()}`,
+          type: "status",
+          status: resolvedStatus,
+          author: "Renny",
+          timestamp: now,
+        },
+        ...(commentEntry
+          ? [{
+              id: `client-comment-${Date.now()}`,
+              type: "note",
+              author: "Renny",
+              text: trimmedComment,
+              timestamp: now,
+            }]
+          : []),
+      ];
 
       updateWorkspaceCandidate(
         candidate.id,
         (current) => ({
           ...current,
-          status: nextStage,
           clientStatus: resolvedStatus,
-          rejectionReason,
-          updatedAt: new Date().toISOString(),
+          updatedAt: now,
+          activityUpdatedAt: now,
           jobContexts: {
             ...(current.jobContexts ?? {}),
             [job.id]: {
               ...(current.jobContexts?.[job.id] ?? {}),
               clientStatus: resolvedStatus,
+              clientActivity: [
+                ...(Array.isArray(current.jobContexts?.[job.id]?.clientActivity) ? current.jobContexts[job.id].clientActivity : []),
+                ...historyEntries,
+              ],
               clientComments: commentEntry
                 ? [...(Array.isArray(current.jobContexts?.[job.id]?.clientComments) ? current.jobContexts[job.id].clientComments : []), commentEntry]
                 : (Array.isArray(current.jobContexts?.[job.id]?.clientComments) ? current.jobContexts[job.id].clientComments : []),
             },
           },
         }),
-        { fromStatus: candidate.status, toStatus: nextStage },
+        { fromStatus: candidate.status, toStatus: candidate.status },
       );
 
       setClientStatusSheetOpen(false);
+      setClientStatusPendingStatus(null);
 
-      showSuccess(
-        "Client status updated",
-        nextStage === "rejected"
-          ? `${candidate.name} marked as ${resolvedStatus} and moved to Rejected.`
-          : `${candidate.name} marked as ${resolvedStatus}.`,
-      );
+      showSuccess("Client status updated", `${candidate.name} marked as ${resolvedStatus}.`);
     },
     [job?.id, updateWorkspaceCandidate],
   );
 /* - - - - - - - - - - - - - - - - */
 
-  const handleOpenClientStatusSheet = useCallback((candidate) => {
+  const handleOpenClientStatusSheet = useCallback((candidate, nextStatus = null) => {
     if (!candidate) {
       return;
     }
 
     setSelectedCandidateId(candidate.id);
+    setClientStatusPendingStatus(nextStatus || null);
+    setClientStatusSheetMode("status");
+    setClientStatusSheetOpen(true);
+  }, []);
+
+  const handleOpenClientActivitySheet = useCallback((candidate) => {
+    if (!candidate) {
+      return;
+    }
+
+    setSelectedCandidateId(candidate.id);
+    setClientStatusPendingStatus(null);
+    setClientStatusSheetMode("activity");
     setClientStatusSheetOpen(true);
   }, []);
 
@@ -4387,17 +4465,81 @@ export default function JobDetailsPage({ params }) {
     );
   }
 
-  function renderClientStatusChip(status) {
-    const toneClassName =
-      status === "Joined"
-        ? "bg-[color-mix(in_srgb,var(--fx-success)_14%,var(--fx-surface)_86%)] text-[var(--fx-success)]"
-        : status === "Rejected" || status === "Dropped Off"
-          ? "bg-[color-mix(in_srgb,var(--fx-danger)_12%,var(--fx-surface)_88%)] text-[var(--fx-danger)]"
-          : status === "On Hold"
-            ? "bg-[color-mix(in_srgb,var(--fx-warning)_12%,var(--fx-surface)_88%)] text-[var(--fx-warning)]"
-            : "bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]";
+  function getClientStatusToneClasses(status) {
+    if (status === "Feedback Awaited") {
+      return "border-[color-mix(in_srgb,var(--fx-primary)_30%,var(--fx-border)_70%)] bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface)_90%)] text-[var(--fx-primary)]";
+    }
 
-    return <span className={cn("inline-flex min-w-[96px] items-center justify-center rounded-full px-[10px] py-[4px] text-[12px] leading-[18px] font-medium", toneClassName)}>{status}</span>;
+    if (status === "Shortlisted") {
+      return "border-[color-mix(in_srgb,var(--fx-success)_28%,var(--fx-border)_72%)] bg-[color-mix(in_srgb,var(--fx-success)_10%,var(--fx-surface)_90%)] text-[var(--fx-success)]";
+    }
+
+    if (status === "Interviewing") {
+      return "border-[color-mix(in_srgb,var(--fx-warning)_30%,var(--fx-border)_70%)] bg-[color-mix(in_srgb,var(--fx-warning)_10%,var(--fx-surface)_90%)] text-[var(--fx-warning)]";
+    }
+
+    if (status === "Offered") {
+      return "border-[color-mix(in_srgb,var(--fx-warning)_44%,var(--fx-border)_56%)] bg-[color-mix(in_srgb,var(--fx-warning)_14%,var(--fx-surface)_86%)] text-[var(--fx-warning)]";
+    }
+
+    if (status === "Joined") {
+      return "border-[color-mix(in_srgb,var(--fx-success)_36%,var(--fx-border)_64%)] bg-[color-mix(in_srgb,var(--fx-success)_14%,var(--fx-surface)_86%)] text-[var(--fx-success)]";
+    }
+
+    if (status === "On Hold") {
+      return "border-[color-mix(in_srgb,var(--fx-text-muted)_26%,var(--fx-border)_74%)] bg-[color-mix(in_srgb,var(--fx-text-muted)_10%,var(--fx-surface)_90%)] text-[var(--fx-text-muted)]";
+    }
+
+    if (status === "Rejected") {
+      return "border-[color-mix(in_srgb,var(--fx-danger)_34%,var(--fx-border)_66%)] bg-[color-mix(in_srgb,var(--fx-danger)_10%,var(--fx-surface)_90%)] text-[var(--fx-danger)]";
+    }
+
+    if (status === "Candidate Dropped Off") {
+      return "border-[color-mix(in_srgb,var(--fx-danger)_20%,var(--fx-border)_80%)] bg-[color-mix(in_srgb,var(--fx-danger)_8%,var(--fx-surface)_92%)] text-[color-mix(in_srgb,var(--fx-danger)_84%,var(--fx-text-muted)_16%)]";
+    }
+
+    return "border-[var(--fx-border)] bg-[var(--fx-surface)] text-[var(--fx-text)]";
+  }
+
+  function getClientStatusDotClasses(status) {
+    if (status === "Feedback Awaited") {
+      return "bg-[var(--fx-primary)]";
+    }
+
+    if (status === "Shortlisted" || status === "Joined") {
+      return "bg-[var(--fx-success)]";
+    }
+
+    if (status === "Interviewing") {
+      return "bg-[var(--fx-warning)]";
+    }
+
+    if (status === "Offered") {
+      return "bg-[var(--fx-warning)]";
+    }
+
+    if (status === "On Hold") {
+      return "bg-[var(--fx-text-muted)]";
+    }
+
+    if (status === "Rejected") {
+      return "bg-[var(--fx-danger)]";
+    }
+
+    if (status === "Candidate Dropped Off") {
+      return "bg-[color-mix(in_srgb,var(--fx-danger)_70%,var(--fx-text-muted)_30%)]";
+    }
+
+    return "bg-[var(--fx-border)]";
+  }
+
+  function renderClientStatusChip(status) {
+    return <span className={cn("inline-flex min-w-[96px] items-center justify-center rounded-full border px-[10px] py-[4px] text-[12px] leading-[18px] font-medium", getClientStatusToneClasses(status))}>{status}</span>;
+  }
+/* - - - - - - - - - - - - - - - - */
+
+  function renderClientStatusDot(status) {
+    return <span className={cn("inline-flex size-[8px] shrink-0 rounded-full", getClientStatusDotClasses(status))} aria-hidden="true" />;
   }
 /* - - - - - - - - - - - - - - - - */
 
@@ -4408,8 +4550,11 @@ export default function JobDetailsPage({ params }) {
       <div className="flex items-center gap-[8px]">
         <select
           value={value}
-          onChange={(event) => handleUpdateClientStatus(candidate, event.target.value)}
-          className={`h-[32px] min-w-[164px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[10px] text-[13px] leading-[20px] text-[var(--fx-text)] outline-none`}
+          onChange={(event) => handleOpenClientStatusSheet(candidate, event.target.value)}
+          className={cn(
+            "h-[34px] min-w-[190px] rounded-[8px] border px-[10px] text-[13px] leading-[20px] outline-none",
+            getClientStatusToneClasses(value),
+          )}
         >
           {CLIENT_STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>{status}</option>
@@ -4420,13 +4565,13 @@ export default function JobDetailsPage({ params }) {
             <button
               type="button"
               className="inline-flex size-[28px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
-              aria-label={`Open recruiter comments for ${candidate.name}`}
-              onClick={() => handleOpenClientStatusSheet(candidate)}
+              aria-label={`Open activity history for ${candidate.name}`}
+              onClick={() => handleOpenClientActivitySheet(candidate)}
             >
               <MessageSquareMore className="size-[14px]" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8}>Status & Recruiter Comments</TooltipContent>
+          <TooltipContent side="bottom" sideOffset={8}>Activity History</TooltipContent>
         </Tooltip>
       </div>
     );
@@ -4451,7 +4596,7 @@ export default function JobDetailsPage({ params }) {
           <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate, "resume")}>
             View Resume
           </DropdownMenuItem>
-          {activeStage === "screened" || activeStage === "shortlisted" || activeStage === "shared" ? (
+          {activeStage === "screened" || activeStage === "shortlisted" ? (
             <DropdownMenuItem onClick={() => handleOpenPreScreenResult(candidate)}>
               View Pre-Screen Result
             </DropdownMenuItem>
@@ -4548,7 +4693,7 @@ export default function JobDetailsPage({ params }) {
       expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", stageHeaderLabels.expectedSalary), width: 150, minWidth: 136, maxWidth: 168, align: "right" },
       screeningOutcome: { key: "screeningOutcome", label: stageHeaderLabels.screeningOutcome, width: 168, minWidth: 152, maxWidth: 196, align: "center" },
       strengthsGaps: { key: "strengthsGaps", label: stageHeaderLabels.strengthsGaps, width: 280, minWidth: 248, maxWidth: 320, grow: 1, flexible: true },
-      clientStatus: { key: "clientStatus", label: stageHeaderLabels.clientStatus, width: 230, minWidth: 220, maxWidth: 250, align: "left" },
+      clientStatus: { key: "clientStatus", label: stageHeaderLabels.clientStatus, width: 248, minWidth: 236, maxWidth: 272, align: "left" },
       updatedAt: { key: "updatedAt", label: sortLabel("updatedAt", stageHeaderLabels.updatedAt), width: 146, minWidth: 136, maxWidth: 160, align: "center" },
       rejectionReason: { key: "rejectionReason", label: stageHeaderLabels.rejectionReason, width: 188, minWidth: 172, maxWidth: 220 },
       actions: { key: "actions", label: stageHeaderLabels.actions, width: 104, minWidth: 104, maxWidth: 104, align: "left", sticky: "right", required: true, locked: true, hideable: false },
@@ -4560,7 +4705,7 @@ export default function JobDetailsPage({ params }) {
       unscreened: ["name", "matchScore", "experience", "phone", "email", "actions", "menuActions"],
       screened: ["name", "phone", "email", "strengthsGaps", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome", "actions", "menuActions"],
       shortlisted: ["name", "phone", "email", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome", "actions", "menuActions"],
-      shared: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "actions", "menuActions"],
+      shared: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "menuActions"],
       rejected: [...commonKeys, "rejectionReason", "actions", "menuActions"],
     };
 
@@ -4579,13 +4724,16 @@ export default function JobDetailsPage({ params }) {
         ),
     },
     name: (
-      <button
+      <div className="flex min-w-0 items-center gap-[10px]">
+        {activeStage === "shared" ? renderClientStatusDot(candidate.clientStatus || "Feedback Awaited") : null}
+        <button
           type="button"
           className="block min-w-0 truncate text-left text-[14px] leading-[22px] font-medium text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
           onClick={() => handleOpenCandidateSheet(candidate)}
         >
           {candidate.name}
         </button>
+      </div>
     ),
     matchScore: (
       <button
@@ -5097,7 +5245,9 @@ export default function JobDetailsPage({ params }) {
           open={clientStatusSheetOpen}
           onOpenChange={setClientStatusSheetOpen}
           candidate={selectedCandidate}
-          onSave={handleUpdateClientStatus}
+          pendingStatus={clientStatusPendingStatus}
+          mode={clientStatusSheetMode}
+          onSave={handleCommitClientStatus}
           onOpenResume={(candidate) => {
             setClientStatusSheetOpen(false);
             handleOpenCandidateSheet(candidate, "resume");
