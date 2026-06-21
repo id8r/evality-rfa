@@ -79,7 +79,7 @@ const PIPELINE_STAGES = [
   { value: "unscreened", label: "Unscreened" },
   { value: "screened", label: "Pre-Screened" },
   { value: "shortlisted", label: "Shortlisted" },
-  { value: "shared", label: "Sent to Client" },
+  { value: "shared", label: "Interviewing" },
   { value: "rejected", label: "Rejected" },
 ];
 
@@ -5013,7 +5013,6 @@ export default function JobDetailsPage({ params }) {
 
               <div className="mt-[20px] flex flex-wrap gap-x-[48px] gap-y-[12px]">
                 {showClientInfo && job.client ? <MetaField label="Client" value={job.client} /> : null}
-                <MetaField label="Domain / Department" value={`${job.domain} / ${job.department}`} />
                 <MetaField label="Experience" value={job.experience || "—"} />
                 <MetaField label="Employment Type" value={job.employmentType || "Full-time"} />
                 <MetaField label="Salary Range" value={job.salaryRange || "—"} />

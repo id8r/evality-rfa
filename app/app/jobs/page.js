@@ -116,6 +116,11 @@ const DEFAULT_PAGE_STATE = {
 
 const DEFAULT_JOBS_VIEW_MODE = "table";
 const SHOW_DEMO_CONTROLS = process.env.NEXT_PUBLIC_SHOW_DEMO_CONTROLS !== "false";
+const CURRENCY_FORMAT_LOCALES = {
+  INR: "en-IN",
+  USD: "en-US",
+  EUR: "de-DE",
+};
 
 const JOB_SHEET_STEPS = [
   { value: "basic", label: "Basic Details" },
@@ -175,6 +180,31 @@ function stripHtmlContent(value) {
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/gi, " ")
     .trim();
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getCurrencyFormattingLocale(currency = "INR") {
+  return CURRENCY_FORMAT_LOCALES[currency] || "en-US";
+}
+/* - - - - - - - - - - - - - - - - */
+
+function formatCurrencyInputValue(value, currency = "INR") {
+  const digitsOnly = String(value ?? "").replace(/[^\d]/g, "");
+
+  if (!digitsOnly) {
+    return "";
+  }
+
+  const numericValue = Number(digitsOnly);
+
+  if (!Number.isFinite(numericValue)) {
+    return digitsOnly;
+  }
+
+  return new Intl.NumberFormat(getCurrencyFormattingLocale(currency), {
+    maximumFractionDigits: 0,
+    useGrouping: true,
+  }).format(numericValue);
 }
 
 function hasRichTextContent(value) {
@@ -754,6 +784,18 @@ export default function JobsPage() {
     }));
 
     clearValidationErrors(name, name === "workplaceType" ? "city" : null, name === "workplaceType" ? "locality" : null);
+  }
+/* - - - - - - - - - - - - - - - - */
+
+  function handleCurrencyAmountFieldChange(fieldName, value) {
+    const numericValue = String(value ?? "").replace(/[^\d]/g, "");
+
+    setJobForm((current) => ({
+      ...current,
+      [fieldName]: numericValue,
+    }));
+
+    clearValidationErrors(fieldName);
   }
 
   function clearSkillsField(fieldName) {
@@ -2506,7 +2548,7 @@ export default function JobsPage() {
                         <div className="xl:col-span-3">
                           <FxInput
                             name="questionCount"
-                            label="Pre-Screen Questions"
+                            label="Number of Rounds"
                             min="0"
                             type="number"
                             value={jobForm.questions?.length ?? 0}
@@ -2526,10 +2568,11 @@ export default function JobsPage() {
                             <FxInput
                               name="salaryMin"
                               label="Salary Min"
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder="1000000"
-                              value={jobForm.salaryMin}
-                              onChange={handleJobFormChange}
+                              value={formatCurrencyInputValue(jobForm.salaryMin, jobForm.currency)}
+                              onChange={(event) => handleCurrencyAmountFieldChange("salaryMin", event.target.value)}
                               className={`text-right placeholder:text-right ${BASIC_FORM_CONTROL_CLASS}`}
                               stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                             />
@@ -2539,10 +2582,11 @@ export default function JobsPage() {
                             <FxInput
                               name="salaryMax"
                               label="Salary Max"
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder="1500000"
-                              value={jobForm.salaryMax}
-                              onChange={handleJobFormChange}
+                              value={formatCurrencyInputValue(jobForm.salaryMax, jobForm.currency)}
+                              onChange={(event) => handleCurrencyAmountFieldChange("salaryMax", event.target.value)}
                               className={`text-right placeholder:text-right ${BASIC_FORM_CONTROL_CLASS}`}
                               stackClassName={BASIC_FORM_FIELD_STACK_CLASS}
                             />
