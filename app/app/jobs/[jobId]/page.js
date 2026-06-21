@@ -19,8 +19,10 @@ import {
   MoreHorizontal,
   Mail,
   PencilLine,
+  MessageSquareMore,
   Phone,
   PhoneCall,
+  Play,
   Plus,
   Send,
   RotateCcw,
@@ -141,6 +143,17 @@ const PRE_SCREENED_FILTERS = [
   { key: "interested", label: "Interested" },
   { key: "not_interested", label: "Not Interested" },
 ];
+const SHARED_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "Feedback Awaited", label: "Feedback Awaited" },
+  { key: "Shortlisted", label: "Shortlisted" },
+  { key: "Interviewing", label: "Interviewing" },
+  { key: "Offered", label: "Offered" },
+  { key: "Joined", label: "Joined" },
+  { key: "Rejected", label: "Rejected" },
+  { key: "On Hold", label: "On Hold" },
+  { key: "Dropped Off", label: "Dropped Off" },
+];
 /* - - - - - - - - - - - - - - - - */
 
 const JOB_WORKSPACE_TABLE_HEADERS = {
@@ -157,7 +170,8 @@ const JOB_WORKSPACE_TABLE_HEADERS = {
     expectedSalary: "Expected CTC",
     screeningOutcome: "Screening",
     strengthsGaps: "Relevance",
-    clientStatus: "Client Status",
+    clientStatus: "Status",
+    updatedAt: "Last Updated",
     rejectionReason: "Rejection Reason",
     actions: "Actions",
   },
@@ -359,6 +373,26 @@ function formatDate(value) {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
+  });
+}
+/* - - - - - - - - - - - - - - - - */
+
+function formatCompactDate(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  if (Number.isNaN(timestamp)) {
+    return "—";
+  }
+
+  return new Date(timestamp).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "2-digit",
     timeZone: "UTC",
   });
 }
@@ -1119,9 +1153,9 @@ function ManualScreeningSheet({
 }
 /* - - - - - - - - - - - - - - - - */
 
-function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist, onReject, onDownloadResume }) {
-  const [activeStep, setActiveStep] = useState("summary");
-  const insights = useMemo(() => generateMockPreScreenInsights(candidate, job), [candidate, job]);
+function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist, onReject, onDownloadResume, onEditCandidate }) {
+  const [activeStep, setActiveStep] = useState("details");
+  const [activeRecordingMarker, setActiveRecordingMarker] = useState("Q1");
   const screeningMethod = getPreScreeningSourceLabel(candidate);
   const isManualScreening = screeningMethod === "Manual Screening";
   const RESULT_STEPS = isManualScreening
@@ -1146,42 +1180,105 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
     { label: "Recruiter Notes", value: candidate?.jobContext?.manualScreeningNotes || candidate?.notes || "Not Answered" },
   ];
   const activeIndex = RESULT_STEPS.findIndex((step) => step.key === activeStep);
-  const nextStepKey = RESULT_STEPS[Math.min(activeIndex + 1, RESULT_STEPS.length - 1)]?.key ?? RESULT_STEPS[0]?.key ?? "details";
-  const prevStepKey = RESULT_STEPS[Math.max(activeIndex - 1, 0)]?.key ?? RESULT_STEPS[0]?.key ?? "details";
   const screeningTimestamp = candidate?.jobContext?.manualScreeningCompletedAt || candidate?.updatedAt || candidate?.createdAt;
   const screeningScore = candidate?.matchScore != null ? `${candidate.matchScore}%` : "—";
   const screeningMethodLabel = isManualScreening ? "Manual Recruiter Screening" : "AI Voice Screening";
   const ScreeningMethodIcon = isManualScreening ? Users : PhoneCall;
-  const analysisScores = {
-    communication: Math.max(52, Math.min(96, (Number(candidate?.matchScore) || 68) - 4)),
-    confidence: Math.max(48, Math.min(94, (Number(candidate?.matchScore) || 68) - 1)),
-    domainKnowledge: Math.max(50, Math.min(96, (Number(candidate?.matchScore) || 68) + 2)),
-    resumeToReality: Math.max(46, Math.min(92, (Number(candidate?.matchScore) || 68) - 3)),
-    overall: Math.max(50, Math.min(96, Number(candidate?.matchScore) || 68)),
-  };
+  const screeningStatus = (() => {
+    const outcome = String(candidate?.screeningOutcome ?? "").trim().toLowerCase();
+
+    if (outcome === "failed") {
+      return "Failed";
+    }
+
+    if (outcome === "passed") {
+      return "Passed";
+    }
+
+    return "Completed";
+  })();
+  const aiAnalysisSections = [
+    {
+      key: "communication",
+      title: "Communication",
+      score: "4.2",
+      summary: "Candidate communicated clearly, stayed concise, and answered screening prompts without hesitation.",
+    },
+    {
+      key: "confidence",
+      title: "Confidence",
+      score: "4.0",
+      summary: "Candidate appeared comfortable discussing prior work, ownership, and decision-making in a recruiter call setting.",
+    },
+    {
+      key: "domain-knowledge",
+      title: "Domain Knowledge",
+      score: "4.4",
+      summary: "Candidate demonstrated a strong working understanding of the role’s technology stack and day-to-day workflows.",
+    },
+    {
+      key: "resume-to-reality",
+      title: "Resume to Reality",
+      score: "4.1",
+      summary: "Screening responses were largely consistent with the resume, with no major credibility gaps surfaced during the call.",
+    },
+    {
+      key: "summary",
+      title: "Summary",
+      score: "4.2",
+      summary: "Strong candidate for further evaluation. Signals across communication, confidence, and domain understanding were consistently positive.",
+    },
+  ];
   const transcriptItems = [
     {
       id: "q1",
-      question: `Can you walk me through your experience relevant to ${job?.title || "this role"}?`,
-      answer: `${candidate?.currentRole || "The candidate"} highlighted recent work, core responsibilities, and relevant delivery experience.`,
+      question: `Hello, this is Shreya, an AI recruiter. Am I speaking with ${candidate?.name || "the candidate"}?`,
+      answer: "Yes, where are you calling from?",
     },
     {
       id: "q2",
-      question: "What is your current notice period and compensation expectation?",
-      answer: `${formatNoticePeriod(candidate) !== "—" ? formatNoticePeriod(candidate) : "Notice period not answered"} · ${candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "Expected CTC not answered"}`,
+      question: `I'm calling from ${job?.company || "the hiring company"}. We're hiring for ${job?.title || "this role"}. Is this a good time to speak?`,
+      answer: candidate?.interested === "No" ? "No, thank you. I'm not interested." : "Yes, this works for me.",
     },
     {
       id: "q3",
-      question: "Are you comfortable with the role setup and working model?",
-      answer: candidate?.jobContext?.commuteComfortable || "Candidate preference not captured yet.",
+      question: `Can you describe a recent example of work that best matches the ${job?.title || "role"} requirements?`,
+      answer: "No answer found for this question.",
+    },
+    {
+      id: "q4",
+      question: "What is your current notice period?",
+      answer: formatNoticePeriod(candidate) !== "—" ? formatNoticePeriod(candidate) : "No answer found for this question.",
+    },
+    {
+      id: "q5",
+      question: "What is your current annual compensation and expected compensation for your next role?",
+      answer: candidate?.currentSalary != null || candidate?.expectedSalary != null
+        ? `Current: ${candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "Not shared"} · Expected: ${candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "Not shared"}`
+        : "No answer found for this question.",
+    },
+    {
+      id: "q6",
+      question: `Are you comfortable with the ${job?.location || "job"} location and work model?`,
+      answer: candidate?.jobContext?.commuteComfortable || "No answer found for this question.",
     },
   ];
-  const voiceMarkers = [
-    { label: "Intro", time: "00:00" },
-    { label: "Role Fit", time: "00:42" },
-    { label: "Compensation", time: "01:31" },
-    { label: "Wrap-up", time: "02:18" },
+  const recordingMarkers = [
+    { id: "Q1", timestamp: "00:00" },
+    { id: "Q2", timestamp: "00:21" },
+    { id: "Q3", timestamp: "00:52" },
+    { id: "Q4", timestamp: "01:29" },
+    { id: "Q5", timestamp: "02:02" },
+    { id: "Q6", timestamp: "02:31" },
   ];
+  const recordingProgress = {
+    Q1: "0%",
+    Q2: "18%",
+    Q3: "37%",
+    Q4: "58%",
+    Q5: "79%",
+    Q6: "92%",
+  };
   const resumePreview = candidate ? [
     `${candidate.name || "Candidate"}`,
     `${candidate.currentRole || candidate.jobTitle || "Current Role"}${candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}`,
@@ -1197,16 +1294,28 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
 
   useEffect(() => {
     if (open) {
-      setActiveStep(RESULT_STEPS[0]?.key || "details");
+      setActiveStep("details");
+      setActiveRecordingMarker("Q1");
     }
-  }, [RESULT_STEPS, open, candidate?.id]);
+  }, [open, candidate?.id, isManualScreening]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="lg">
+      <SheetContent size="xl">
         <SheetHeader
           title="Pre-Screening Result"
           description={`${candidate?.name || "Candidate"} · ${RESULT_STEPS[activeIndex]?.label || "Details Retrieved"}`}
+          actions={(
+            <button
+              type="button"
+              className="inline-flex cursor-pointer items-center gap-[6px] rounded-[6px] px-[10px] py-[6px] text-[13px] leading-[18px] font-medium text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+              aria-label={`Open candidate details for ${candidate?.name || "candidate"}`}
+              onClick={() => candidate && onEditCandidate?.(candidate)}
+            >
+              <span>Candidate Details</span>
+              <ArrowUpRight className="size-[14px]" />
+            </button>
+          )}
         />
         <SheetBody>
           {candidate ? (
@@ -1215,19 +1324,21 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
                 <div className="space-y-[14px]">
                   <div className="space-y-[8px]">
                     <p className="text-[16px] leading-[24px] font-semibold text-[var(--fx-text)]">{candidate.name || "—"}</p>
-                    <div className="space-y-[4px]">
-                      <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Screening Method</p>
-                      <span className="inline-flex items-center gap-[8px] rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[5px] text-[13px] leading-[18px] font-medium text-[var(--fx-primary)]">
-                        <ScreeningMethodIcon className="size-[14px]" />
-                        {screeningMethodLabel}
-                      </span>
-                    </div>
                   </div>
                   <div className="grid gap-[16px] md:grid-cols-2">
+                    <MetaField
+                      label="Screening Type"
+                      value={(
+                        <span className="inline-flex items-center gap-[8px] text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">
+                          <ScreeningMethodIcon className="size-[14px] text-[var(--fx-primary)]" />
+                          {screeningMethodLabel}
+                        </span>
+                      )}
+                    />
                     <MetaField label="Screening Score" value={screeningScore} />
+                    <MetaField label="Screening Status" value={screeningStatus} />
                     <MetaField label="Screening Date" value={screeningTimestamp ? formatDate(screeningTimestamp) : "—"} />
                     {!isManualScreening ? <MetaField label="Screening Time" value={screeningTimestamp ? formatTime(screeningTimestamp) : "—"} /> : null}
-                    <MetaField label="Screening Status" value={candidate.screeningOutcome || "—"} />
                   </div>
                 </div>
               </div>
@@ -1264,18 +1375,22 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
 
               {!isManualScreening && activeStep === "analysis" ? (
                 <div className="space-y-[12px]">
-                  {[
-                    { label: "Communication", value: `${analysisScores.communication}%` },
-                    { label: "Confidence", value: `${analysisScores.confidence}%` },
-                    { label: "Domain Knowledge", value: `${analysisScores.domainKnowledge}%` },
-                    { label: "Resume to Reality", value: `${analysisScores.resumeToReality}%` },
-                    { label: "Overall Score", value: `${analysisScores.overall}%` },
-                  ].map((item) => (
-                    <div key={item.label} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                      <div className="flex items-center justify-between gap-[12px]">
-                        <p className={FX_TYPOGRAPHY.cardTitle}>{item.label}</p>
-                        <span className="text-[14px] leading-[22px] font-semibold text-[var(--fx-text)]">{item.value}</span>
+                  {aiAnalysisSections.map((section) => (
+                    <div key={section.key} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                      <div className="flex items-start justify-between gap-[12px]">
+                        <div className="space-y-[4px]">
+                          <p className={FX_TYPOGRAPHY.cardTitle}>{section.title}</p>
+                        </div>
+                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">
+                          {section.title === "Summary" ? `Overall Score: ${section.score}` : `Score: ${section.score}`}
+                        </p>
                       </div>
+                      <p className="mt-[10px] text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">
+                        {section.title === "Summary" ? "Summary" : "Justification"}
+                      </p>
+                      <p className="mt-[4px] text-[14px] leading-[22px] text-[var(--fx-text)]">
+                        {section.summary}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -1283,12 +1398,30 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
 
               {!isManualScreening && activeStep === "transcript" ? (
                 <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <div className="space-y-[16px]">
+                  <div className="max-h-[560px] space-y-[14px] overflow-y-auto pr-[4px]">
                     {transcriptItems.map((item, index) => (
-                      <div key={item.id} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                        <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Q{index + 1}</p>
-                        <p className="mt-[4px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">{item.question}</p>
-                        <p className="mt-[8px] text-[14px] leading-[22px] text-[var(--fx-text-muted)]">{item.answer}</p>
+                      <div key={item.id} className="space-y-[8px]">
+                        <div className="space-y-[4px]">
+                          <p className="text-[12px] leading-[18px] font-semibold uppercase tracking-[0.04em] text-[var(--fx-text-muted)]">
+                            Q{index + 1}
+                          </p>
+                          <p className="max-w-[68ch] text-[14px] leading-[22px] text-[var(--fx-text)]">
+                            {item.question}
+                          </p>
+                        </div>
+                        <div className="space-y-[4px] pl-[16px]">
+                          <p className="text-[12px] leading-[18px] font-semibold uppercase tracking-[0.04em] text-[var(--fx-text-muted)]">
+                            A{index + 1}
+                          </p>
+                          <p className={cn(
+                            "max-w-[68ch] text-[14px] leading-[22px]",
+                            item.answer === "No answer found for this question."
+                              ? "text-[var(--fx-danger)]"
+                              : "text-[var(--fx-text-muted)]",
+                          )}>
+                            {item.answer}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1301,20 +1434,43 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
                   <div className={`mt-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[16px]`}>
                     <div className="space-y-[12px]">
                       <div className="flex items-center justify-between gap-[12px]">
-                        <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Call Recording</span>
+                        <div className="flex items-center gap-[10px]">
+                          <button
+                            type="button"
+                            className="inline-flex size-[32px] items-center justify-center rounded-full bg-[var(--fx-surface)] text-[var(--fx-text)] shadow-sm transition-colors hover:bg-[var(--fx-surface-hover)]"
+                          >
+                            <Play className="size-[14px] fill-current" />
+                          </button>
+                          <div className="space-y-[2px]">
+                            <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">AI Voice Screening Call</p>
+                            <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">Recorded screening conversation</p>
+                          </div>
+                        </div>
                         <span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">02:46</span>
                       </div>
                       <div className="h-[8px] rounded-full bg-[var(--fx-border)]">
-                        <div className="h-full w-[56%] rounded-full bg-[var(--fx-primary)]" />
+                        <div className="h-full rounded-full bg-[var(--fx-primary)] transition-all duration-200" style={{ width: recordingProgress[activeRecordingMarker] || "0%" }} />
                       </div>
                       <div className="flex flex-wrap gap-[8px]">
-                        {voiceMarkers.map((marker) => (
-                          <span key={marker.label} className="inline-flex items-center gap-[6px] rounded-full bg-[var(--fx-surface)] px-[10px] py-[4px] text-[12px] leading-[18px] text-[var(--fx-text-muted)]">
-                            <span>{marker.label}</span>
-                            <span>{marker.time}</span>
-                          </span>
+                        {recordingMarkers.map((marker) => (
+                          <button
+                            key={marker.id}
+                            type="button"
+                            onClick={() => setActiveRecordingMarker(marker.id)}
+                            className={cn(
+                              "inline-flex cursor-pointer items-center justify-center rounded-full border px-[10px] py-[4px] text-[12px] leading-[18px] font-medium transition-colors",
+                              activeRecordingMarker === marker.id
+                                ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]"
+                                : "border-[var(--fx-border)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]",
+                            )}
+                          >
+                            {marker.id}
+                          </button>
                         ))}
                       </div>
+                      <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                        {activeRecordingMarker} marker selected at {recordingMarkers.find((marker) => marker.id === activeRecordingMarker)?.timestamp || "00:00"}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1339,12 +1495,7 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
           ) : null}
         </SheetBody>
         <SheetFooter
-          left={(
-            <FxButton variant="ghost" size="sm" onClick={() => setActiveStep(prevStepKey)} disabled={activeIndex === 0}>
-              <ArrowLeft className="size-[16px]" />
-              Previous
-            </FxButton>
-          )}
+          left={null}
           right={(
             <div className="flex items-center gap-[8px]">
               <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate)}>
@@ -1352,10 +1503,6 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
               </FxButton>
               <FxButton size="sm" onClick={() => candidate && onShortlist?.(candidate)}>
                 Shortlist
-              </FxButton>
-              <FxButton size="sm" onClick={() => setActiveStep(nextStepKey)} disabled={activeIndex === RESULT_STEPS.length - 1}>
-                Next
-                <ArrowRight className="size-[16px]" />
               </FxButton>
             </div>
           )}
@@ -1563,6 +1710,345 @@ function ShareJobSheet({ open, onOpenChange, job, shareUrl, onCopyLink, onCopyCh
             </div>
           </div>
         </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function SendToClientConfirmSheet({
+  open,
+  onOpenChange,
+  job,
+  candidates,
+  onMarkSent,
+  onGenerateDraft,
+}) {
+  const candidateList = Array.isArray(candidates) ? candidates : [];
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="lg">
+        <SheetHeader title="Send to Client" />
+        <SheetBody>
+          <div className="space-y-[16px]">
+            <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+              <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                Before sending, review the candidate details. You can either mark the candidate as already sent to the client or generate an email draft to share.
+              </p>
+            </div>
+
+            <div className={`overflow-hidden rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+              <div className="grid grid-cols-[minmax(180px,1.4fr)_110px_minmax(220px,1.6fr)_120px_140px_140px] gap-[16px] border-b border-[var(--fx-border)] px-[16px] py-[12px] text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">
+                <span>Name</span>
+                <span className="text-center">Fit Score</span>
+                <span>Phone / Email</span>
+                <span className="text-center">Availability</span>
+                <span className="text-right">Current CTC</span>
+                <span className="text-right">Expected CTC</span>
+              </div>
+              <div className="max-h-[360px] overflow-y-auto">
+                {candidateList.map((candidate) => (
+                  <div key={candidate.id} className="grid grid-cols-[minmax(180px,1.4fr)_110px_minmax(220px,1.6fr)_120px_140px_140px] gap-[16px] border-b border-[color:color-mix(in_srgb,var(--fx-border)_65%,transparent)] px-[16px] py-[14px] text-[14px] leading-[22px] text-[var(--fx-text)] last:border-b-0">
+                    <span className="truncate font-medium">{candidate.name}</span>
+                    <span className="text-center">{candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}</span>
+                    <div className="min-w-0">
+                      <div className="truncate">{candidate.phone || "—"}</div>
+                      <div className="truncate text-[var(--fx-text-muted)]">{candidate.email || "—"}</div>
+                    </div>
+                    <span className="text-center">{formatAvailability(candidate.availabilityDays)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(candidate.currentSalary)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(candidate.expectedSalary)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </SheetBody>
+        <SheetFooter
+          left={(
+            <FxButton variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+              Cancel
+            </FxButton>
+          )}
+          right={(
+            <div className="flex items-center gap-[8px]">
+              <FxButton variant="outline" size="sm" onClick={() => onMarkSent?.(candidateList)}>
+                Mark as Sent to Client
+              </FxButton>
+              <FxButton size="sm" onClick={() => onGenerateDraft?.(candidateList, "client")}>
+                Generate Email Draft
+              </FxButton>
+            </div>
+          )}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function SendToClientDraftSheet({
+  open,
+  onOpenChange,
+  job,
+  candidates,
+  mode = "client",
+  onSwitchToReview,
+  onCopySubject,
+  onCopyContent,
+  onCopyDetailedContent,
+  onViewResume,
+  onDownloadZip,
+  onDownloadResumes,
+}) {
+  const candidateList = Array.isArray(candidates) ? candidates : [];
+  const candidateCount = candidateList.length;
+  const recruiterName = job?.updatedBy || "Recruiter";
+  const isReviewMode = mode === "review";
+  const subject = isReviewMode
+    ? `Candidate Profiles for Review - ${job?.title || "Role"}`
+    : `Shortlisted Candidate Profiles for ${job?.title || "Role"}`;
+  const body = isReviewMode
+    ? [
+        "Hi,",
+        "",
+        `Please review ${candidateCount} shortlisted candidate profile${candidateCount === 1 ? "" : "s"} for the position of ${job?.title || "this role"}.`,
+        "",
+        "These profiles have been pre-screened and represent the strongest candidates currently available for review.",
+        "",
+        "Please share your feedback on the candidates you would like to take forward or any adjustments you would like in the search.",
+        "",
+        "Best regards,",
+        recruiterName,
+      ].join("\n")
+    : [
+        "Hi,",
+        "",
+        `Please find attached ${candidateCount} shortlisted candidate profile${candidateCount === 1 ? "" : "s"} for the position of ${job?.title || "this role"}.`,
+        "",
+        "These candidates have been evaluated against the job requirements and represent the most relevant profiles from the applicant pool.",
+        "",
+        "Kindly review the attached resumes at your convenience. Please let me know if you would like to arrange discussions with any of the candidates or refine the search further.",
+        "",
+        "Looking forward to your feedback.",
+        "",
+        "Best regards,",
+        recruiterName,
+      ].join("\n");
+  const detailedContent = [
+    body,
+    "",
+    "Candidate Snapshot",
+    ...candidateList.flatMap((candidate) => [
+      `- ${candidate.name} | ${candidate.matchScore != null ? `${candidate.matchScore}% Fit Score` : "Fit Score —"} | ${formatAvailability(candidate.availabilityDays)} | Current ${formatCurrency(candidate.currentSalary)} | Expected ${formatCurrency(candidate.expectedSalary)}`,
+      `  Resume: https://www.evalityjobs.com/resume/${candidate.id}`,
+    ]),
+  ].join("\n");
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="xl">
+        <SheetHeader title="Send to Client" />
+        <SheetBody>
+          <div className="space-y-[16px]">
+            <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+              <div className="flex items-center justify-between gap-[12px]">
+                <p className={FX_TYPOGRAPHY.cardTitle}>Email Template</p>
+                <FxButton variant="ghost" size="sm" onClick={() => onSwitchToReview?.()}>
+                  Share for Review
+                </FxButton>
+              </div>
+              <div className="mt-[12px] space-y-[12px]">
+                <div className="space-y-[6px]">
+                  <div className="flex items-center justify-between gap-[12px]">
+                    <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Subject</p>
+                    <FxButton variant="outline" size="sm" onClick={() => onCopySubject?.(subject)}>
+                      Copy Email Subject
+                    </FxButton>
+                  </div>
+                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[12px] py-[10px] text-[14px] leading-[22px] text-[var(--fx-text)]`}>
+                    {subject}
+                  </div>
+                </div>
+                <div className="space-y-[6px]">
+                  <div className="flex items-center justify-between gap-[12px]">
+                    <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Body</p>
+                    <div className="flex items-center gap-[8px]">
+                      <FxButton variant="outline" size="sm" onClick={() => onCopyContent?.(body)}>
+                        Copy Email Content
+                      </FxButton>
+                      {/* <FxButton variant="outline" size="sm" onClick={() => onCopyDetailedContent?.(detailedContent)}>
+                        Copy Detailed Content
+                      </FxButton> */}
+                    </div>
+                  </div>
+                  <textarea
+                    readOnly
+                    value={body}
+                    className={`min-h-[220px] w-full resize-none rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px] py-[10px] text-[14px] leading-[22px] text-[var(--fx-text)] outline-none`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={`overflow-hidden rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+              <div className="grid grid-cols-[minmax(180px,1.3fr)_minmax(220px,1.5fr)_110px_120px_140px_140px_80px] gap-[16px] border-b border-[var(--fx-border)] px-[16px] py-[12px] text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">
+                <span>Candidate Name</span>
+                <span>Email &amp; Phone Number</span>
+                <span className="text-center">Fit Score</span>
+                <span className="text-center">Availability</span>
+                <span className="text-right">Current CTC</span>
+                <span className="text-right">Expected CTC</span>
+                <span className="text-center">Resume</span>
+              </div>
+              <div className="max-h-[320px] overflow-y-auto">
+                {candidateList.map((candidate) => (
+                  <div key={candidate.id} className="grid grid-cols-[minmax(180px,1.3fr)_minmax(220px,1.5fr)_110px_120px_140px_140px_80px] gap-[16px] border-b border-[color:color-mix(in_srgb,var(--fx-border)_65%,transparent)] px-[16px] py-[14px] text-[14px] leading-[22px] text-[var(--fx-text)] last:border-b-0">
+                    <span className="truncate font-medium">{candidate.name}</span>
+                    <div className="min-w-0">
+                      <div className="truncate">{candidate.email || "—"}</div>
+                      <div className="truncate text-[var(--fx-text-muted)]">{candidate.phone || "—"}</div>
+                    </div>
+                    <span className="text-center">{candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}</span>
+                    <span className="text-center">{formatAvailability(candidate.availabilityDays)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(candidate.currentSalary)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(candidate.expectedSalary)}</span>
+                    <button
+                      type="button"
+                      className="text-center text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
+                      onClick={() => onViewResume?.(candidate)}
+                    >
+                      View
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[14px] py-[12px]`}>
+              <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                Some companies do not accept emails with zip files. If needed, unzip and attach the resumes individually, or use Download Resumes.
+              </p>
+            </div>
+          </div>
+        </SheetBody>
+        <SheetFooter
+          left={null}
+          right={(
+            <div className="flex items-center gap-[8px]">
+              <FxButton variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                Cancel
+              </FxButton>
+              <FxButton variant="outline" size="sm" onClick={() => onDownloadZip?.(candidateList)}>
+                Download as Zip
+              </FxButton>
+              <FxButton size="sm" onClick={() => onDownloadResumes?.(candidateList)}>
+                Download Resumes
+              </FxButton>
+            </div>
+          )}
+        />
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function ClientStatusUpdateSheet({
+  open,
+  onOpenChange,
+  candidate,
+  onSave,
+  onOpenResume,
+}) {
+  const [statusValue, setStatusValue] = useState("Feedback Awaited");
+  const [commentValue, setCommentValue] = useState("");
+
+  useEffect(() => {
+    setStatusValue(candidate?.clientStatus || "Feedback Awaited");
+    setCommentValue("");
+  }, [candidate?.id, candidate?.clientStatus, open]);
+
+  const commentHistory = Array.isArray(candidate?.jobContext?.clientComments) ? candidate.jobContext.clientComments : [];
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="lg">
+        <SheetHeader title="Update Status & Recruiter Comments" />
+        <SheetBody>
+          {candidate ? (
+            <div className="space-y-[16px]">
+              <div className={`grid gap-[16px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px] md:grid-cols-2`}>
+                <MetaField label="Email" value={candidate.email || "—"} />
+                <MetaField label="Phone" value={candidate.phone || "—"} />
+                <MetaField label="Resume" value={(
+                  <button type="button" className="text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]" onClick={() => onOpenResume?.(candidate)}>
+                    View Resume
+                  </button>
+                )} />
+                <MetaField label="Availability / Joining" value={formatAvailability(candidate.availabilityDays)} />
+                <MetaField label="Current CTC" value={formatCurrency(candidate.currentSalary)} />
+                <MetaField label="Expected CTC" value={formatCurrency(candidate.expectedSalary)} />
+              </div>
+
+              <div className={`space-y-[14px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="space-y-[6px]">
+                  <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>Status</p>
+                  <select
+                    value={statusValue}
+                    onChange={(event) => setStatusValue(event.target.value)}
+                    className={`h-[40px] w-full rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px] text-[14px] leading-[22px] text-[var(--fx-text)] outline-none`}
+                  >
+                    {CLIENT_STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-[6px]">
+                  <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>Recruiter Comment</p>
+                  <textarea
+                    value={commentValue}
+                    onChange={(event) => setCommentValue(event.target.value)}
+                    placeholder="Add recruiter comments"
+                    className={`min-h-[120px] w-full resize-none rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px] py-[10px] text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)]`}
+                  />
+                </div>
+              </div>
+
+              <div className={`space-y-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <p className={FX_TYPOGRAPHY.cardTitle}>Comment History</p>
+                {commentHistory.length ? (
+                  <div className="space-y-[12px]">
+                    {commentHistory.map((entry) => (
+                      <div key={entry.id} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                        <div className="flex items-center justify-between gap-[12px]">
+                          <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">{entry.author || "Recruiter"}</p>
+                          <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">{entry.timestamp ? `${formatCompactDate(entry.timestamp)} · ${formatTime(entry.timestamp)}` : "—"}</p>
+                        </div>
+                        <p className="mt-[6px] text-[14px] leading-[22px] text-[var(--fx-text)]">{entry.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">No recruiter comments yet.</p>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </SheetBody>
+        <SheetFooter
+          left={(
+            <FxButton variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+              Cancel
+            </FxButton>
+          )}
+          right={(
+            <FxButton size="sm" onClick={() => candidate && onSave?.(candidate, statusValue, commentValue)}>
+              Save Update
+            </FxButton>
+          )}
+        />
       </SheetContent>
     </Sheet>
   );
@@ -2301,14 +2787,20 @@ export default function JobDetailsPage({ params }) {
   const [preScreenResultOpen, setPreScreenResultOpen] = useState(false);
   const [shareForReviewOpen, setShareForReviewOpen] = useState(false);
   const [shareJobOpen, setShareJobOpen] = useState(false);
+  const [sendToClientConfirmOpen, setSendToClientConfirmOpen] = useState(false);
+  const [sendToClientDraftOpen, setSendToClientDraftOpen] = useState(false);
+  const [sendToClientDraftMode, setSendToClientDraftMode] = useState("client");
+  const [sendToClientCandidates, setSendToClientCandidates] = useState([]);
   const [emailScreeningOpen, setEmailScreeningOpen] = useState(false);
   const [manualScreeningOpen, setManualScreeningOpen] = useState(false);
   const [callPreviewOpen, setCallPreviewOpen] = useState(false);
+  const [clientStatusSheetOpen, setClientStatusSheetOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [candidateToReject, setCandidateToReject] = useState(null);
   const [rejectReasonDraft, setRejectReasonDraft] = useState("");
   const [unscreenedFilter, setUnscreenedFilter] = useState("all");
   const [preScreenedFilter, setPreScreenedFilter] = useState("ready");
+  const [sharedFilter, setSharedFilter] = useState("all");
   const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [sortConfig, setSortConfig] = useState(null);
@@ -2364,6 +2856,20 @@ export default function JobDetailsPage({ params }) {
       not_interested: notInterestedCount,
     };
   }, [candidateRows]);
+/* - - - - - - - - - - - - - - - - */
+
+  const sharedFilterCounts = useMemo(() => {
+    const sharedCandidates = candidateRows.filter((candidate) => candidate.status === "shared");
+    const counts = SHARED_FILTERS.reduce((accumulator, filter) => ({ ...accumulator, [filter.key]: 0 }), {});
+
+    counts.all = sharedCandidates.length;
+    sharedCandidates.forEach((candidate) => {
+      const statusKey = candidate.clientStatus || "Feedback Awaited";
+      counts[statusKey] = (counts[statusKey] || 0) + 1;
+    });
+
+    return counts;
+  }, [candidateRows]);
 
   const filteredCandidates = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -2375,6 +2881,8 @@ export default function JobDetailsPage({ params }) {
               const interestedValue = String(candidate.interested ?? "").trim().toLowerCase();
               return preScreenedFilter === "interested" ? interestedValue === "yes" : interestedValue === "no";
             })
+          : activeStage === "shared" && sharedFilter !== "all"
+            ? pipelineCandidates.filter((candidate) => (candidate.clientStatus || "Feedback Awaited") === sharedFilter)
         : pipelineCandidates;
 
     if (!query) {
@@ -2385,11 +2893,15 @@ export default function JobDetailsPage({ params }) {
       const haystack = [candidate.name, candidate.email, candidate.phone].join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [activeStage, pipelineCandidates, preScreenedFilter, searchTerm, unscreenedFilter]);
+  }, [activeStage, pipelineCandidates, preScreenedFilter, searchTerm, sharedFilter, unscreenedFilter]);
 
   const sortedCandidates = useMemo(() => {
     if (!sortConfig) {
       if (activeStage === "screened") {
+        return [...filteredCandidates].sort((left, right) => (Number(right.matchScore) || 0) - (Number(left.matchScore) || 0));
+      }
+
+      if (activeStage === "shortlisted") {
         return [...filteredCandidates].sort((left, right) => (Number(right.matchScore) || 0) - (Number(left.matchScore) || 0));
       }
 
@@ -2587,6 +3099,15 @@ export default function JobDetailsPage({ params }) {
       showSuccess("Candidate Pool", `${candidate?.name || "Candidate"} will open in Candidate Pool later.`);
     },
     [],
+  );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleEditCandidateFromResult = useCallback(
+    (candidate) => {
+      setPreScreenResultOpen(false);
+      handleOpenCandidateSheet(candidate);
+    },
+    [handleOpenCandidateSheet],
   );
 
   const handleDeleteCandidateNote = useCallback(
@@ -3045,7 +3566,7 @@ export default function JobDetailsPage({ params }) {
   );
 
   const handleUpdateClientStatus = useCallback(
-    (candidate, nextStatus = null) => {
+    (candidate, nextStatus = null, recruiterComment = "") => {
       if (!candidate) {
         return;
       }
@@ -3062,6 +3583,15 @@ export default function JobDetailsPage({ params }) {
           : resolvedStatus === "Dropped Off"
             ? "Candidate dropped off after sharing"
             : candidate.rejectionReason;
+      const trimmedComment = String(recruiterComment ?? "").trim();
+      const commentEntry = trimmedComment
+        ? {
+            id: `client-comment-${Date.now()}`,
+            author: "Renny",
+            text: trimmedComment,
+            timestamp: new Date().toISOString(),
+          }
+        : null;
 
       updateWorkspaceCandidate(
         candidate.id,
@@ -3070,16 +3600,22 @@ export default function JobDetailsPage({ params }) {
           status: nextStage,
           clientStatus: resolvedStatus,
           rejectionReason,
+          updatedAt: new Date().toISOString(),
           jobContexts: {
             ...(current.jobContexts ?? {}),
             [job.id]: {
               ...(current.jobContexts?.[job.id] ?? {}),
               clientStatus: resolvedStatus,
+              clientComments: commentEntry
+                ? [...(Array.isArray(current.jobContexts?.[job.id]?.clientComments) ? current.jobContexts[job.id].clientComments : []), commentEntry]
+                : (Array.isArray(current.jobContexts?.[job.id]?.clientComments) ? current.jobContexts[job.id].clientComments : []),
             },
           },
         }),
         { fromStatus: candidate.status, toStatus: nextStage },
       );
+
+      setClientStatusSheetOpen(false);
 
       showSuccess(
         "Client status updated",
@@ -3090,6 +3626,16 @@ export default function JobDetailsPage({ params }) {
     },
     [job?.id, updateWorkspaceCandidate],
   );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleOpenClientStatusSheet = useCallback((candidate) => {
+    if (!candidate) {
+      return;
+    }
+
+    setSelectedCandidateId(candidate.id);
+    setClientStatusSheetOpen(true);
+  }, []);
 
   const updateSelectedCandidateStatus = useCallback(
     (candidate, updater, options, message) => {
@@ -3379,6 +3925,128 @@ export default function JobDetailsPage({ params }) {
     link.click();
     URL.revokeObjectURL(url);
   }, [filteredCandidates, job?.id, job?.title, selectedVisibleCandidates]);
+/* - - - - - - - - - - - - - - - - */
+
+  const handleDownloadResumesForCandidates = useCallback((candidates) => {
+    const nextCandidates = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+
+    if (!nextCandidates.length) {
+      return;
+    }
+
+    const blob = new Blob(
+      [
+        nextCandidates
+          .map(
+            (candidate) =>
+              [
+                candidate.name,
+                candidate.jobTitle || job?.title || "",
+                candidate.currentRole || "",
+                candidate.currentCompany || "",
+                candidate.email || "—",
+                candidate.phone || "—",
+                `Fit Score: ${candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}`,
+              ]
+                .filter(Boolean)
+                .join("\n"),
+          )
+          .join("\n\n---\n\n"),
+      ],
+      { type: "text/plain;charset=utf-8" },
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${job?.id || "shortlisted"}-resumes.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [job?.id, job?.title]);
+/* - - - - - - - - - - - - - - - - */
+
+  const handleCopyText = useCallback((text, label) => {
+    const nextText = String(text ?? "").trim();
+
+    if (!nextText || typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      return;
+    }
+
+    navigator.clipboard.writeText(nextText);
+    showSuccess(`${label} copied`);
+  }, []);
+/* - - - - - - - - - - - - - - - - */
+
+  const handleOpenSendToClientConfirm = useCallback((candidates) => {
+    const nextCandidates = (Array.isArray(candidates) ? candidates : [candidates]).filter(Boolean);
+
+    if (!nextCandidates.length) {
+      return;
+    }
+
+    setSendToClientCandidates(nextCandidates);
+    setSendToClientConfirmOpen(true);
+  }, []);
+/* - - - - - - - - - - - - - - - - */
+
+  const handleGenerateSendToClientDraft = useCallback((candidates, mode = "client") => {
+    const nextCandidates = (Array.isArray(candidates) ? candidates : [candidates]).filter(Boolean);
+
+    if (!nextCandidates.length) {
+      return;
+    }
+
+    setSendToClientCandidates(nextCandidates);
+    setSendToClientDraftMode(mode);
+    setSendToClientConfirmOpen(false);
+    setSendToClientDraftOpen(true);
+    showSuccess("Email draft generated for client review.");
+  }, []);
+/* - - - - - - - - - - - - - - - - */
+
+  const handleMarkCandidatesSentToClient = useCallback((candidates) => {
+    const nextCandidates = (Array.isArray(candidates) ? candidates : [candidates]).filter(Boolean);
+
+    if (!nextCandidates.length) {
+      return;
+    }
+
+    nextCandidates.forEach((candidate) => {
+      updateWorkspaceCandidate(
+        candidate.id,
+        (current) => ({
+          ...current,
+          status: "shared",
+          clientStatus: "Feedback Awaited",
+          updatedAt: new Date().toISOString(),
+          jobContexts: {
+            ...(current.jobContexts ?? {}),
+            [job.id]: {
+              ...(current.jobContexts?.[job.id] ?? {}),
+              clientStatus: "Feedback Awaited",
+            },
+          },
+        }),
+        { fromStatus: candidate.status, toStatus: "shared" },
+      );
+    });
+
+    setSendToClientConfirmOpen(false);
+    setSendToClientDraftOpen(false);
+    setSendToClientCandidates([]);
+    clearSelectedCandidates();
+    showSuccess("Candidates sent to client", `${nextCandidates.length} candidate${nextCandidates.length === 1 ? "" : "s"} moved to Sent to Client.`);
+  }, [clearSelectedCandidates, updateWorkspaceCandidate]);
+/* - - - - - - - - - - - - - - - - */
+
+  const handleDownloadZipForCandidates = useCallback((candidates) => {
+    const nextCandidates = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+
+    if (!nextCandidates.length) {
+      return;
+    }
+
+    showSuccess("ZIP package prepared", "Demo package ready for shortlisted profiles.");
+  }, []);
 
   const handleStartPrescreening = useCallback(
     (candidate, screeningModeOverride) => {
@@ -3691,7 +4359,7 @@ export default function JobDetailsPage({ params }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="inline-flex">
-              <button type="button" className={className} aria-label={`Send ${candidate.name} to client`} onClick={() => handleMoveCandidateToStage(candidate, "shared", "Sent to Client")}>
+              <button type="button" className={className} aria-label={`Send ${candidate.name} to client`} onClick={() => handleOpenSendToClientConfirm(candidate)}>
                 <Share2 className="size-[14px]" />
               </button>
             </span>
@@ -3702,18 +4370,7 @@ export default function JobDetailsPage({ params }) {
     }
 
     if (activeStage === "shared") {
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex">
-              <button type="button" className={className} aria-label={`Update client status for ${candidate.name}`} onClick={() => handleUpdateClientStatus(candidate)}>
-                <Check className="size-[14px]" />
-              </button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8}>Update Client Status</TooltipContent>
-        </Tooltip>
-      );
+      return null;
     }
 
     return (
@@ -3742,6 +4399,38 @@ export default function JobDetailsPage({ params }) {
 
     return <span className={cn("inline-flex min-w-[96px] items-center justify-center rounded-full px-[10px] py-[4px] text-[12px] leading-[18px] font-medium", toneClassName)}>{status}</span>;
   }
+/* - - - - - - - - - - - - - - - - */
+
+  function renderClientStatusControl(candidate) {
+    const value = candidate.clientStatus || "Feedback Awaited";
+
+    return (
+      <div className="flex items-center gap-[8px]">
+        <select
+          value={value}
+          onChange={(event) => handleUpdateClientStatus(candidate, event.target.value)}
+          className={`h-[32px] min-w-[164px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[10px] text-[13px] leading-[20px] text-[var(--fx-text)] outline-none`}
+        >
+          {CLIENT_STATUS_OPTIONS.map((status) => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex size-[28px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+              aria-label={`Open recruiter comments for ${candidate.name}`}
+              onClick={() => handleOpenClientStatusSheet(candidate)}
+            >
+              <MessageSquareMore className="size-[14px]" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={8}>Status & Recruiter Comments</TooltipContent>
+        </Tooltip>
+      </div>
+    );
+  }
 
   function renderCandidateMenuButton(candidate) {
     return (
@@ -3762,14 +4451,19 @@ export default function JobDetailsPage({ params }) {
           <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate, "resume")}>
             View Resume
           </DropdownMenuItem>
-          {activeStage === "screened" ? (
+          {activeStage === "screened" || activeStage === "shortlisted" || activeStage === "shared" ? (
             <DropdownMenuItem onClick={() => handleOpenPreScreenResult(candidate)}>
-              View Result
+              View Pre-Screen Result
             </DropdownMenuItem>
           ) : null}
           {activeStage === "screened" ? (
             <DropdownMenuItem onClick={() => handleOpenShareForReview(candidate)}>
               Share For Review
+            </DropdownMenuItem>
+          ) : null}
+          {activeStage === "shortlisted" ? (
+            <DropdownMenuItem onClick={() => handleOpenSendToClientConfirm(candidate)}>
+              Send to Client
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem onClick={() => handleDownloadCandidateResume(candidate)}>
@@ -3796,10 +4490,16 @@ export default function JobDetailsPage({ params }) {
             </>
           ) : null}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => handleRemoveCandidateFromJob(candidate)}>
-            Remove from Job
-          </DropdownMenuItem>
-          {activeStage !== "rejected" ? (
+          {activeStage === "shared" ? null : activeStage !== "rejected" ? (
+            <DropdownMenuItem onClick={() => handleRemoveCandidateFromJob(candidate)}>
+              Remove from Job
+            </DropdownMenuItem>
+          ) : null}
+          {activeStage === "shared" ? (
+            <DropdownMenuItem className="text-[var(--fx-danger)] focus:text-[var(--fx-danger)]" onClick={() => handleOpenRejectDialog(candidate)}>
+              Reject Candidate
+            </DropdownMenuItem>
+          ) : activeStage !== "rejected" ? (
             <DropdownMenuItem className="text-[var(--fx-danger)] focus:text-[var(--fx-danger)]" onClick={() => handleOpenRejectDialog(candidate)}>
               Reject Candidate
             </DropdownMenuItem>
@@ -3848,7 +4548,8 @@ export default function JobDetailsPage({ params }) {
       expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", stageHeaderLabels.expectedSalary), width: 150, minWidth: 136, maxWidth: 168, align: "right" },
       screeningOutcome: { key: "screeningOutcome", label: stageHeaderLabels.screeningOutcome, width: 168, minWidth: 152, maxWidth: 196, align: "center" },
       strengthsGaps: { key: "strengthsGaps", label: stageHeaderLabels.strengthsGaps, width: 280, minWidth: 248, maxWidth: 320, grow: 1, flexible: true },
-      clientStatus: { key: "clientStatus", label: stageHeaderLabels.clientStatus, width: 156, minWidth: 144, maxWidth: 172, align: "center" },
+      clientStatus: { key: "clientStatus", label: stageHeaderLabels.clientStatus, width: 230, minWidth: 220, maxWidth: 250, align: "left" },
+      updatedAt: { key: "updatedAt", label: sortLabel("updatedAt", stageHeaderLabels.updatedAt), width: 146, minWidth: 136, maxWidth: 160, align: "center" },
       rejectionReason: { key: "rejectionReason", label: stageHeaderLabels.rejectionReason, width: 188, minWidth: 172, maxWidth: 220 },
       actions: { key: "actions", label: stageHeaderLabels.actions, width: 104, minWidth: 104, maxWidth: 104, align: "left", sticky: "right", required: true, locked: true, hideable: false },
       menuActions: { key: "menuActions", label: null, width: 56, minWidth: 56, maxWidth: 56, align: "center", sticky: "right", cellClassName: "px-0 pr-0", required: true, locked: true, hideable: false },
@@ -3858,8 +4559,8 @@ export default function JobDetailsPage({ params }) {
     const keysByStage = {
       unscreened: ["name", "matchScore", "experience", "phone", "email", "actions", "menuActions"],
       screened: ["name", "phone", "email", "strengthsGaps", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome", "actions", "menuActions"],
-      shortlisted: [...commonKeys, "actions", "menuActions"],
-      shared: [...commonKeys, "clientStatus", "actions", "menuActions"],
+      shortlisted: ["name", "phone", "email", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome", "actions", "menuActions"],
+      shared: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "actions", "menuActions"],
       rejected: [...commonKeys, "rejectionReason", "actions", "menuActions"],
     };
 
@@ -3960,11 +4661,16 @@ export default function JobDetailsPage({ params }) {
         </div>
       </button>
     ),
-    clientStatus: renderClientStatusChip(candidate.clientStatus || "Feedback Awaited"),
+    clientStatus: activeStage === "shared" ? renderClientStatusControl(candidate) : renderClientStatusChip(candidate.clientStatus || "Feedback Awaited"),
+    updatedAt: (
+      <span className="inline-flex min-w-[96px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-normal text-[var(--fx-text)]">
+        {formatCompactDate(candidate.updatedAt)}
+      </span>
+    ),
     rejectionReason: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.rejectionReason || "Rejected for this role"}</span>,
     actions: (
       <div className="flex items-center justify-start gap-[8px]">
-        {renderStageActionButton(candidate)}
+        {activeStage === "shared" ? null : renderStageActionButton(candidate)}
       </div>
     ),
     menuActions: (
@@ -4078,20 +4784,14 @@ export default function JobDetailsPage({ params }) {
 
     if (bulkStage === "shortlisted") {
       return [
-        renderBulkButton("sent-to-client", Share2, "Send to Client", bulkActionHandlers.moveToSentToClient, "accent"),
-        renderBulkButton("back-to-screened", RotateCcw, "Move back to Pre-Screened", bulkActionHandlers.moveBackToScreened),
+        renderBulkButton("sent-to-client", Share2, "Send to Client", () => handleOpenSendToClientConfirm(bulkSelectedVisibleCandidates), "accent"),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
-        renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
+        renderBulkButton("download-resumes", Download, "Download", handleBulkDownloadResumes, "accent"),
       ];
     }
 
     if (bulkStage === "shared") {
-      return [
-        renderBulkButton("client-status", Check, "Update Client Status", bulkActionHandlers.updateClientStatus, "accent"),
-        renderBulkButton("back-to-shortlisted", ArrowLeft, "Move back to Shortlisted", bulkActionHandlers.moveBackToShortlisted),
-        renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
-        renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
-      ];
+      return [];
     }
 
     if (bulkStage === "rejected") {
@@ -4224,6 +4924,20 @@ export default function JobDetailsPage({ params }) {
                             className="min-w-0"
                           />
                         </div>
+                      ) : activeStage === "shared" ? (
+                        <div className="flex min-w-0 flex-wrap items-center gap-[10px]">
+                          <FxTabs
+                            variant="filter"
+                            items={SHARED_FILTERS.map((filter) => ({
+                              value: filter.key,
+                              label: filter.label,
+                              count: sharedFilterCounts[filter.key] ?? 0,
+                            }))}
+                            value={sharedFilter}
+                            onValueChange={setSharedFilter}
+                            className="min-w-0"
+                          />
+                        </div>
                       ) : null}
                     </div>
 
@@ -4287,16 +5001,16 @@ export default function JobDetailsPage({ params }) {
                         emptyMessage="No candidates in this stage yet."
                         enableColumnPicker
                         storageKey={`${STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}:${activeStage}`}
-                        enableRowSelection
-                        selectedRowKeys={selectedCandidateIds}
-                        onSelectedRowKeysChange={setSelectedCandidateIds}
+                        enableRowSelection={activeStage !== "shared"}
+                        selectedRowKeys={activeStage !== "shared" ? selectedCandidateIds : []}
+                        onSelectedRowKeysChange={activeStage !== "shared" ? setSelectedCandidateIds : undefined}
                       />
                     </div>
                   ) : (
                     <WorkspaceEmptyState
                       title={getStageCopy(activeStage, searchTerm).title}
                       body={getStageCopy(activeStage, searchTerm).body}
-                      action={searchTerm.trim() ? null : (
+                      action={searchTerm.trim() || !["unscreened", "screened", "shortlisted"].includes(activeStage) ? null : (
                         <FxButton type="button" onClick={handleAddCandidates}>
                           Add Candidates
                         </FxButton>
@@ -4354,6 +5068,41 @@ export default function JobDetailsPage({ params }) {
           onCopyLink={handleCopyJobLink}
           onCopyChannelLink={handleCopyChannelJobLink}
         />
+        <SendToClientConfirmSheet
+          open={sendToClientConfirmOpen}
+          onOpenChange={setSendToClientConfirmOpen}
+          job={job}
+          candidates={sendToClientCandidates}
+          onMarkSent={handleMarkCandidatesSentToClient}
+          onGenerateDraft={handleGenerateSendToClientDraft}
+        />
+        <SendToClientDraftSheet
+          open={sendToClientDraftOpen}
+          onOpenChange={setSendToClientDraftOpen}
+          job={job}
+          candidates={sendToClientCandidates}
+          mode={sendToClientDraftMode}
+          onSwitchToReview={() => setSendToClientDraftMode("review")}
+          onCopySubject={(text) => handleCopyText(text, "Email subject")}
+          onCopyContent={(text) => handleCopyText(text, "Email content")}
+          onCopyDetailedContent={(text) => handleCopyText(text, "Detailed content")}
+          onViewResume={(candidate) => {
+            setSendToClientDraftOpen(false);
+            handleOpenCandidateSheet(candidate, "resume");
+          }}
+          onDownloadZip={handleDownloadZipForCandidates}
+          onDownloadResumes={handleDownloadResumesForCandidates}
+        />
+        <ClientStatusUpdateSheet
+          open={clientStatusSheetOpen}
+          onOpenChange={setClientStatusSheetOpen}
+          candidate={selectedCandidate}
+          onSave={handleUpdateClientStatus}
+          onOpenResume={(candidate) => {
+            setClientStatusSheetOpen(false);
+            handleOpenCandidateSheet(candidate, "resume");
+          }}
+        />
         <PreScreenResultSheet
           open={preScreenResultOpen}
           onOpenChange={setPreScreenResultOpen}
@@ -4362,6 +5111,7 @@ export default function JobDetailsPage({ params }) {
           onShortlist={handleShortlistCandidate}
           onReject={handleRejectCandidateFromResults}
           onDownloadResume={handleDownloadCandidateResume}
+          onEditCandidate={handleEditCandidateFromResult}
         />
         <ShareForReviewSheet
           open={shareForReviewOpen}
