@@ -93,7 +93,7 @@ export function FxTabs({
 
   if (resolvedVariant === "compact") {
     return (
-      <div className={cn("inline-flex min-w-0 items-center gap-[2px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface-subtle)] p-[2px]", className)}>
+      <div className={cn("inline-flex min-w-0 items-center gap-[4px] rounded-[10px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface-hover)] px-[4px] py-[4px]", className)}>
         {resolvedItems.map((item) => {
           const isActive = item.value === selectedValue;
 
@@ -105,9 +105,9 @@ export function FxTabs({
               disabled={item.disabled}
               onClick={() => !item.disabled && handleValueChange?.(item.value)}
               className={cn(
-                "inline-flex h-[32px] shrink-0 items-center justify-center rounded-[8px] px-[12px] text-[13px] leading-[20px] font-medium transition-colors",
+                "inline-flex h-[32px] shrink-0 items-center justify-center rounded-[8px] px-[10px] text-[13px] leading-[20px] font-medium transition-colors",
                 isActive
-                  ? "bg-[var(--fx-surface)] text-[var(--fx-text)]"
+                  ? "border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)] text-[var(--fx-primary)] shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
                   : "text-[var(--fx-text-muted)] hover:text-[var(--fx-text)]",
                 item.disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
                 itemClassName,
@@ -121,9 +121,42 @@ export function FxTabs({
     );
   }
 
+  if (resolvedVariant === "regular") {
+    return (
+      <div className={cn("min-w-0", showBorder ? "border-b border-[var(--fx-border)]" : "", className)}>
+        <div className="flex gap-[4px] overflow-x-auto rounded-[10px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface-hover)] p-[4px]">
+          {resolvedItems.map((item) => {
+            const isActive = item.value === selectedValue;
+
+            return (
+              <button
+                key={item.value}
+                type="button"
+                aria-pressed={isActive}
+                disabled={item.disabled}
+                onClick={() => !item.disabled && handleValueChange?.(item.value)}
+                className={cn(
+                  "relative inline-flex shrink-0 cursor-pointer rounded-[8px] px-[12px] py-[8px] transition-colors",
+                  FX_TYPOGRAPHY.button,
+                  isActive
+                    ? "border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)] text-[var(--fx-primary)] shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+                    : "text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface)]/70 hover:text-[var(--fx-text)]",
+                  item.disabled ? "cursor-not-allowed opacity-50" : "",
+                  itemClassName,
+                )}
+              >
+                {renderItemLabel(item)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("min-w-0", showBorder ? "border-b border-[var(--fx-border)]" : "", className)}>
-      <div className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-[2px] rounded-full border border-[var(--fx-border)] bg-[var(--fx-surface-subtle)] p-[2px]">
+      <div className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-[2px] rounded-full border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface-hover)] p-[2px]">
         {resolvedItems.map((item) => {
           const isActive = item.value === selectedValue;
 

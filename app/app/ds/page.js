@@ -269,22 +269,24 @@ export default function DesignSystemRoute() {
           </Section>
 
           <Section title="Tabs" description="Shared FxTabs variants for page navigation, grouped steps, and compact in-sheet switching.">
-            <div className="space-y-[16px]">
-              <div className="space-y-[8px]">
-                <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>Underlined</div>
+            <div className="flex flex-wrap items-start gap-[24px]">
+              <div className="w-fit space-y-[8px]">
+                <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>Regular</div>
                 <FxTabs
-                  variant="underlined"
+                  variant="regular"
                   items={[
-                    { value: "unscreened", label: "Unscreened", count: 4 },
-                    { value: "prescreened", label: "Pre-Screened", count: 2 },
-                    { value: "shortlisted", label: "Shortlisted", count: 1 },
+                    { value: "basic", label: "Basic Details" },
+                    { value: "description", label: "Job Description" },
+                    { value: "screening", label: "Screening Method" },
                   ]}
-                  value="unscreened"
+                  value="screening"
                   onValueChange={() => {}}
+                  showBorder={false}
                 />
+                <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>40px control height · grouped neutral container · balanced sheet navigation</div>
               </div>
 
-              <div className="space-y-[8px]">
+              <div className="w-fit space-y-[8px]">
                 <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>Rounded</div>
                 <FxTabs
                   variant="rounded"
@@ -297,9 +299,10 @@ export default function DesignSystemRoute() {
                   onValueChange={() => {}}
                   showBorder={false}
                 />
+                <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>36px height · pill navigation for step-based flows</div>
               </div>
 
-              <div className="space-y-[8px]">
+              <div className="w-fit space-y-[8px]">
                 <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>Compact</div>
                 <FxTabs
                   variant="compact"
@@ -311,6 +314,22 @@ export default function DesignSystemRoute() {
                   value="overview"
                   onValueChange={() => {}}
                 />
+                <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>32px height · 4px outer padding · 4px gap · 10px horizontal tab padding</div>
+              </div>
+
+              <div className="w-fit space-y-[8px]">
+                <div className={`${FX_TYPOGRAPHY.metaLabel} text-[var(--fx-text-muted)]`}>Underlined</div>
+                <FxTabs
+                  variant="underlined"
+                  items={[
+                    { value: "unscreened", label: "Unscreened", count: 4 },
+                    { value: "prescreened", label: "Pre-Screened", count: 2 },
+                    { value: "shortlisted", label: "Shortlisted", count: 1 },
+                  ]}
+                  value="unscreened"
+                  onValueChange={() => {}}
+                />
+                <div className={`${FX_TYPOGRAPHY.caption} text-[var(--fx-text-muted)]`}>28px height · active underline · workspace stages</div>
               </div>
             </div>
           </Section>

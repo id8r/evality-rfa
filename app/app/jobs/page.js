@@ -2582,27 +2582,19 @@ function formatDisplayLabel(value) {
 
           <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmitJob}>
             <SheetBody className="space-y-[24px]">
-              <div className="border-none pb-[4px]">
-                <div className="flex gap-[4px] overflow-x-auto rounded-[10px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface-hover)] p-[4px]">
-                  {/* [Sree] */}
-                  {JOB_SHEET_STEPS.map((step) => (
-                    <button
-                      key={step.value}
-                      type="button"
-                      className={getSheetStepTabClassName(step.value)}
-                      onClick={() => {
-                        if (!canLeaveCurrentStep(step.value)) {
-                          return;
-                        }
+              <FxTabs
+                variant="regular"
+                items={JOB_SHEET_STEPS}
+                value={activeSheetStep}
+                onValueChange={(nextStep) => {
+                  if (!canLeaveCurrentStep(nextStep)) {
+                    return;
+                  }
 
-                        setActiveSheetStep(step.value);
-                      }}
-                    >
-                      {step.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  setActiveSheetStep(nextStep);
+                }}
+                showBorder={false}
+              />
 
               {activeSheetStep === "basic" ? (
                 <section className="space-y-[16px]">

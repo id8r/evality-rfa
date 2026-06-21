@@ -1,6 +1,6 @@
 # Evality AI - Design System
 
-**Version:** 1.3 | **Date:** 20 Jun 2026 | **Status:** Approved Baseline | **Path:** FxDocs/Design_System.md | **Need:** Source of Truth for Dev | **Last Updated:** 20 Jun 2026
+**Version:** 1.4 | **Date:** 21 Jun 2026 | **Status:** Approved Baseline | **Path:** FxDocs/Design_System.md | **Need:** Source of Truth for Dev | **Last Updated:** 21 Jun 2026
 
 
 # Principles
@@ -235,15 +235,17 @@ Use the shared `FxTabs` primitive. Do not hand-roll tab styles inside pages unle
 
 ### Variants
 
-| Variant       | Usage                                         |
-| ------------- | --------------------------------------------- |
-| `underlined`  | Page-level workflow tabs and recruiter stages |
-| `rounded`     | Grouped step tabs inside sheets and forms     |
-| `compact`     | Dense in-sheet secondary tab switching        |
+| Variant       | Usage                                         | Height | Notes                                          |
+| ------------- | --------------------------------------------- | ------ | ---------------------------------------------- |
+| `regular`     | Grouped sheet tabs with a neutral container   | 40px   | Shared grouped container, balanced sheet tabs  |
+| `rounded`     | Grouped step tabs inside sheets and forms     | 36px   | Pill-style grouped navigation                  |
+| `compact`     | Dense in-sheet secondary tab switching        | 32px   | `4px` outer padding, `4px` gap, `10px` x-pad   |
+| `underlined`  | Page-level workflow tabs and recruiter stages | 28px   | Text-first tabs with active underline          |
 
 ### Rules
 
 * Use `underlined` for top-level workspace flows such as candidate stages.
+* Use `regular` for grouped sheet/tab containers that are less pill-like than `rounded`.
 * Use `rounded` for grouped multi-step form flows such as Create Job.
 * Use `compact` for smaller sheet-level context switches.
 * Old aliases `stage`, `filter`, and `segmented` may exist temporarily for backward compatibility, but new code should use the named variants above.
