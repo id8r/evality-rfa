@@ -48,11 +48,11 @@ export function FxToaster({ children }) {
           }}
           className={cn(getToastVariantClassName(item.variant))}
         >
-          <div className="grid gap-[4px]">
+          <div className="min-w-0 flex-1 grid gap-[4px]">
             {item.title ? <ToastTitle>{item.title}</ToastTitle> : null}
             {item.description ? <ToastDescription>{item.description}</ToastDescription> : null}
           </div>
-          <div className="flex items-start gap-[8px]">
+          <div className="flex shrink-0 items-center self-center gap-[8px]">
             {item.action ? (
               <ToastAction altText={item.action.altText ?? item.action.label ?? "Action"} onClick={item.action.onClick}>
                 {item.action.label}

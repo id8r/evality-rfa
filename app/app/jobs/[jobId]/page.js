@@ -362,6 +362,23 @@ function formatDate(value) {
     timeZone: "UTC",
   });
 }
+/* - - - - - - - - - - - - - - - - */
+
+function formatTime(value) {
+  if (!value) {
+    return "—";
+  }
+
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) {
+    return "—";
+  }
+
+  return new Date(timestamp).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 function formatCurrency(value) {
   if (value == null || value === "") {
@@ -417,14 +434,14 @@ function getPreScreeningSourceLabel(candidate) {
   const mode = String(candidate?.jobContext?.screeningModeOverride ?? "").trim().toLowerCase();
 
   if (mode === "manual") {
-    return "Manual Pre-Screening";
+    return "Manual Screening";
   }
 
   if (mode === "ai") {
-    return "Email Pre-Screening";
+    return "AI Voice Screening";
   }
 
-  return "Manual Pre-Screening";
+  return "Manual Screening";
 }
 /* - - - - - - - - - - - - - - - - */
 
@@ -510,7 +527,7 @@ function getPreScreenResultSummary(candidate) {
 /* - - - - - - - - - - - - - - - - */
 
 function getPreScreeningIcon(candidate) {
-  return getPreScreeningSourceLabel(candidate) === "Email Pre-Screening" ? Mail : Users;
+  return getPreScreeningSourceLabel(candidate) === "AI Voice Screening" ? PhoneCall : Users;
 }
 
 function getStoredPipelineCounts(candidateRows) {
@@ -1103,28 +1120,68 @@ function ManualScreeningSheet({
 /* - - - - - - - - - - - - - - - - */
 
 function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist, onReject, onDownloadResume }) {
-  const RESULT_STEPS = [
-    { key: "summary", label: "Summary" },
-    { key: "answers", label: "Screening Answers" },
-    { key: "analysis", label: "Analysis" },
-    { key: "resume", label: "Resume Review" },
-    { key: "notes", label: "Recruiter Notes" },
-  ];
   const [activeStep, setActiveStep] = useState("summary");
   const insights = useMemo(() => generateMockPreScreenInsights(candidate, job), [candidate, job]);
+  const screeningMethod = getPreScreeningSourceLabel(candidate);
+  const isManualScreening = screeningMethod === "Manual Screening";
+  const RESULT_STEPS = isManualScreening
+    ? [
+        { key: "details", label: "Details Retrieved" },
+        { key: "resume", label: "Resume" },
+      ]
+    : [
+        { key: "details", label: "Details Retrieved" },
+        { key: "analysis", label: "AI Call Analysis" },
+        { key: "transcript", label: "Transcript" },
+        { key: "recording", label: "Voice Recording" },
+        { key: "resume", label: "Resume" },
+      ];
   const screeningSummary = [
     { label: "Interested", value: candidate?.interested || "Not Answered" },
     { label: "Notice Period", value: formatNoticePeriod(candidate) !== "—" ? formatNoticePeriod(candidate) : "Not Answered" },
-    { label: "Comfortable with location", value: candidate?.jobContext?.commuteComfortable || "Not Answered" },
-    { label: "Current Salary", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "Not Answered" },
-    { label: "Expected Salary", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "Not Answered" },
+    { label: "Location Preference", value: candidate?.jobContext?.commuteComfortable || "Not Answered" },
+    { label: "Current CTC", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "Not Answered" },
+    { label: "Expected CTC", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "Not Answered" },
     { label: "Current Company", value: candidate?.currentCompany || "Not Answered" },
+    { label: "Recruiter Notes", value: candidate?.jobContext?.manualScreeningNotes || candidate?.notes || "Not Answered" },
   ];
   const activeIndex = RESULT_STEPS.findIndex((step) => step.key === activeStep);
-  const nextStepKey = RESULT_STEPS[Math.min(activeIndex + 1, RESULT_STEPS.length - 1)]?.key ?? "summary";
-  const prevStepKey = RESULT_STEPS[Math.max(activeIndex - 1, 0)]?.key ?? "summary";
-  const screeningDate = candidate?.jobContext?.manualScreeningCompletedAt || candidate?.updatedAt || candidate?.createdAt;
-  const screeningMethod = getPreScreeningSourceLabel(candidate);
+  const nextStepKey = RESULT_STEPS[Math.min(activeIndex + 1, RESULT_STEPS.length - 1)]?.key ?? RESULT_STEPS[0]?.key ?? "details";
+  const prevStepKey = RESULT_STEPS[Math.max(activeIndex - 1, 0)]?.key ?? RESULT_STEPS[0]?.key ?? "details";
+  const screeningTimestamp = candidate?.jobContext?.manualScreeningCompletedAt || candidate?.updatedAt || candidate?.createdAt;
+  const screeningScore = candidate?.matchScore != null ? `${candidate.matchScore}%` : "—";
+  const screeningMethodLabel = isManualScreening ? "Manual Recruiter Screening" : "AI Voice Screening";
+  const ScreeningMethodIcon = isManualScreening ? Users : PhoneCall;
+  const analysisScores = {
+    communication: Math.max(52, Math.min(96, (Number(candidate?.matchScore) || 68) - 4)),
+    confidence: Math.max(48, Math.min(94, (Number(candidate?.matchScore) || 68) - 1)),
+    domainKnowledge: Math.max(50, Math.min(96, (Number(candidate?.matchScore) || 68) + 2)),
+    resumeToReality: Math.max(46, Math.min(92, (Number(candidate?.matchScore) || 68) - 3)),
+    overall: Math.max(50, Math.min(96, Number(candidate?.matchScore) || 68)),
+  };
+  const transcriptItems = [
+    {
+      id: "q1",
+      question: `Can you walk me through your experience relevant to ${job?.title || "this role"}?`,
+      answer: `${candidate?.currentRole || "The candidate"} highlighted recent work, core responsibilities, and relevant delivery experience.`,
+    },
+    {
+      id: "q2",
+      question: "What is your current notice period and compensation expectation?",
+      answer: `${formatNoticePeriod(candidate) !== "—" ? formatNoticePeriod(candidate) : "Notice period not answered"} · ${candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "Expected CTC not answered"}`,
+    },
+    {
+      id: "q3",
+      question: "Are you comfortable with the role setup and working model?",
+      answer: candidate?.jobContext?.commuteComfortable || "Candidate preference not captured yet.",
+    },
+  ];
+  const voiceMarkers = [
+    { label: "Intro", time: "00:00" },
+    { label: "Role Fit", time: "00:42" },
+    { label: "Compensation", time: "01:31" },
+    { label: "Wrap-up", time: "02:18" },
+  ];
   const resumePreview = candidate ? [
     `${candidate.name || "Candidate"}`,
     `${candidate.currentRole || candidate.jobTitle || "Current Role"}${candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}`,
@@ -1140,59 +1197,62 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
 
   useEffect(() => {
     if (open) {
-      setActiveStep("summary");
+      setActiveStep(RESULT_STEPS[0]?.key || "details");
     }
-  }, [open, candidate?.id]);
+  }, [RESULT_STEPS, open, candidate?.id]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="lg">
         <SheetHeader
-          title="Results"
-          description={`${candidate?.name || "Candidate"} · ${RESULT_STEPS[activeIndex]?.label || "Summary"}`}
+          title="Pre-Screening Result"
+          description={`${candidate?.name || "Candidate"} · ${RESULT_STEPS[activeIndex]?.label || "Details Retrieved"}`}
         />
         <SheetBody>
           {candidate ? (
             <div className="space-y-[16px]">
-              <div className="flex flex-wrap items-center gap-[8px] text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">
+              <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="space-y-[14px]">
+                  <div className="space-y-[8px]">
+                    <p className="text-[16px] leading-[24px] font-semibold text-[var(--fx-text)]">{candidate.name || "—"}</p>
+                    <div className="space-y-[4px]">
+                      <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Screening Method</p>
+                      <span className="inline-flex items-center gap-[8px] rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[5px] text-[13px] leading-[18px] font-medium text-[var(--fx-primary)]">
+                        <ScreeningMethodIcon className="size-[14px]" />
+                        {screeningMethodLabel}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid gap-[16px] md:grid-cols-2">
+                    <MetaField label="Screening Score" value={screeningScore} />
+                    <MetaField label="Screening Date" value={screeningTimestamp ? formatDate(screeningTimestamp) : "—"} />
+                    {!isManualScreening ? <MetaField label="Screening Time" value={screeningTimestamp ? formatTime(screeningTimestamp) : "—"} /> : null}
+                    <MetaField label="Screening Status" value={candidate.screeningOutcome || "—"} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-[6px] text-[13px] leading-[20px] font-medium">
                 {RESULT_STEPS.map((step, index) => (
                   <React.Fragment key={step.key}>
                     <button
                       type="button"
                       onClick={() => setActiveStep(step.key)}
                       className={cn(
-                        "inline-flex items-center rounded-[6px] px-[8px] py-[4px] transition-colors",
+                        "inline-flex cursor-pointer items-center rounded-[6px] px-[8px] py-[4px] transition-colors",
                         activeStep === step.key
-                          ? "bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]"
+                          ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)] text-[var(--fx-primary)]"
                           : "text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]",
                       )}
                     >
-                      {index + 1}. {step.label}
+                      {step.label}
                     </button>
-                    {index < RESULT_STEPS.length - 1 ? <span className="text-[var(--fx-text-disabled)]">/</span> : null}
+                    {index < RESULT_STEPS.length - 1 ? <span className="text-[var(--fx-text-disabled)]">·</span> : null}
                   </React.Fragment>
                 ))}
               </div>
 
-              {activeStep === "summary" ? (
-                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <div className="grid gap-[16px] md:grid-cols-2">
-                    <MetaField label="Candidate" value={candidate.name || "—"} />
-                    <MetaField label="Fit Score" value={candidate.matchScore != null ? `${candidate.matchScore}%` : "—"} />
-                    <MetaField label="Screening method" value={screeningMethod} />
-                    <MetaField label="Screening date" value={screeningDate ? formatDate(screeningDate) : "—"} />
-                    <MetaField label="Screening status/result" value={candidate.screeningOutcome || "—"} />
-                    <div className="min-w-0 space-y-[4px]">
-                      <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Resume</p>
-                      <button type="button" onClick={() => setActiveStep("resume")} className="text-[14px] leading-[22px] font-medium text-[var(--fx-primary)] hover:underline">
-                        View / Download Resume
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {activeStep === "answers" ? (
+              {activeStep === "details" ? (
                 <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
                   <div className="grid gap-[16px] md:grid-cols-2">
                     {screeningSummary.map((item) => (
@@ -1202,37 +1262,61 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
                 </div>
               ) : null}
 
-              {activeStep === "analysis" ? (
+              {!isManualScreening && activeStep === "analysis" ? (
                 <div className="space-y-[12px]">
-                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                    <p className={FX_TYPOGRAPHY.cardTitle}>Role / CV Questions</p>
-                    <p className="mt-[8px] text-[14px] leading-[22px] text-[var(--fx-text-muted)]">Placeholder for AI generated role questions, candidate responses, and role-fit prompts.</p>
-                  </div>
-                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                    <p className={FX_TYPOGRAPHY.cardTitle}>Strengths</p>
-                    <ul className="mt-[8px] space-y-[8px] text-[14px] leading-[22px] text-[var(--fx-text)]">
-                      {insights.strengths.map((item) => <li key={item}>• {item}</li>)}
-                    </ul>
-                  </div>
-                  <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                    <p className={FX_TYPOGRAPHY.cardTitle}>Missing gaps</p>
-                    <ul className="mt-[8px] space-y-[8px] text-[14px] leading-[22px] text-[var(--fx-text)]">
-                      {insights.gaps.map((item) => <li key={item}>• {item}</li>)}
-                    </ul>
+                  {[
+                    { label: "Communication", value: `${analysisScores.communication}%` },
+                    { label: "Confidence", value: `${analysisScores.confidence}%` },
+                    { label: "Domain Knowledge", value: `${analysisScores.domainKnowledge}%` },
+                    { label: "Resume to Reality", value: `${analysisScores.resumeToReality}%` },
+                    { label: "Overall Score", value: `${analysisScores.overall}%` },
+                  ].map((item) => (
+                    <div key={item.label} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                      <div className="flex items-center justify-between gap-[12px]">
+                        <p className={FX_TYPOGRAPHY.cardTitle}>{item.label}</p>
+                        <span className="text-[14px] leading-[22px] font-semibold text-[var(--fx-text)]">{item.value}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {!isManualScreening && activeStep === "transcript" ? (
+                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <div className="space-y-[16px]">
+                    {transcriptItems.map((item, index) => (
+                      <div key={item.id} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                        <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Q{index + 1}</p>
+                        <p className="mt-[4px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">{item.question}</p>
+                        <p className="mt-[8px] text-[14px] leading-[22px] text-[var(--fx-text-muted)]">{item.answer}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ) : null}
 
-              {activeStep === "notes" ? (
+              {!isManualScreening && activeStep === "recording" ? (
                 <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Recruiter Notes</p>
-                  <p className="mt-[8px] text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                    {screeningMethod === "Email Pre-Screening"
-                      ? "Email response thread placeholder."
-                      : screeningMethod === "Manual Pre-Screening"
-                        ? (candidate?.jobContext?.manualScreeningNotes || "Recruiter notes placeholder.")
-                        : "Transcript placeholder."}
-                  </p>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Voice Recording</p>
+                  <div className={`mt-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[16px]`}>
+                    <div className="space-y-[12px]">
+                      <div className="flex items-center justify-between gap-[12px]">
+                        <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Call Recording</span>
+                        <span className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">02:46</span>
+                      </div>
+                      <div className="h-[8px] rounded-full bg-[var(--fx-border)]">
+                        <div className="h-full w-[56%] rounded-full bg-[var(--fx-primary)]" />
+                      </div>
+                      <div className="flex flex-wrap gap-[8px]">
+                        {voiceMarkers.map((marker) => (
+                          <span key={marker.label} className="inline-flex items-center gap-[6px] rounded-full bg-[var(--fx-surface)] px-[10px] py-[4px] text-[12px] leading-[18px] text-[var(--fx-text-muted)]">
+                            <span>{marker.label}</span>
+                            <span>{marker.time}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
@@ -1258,7 +1342,7 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
           left={(
             <FxButton variant="ghost" size="sm" onClick={() => setActiveStep(prevStepKey)} disabled={activeIndex === 0}>
               <ArrowLeft className="size-[16px]" />
-              Back
+              Previous
             </FxButton>
           )}
           right={(
