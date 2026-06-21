@@ -14,6 +14,7 @@ import {
   Circle,
   CheckCheck,
   Eye,
+  Copy,
   Minus,
   MoreHorizontal,
   Mail,
@@ -1338,6 +1339,152 @@ function ShareForReviewSheet({ open, onOpenChange, candidate }) {
 }
 /* - - - - - - - - - - - - - - - - */
 
+function WhatsAppBrandIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]">
+      <path fill="#25D366" d="M20.52 3.48A11.87 11.87 0 0 0 12.05 0C5.48 0 .13 5.35.13 11.92c0 2.1.55 4.15 1.59 5.96L0 24l6.3-1.65a11.86 11.86 0 0 0 5.75 1.46h.01c6.57 0 11.92-5.35 11.92-11.92 0-3.18-1.24-6.17-3.46-8.4Z" />
+      <path fill="#fff" d="M17.06 13.72c-.27-.14-1.6-.79-1.85-.88-.25-.09-.43-.14-.61.14-.18.27-.7.88-.86 1.06-.16.18-.31.2-.58.07-.27-.14-1.13-.42-2.16-1.34-.8-.71-1.35-1.59-1.5-1.86-.16-.27-.02-.42.12-.56.12-.12.27-.31.41-.47.14-.16.18-.27.27-.45.09-.18.05-.34-.02-.47-.07-.14-.61-1.48-.84-2.03-.22-.52-.45-.45-.61-.46h-.52c-.18 0-.47.07-.72.34-.25.27-.95.93-.95 2.27s.98 2.63 1.11 2.82c.14.18 1.92 2.92 4.66 4.1.65.28 1.16.45 1.56.57.65.21 1.25.18 1.72.11.52-.08 1.6-.65 1.82-1.27.23-.63.23-1.16.16-1.27-.07-.11-.25-.18-.52-.32Z" />
+    </svg>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function LinkedInBrandIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]">
+      <path fill="#0A66C2" d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.95v5.66H9.34V8.98h3.42v1.57h.05c.48-.9 1.64-1.85 3.37-1.85 3.61 0 4.27 2.38 4.27 5.47v6.28zM5.32 7.41a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.1 20.45H3.54V8.98H7.1v11.47zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.21 0 22.23 0z" />
+    </svg>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function NaukriBrandIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]">
+      <rect width="24" height="24" rx="6" fill="#0B5BD3" />
+      <path fill="#fff" d="M6 17V7h2.3l5.1 6.2V7H16v10h-2.2l-5.2-6.3V17z" />
+    </svg>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function IndeedBrandIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]">
+      <rect width="24" height="24" rx="6" fill="#2557A7" />
+      <circle cx="8" cy="8" r="2" fill="#fff" />
+      <path fill="#fff" d="M7 11h2v6H7zm4-2h2v8h-2zm4 2h2c1.38 0 2.5 1.12 2.5 2.5V17H17v-3.1c0-.5-.4-.9-.9-.9H15V17h-2z" />
+    </svg>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function ShineBrandIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]">
+      <rect width="24" height="24" rx="6" fill="#6D28D9" />
+      <path fill="#fff" d="M8.2 7.2h7.6v2H10.4v1.8h4.6v2h-4.6v1.8H16v2H8.2z" />
+    </svg>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function GlassdoorBrandIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]">
+      <rect width="24" height="24" rx="6" fill="#0CAA41" />
+      <path fill="#fff" d="M7 7h2.2v7.8H13V17H7zm7.2 4.2h2.2V17h-2.2z" />
+    </svg>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function InstagramBrandIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]">
+      <defs>
+        <linearGradient id="igGradient" x1="0%" x2="100%" y1="100%" y2="0%">
+          <stop offset="0%" stopColor="#F58529" />
+          <stop offset="45%" stopColor="#DD2A7B" />
+          <stop offset="100%" stopColor="#515BD4" />
+        </linearGradient>
+      </defs>
+      <rect width="24" height="24" rx="6" fill="url(#igGradient)" />
+      <rect x="6.2" y="6.2" width="11.6" height="11.6" rx="3.2" fill="none" stroke="#fff" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="2.8" fill="none" stroke="#fff" strokeWidth="1.8" />
+      <circle cx="16.4" cy="7.8" r="1" fill="#fff" />
+    </svg>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function ShareJobSheet({ open, onOpenChange, job, shareUrl, onCopyLink, onCopyChannelLink }) {
+  const shareChannels = [
+    { key: "whatsapp", label: "WhatsApp", icon: WhatsAppBrandIcon, src: "1" },
+    { key: "linkedin", label: "LinkedIn", icon: LinkedInBrandIcon, src: "2" },
+    { key: "naukri", label: "Naukri", icon: NaukriBrandIcon, src: "3" },
+    { key: "indeed", label: "Indeed", icon: IndeedBrandIcon, src: "4" },
+    { key: "shine", label: "Shine", icon: ShineBrandIcon, src: "5" },
+    { key: "glassdoor", label: "Glassdoor", icon: GlassdoorBrandIcon, src: "6" },
+    { key: "instagram", label: "Instagram", icon: InstagramBrandIcon, src: "7" },
+  ];
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="md">
+        <SheetHeader title="Share Job" />
+        <SheetBody>
+          <div className="space-y-[20px]">
+            <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+              <div className="space-y-[6px]">
+                <p className={FX_TYPOGRAPHY.cardTitle}>{job?.title || "—"}</p>
+                <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">{job?.location || "—"}</p>
+                <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">{job?.experience || "—"}</p>
+                <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">{Number(job?.positions) === 1 ? "1 Position" : `${job?.positions || 0} Positions`}</p>
+              </div>
+            </div>
+
+            <div className="space-y-[10px]">
+              <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Job Link</p>
+              <div className="flex items-center gap-[8px]">
+                <FxInput readOnly value={shareUrl} className="flex-1" />
+                <FxButton type="button" variant="outline" onClick={onCopyLink}>
+                  <Copy className="size-[16px]" />
+                  Copy Link
+                </FxButton>
+              </div>
+            </div>
+
+            <div className="space-y-[10px]">
+              <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text-muted)]`}>Share Channels</p>
+              <div className="grid gap-[12px] sm:grid-cols-2">
+                {shareChannels.map((channel) => {
+                  const Icon = channel.icon;
+
+                  return (
+                    <button
+                      key={channel.key}
+                      type="button"
+                      onClick={() => onCopyChannelLink?.(channel)}
+                      className={`flex items-center gap-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[14px] py-[14px] text-left transition-colors hover:bg-[var(--fx-surface-hover)]`}
+                    >
+                      <span className="inline-flex size-[32px] items-center justify-center rounded-[8px] bg-[var(--fx-bg-soft)] text-[var(--fx-text)]">
+                        <Icon className="size-[16px]" />
+                      </span>
+                      <span className="text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">{channel.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
 function CandidateWorkspaceSheet({
   open,
   onOpenChange,
@@ -2069,6 +2216,7 @@ export default function JobDetailsPage({ params }) {
   const [cvMatchSheetOpen, setCvMatchSheetOpen] = useState(false);
   const [preScreenResultOpen, setPreScreenResultOpen] = useState(false);
   const [shareForReviewOpen, setShareForReviewOpen] = useState(false);
+  const [shareJobOpen, setShareJobOpen] = useState(false);
   const [emailScreeningOpen, setEmailScreeningOpen] = useState(false);
   const [manualScreeningOpen, setManualScreeningOpen] = useState(false);
   const [callPreviewOpen, setCallPreviewOpen] = useState(false);
@@ -2090,6 +2238,7 @@ export default function JobDetailsPage({ params }) {
         .filter(Boolean),
     [candidateSnapshot, job],
   );
+  const shareUrl = useMemo(() => `https://www.evalityjobs.com/job/E791DB78CC38/${jobId}?ref=29541`, [jobId]);
 
   useEffect(() => {
     if (job?.status === "Draft") {
@@ -3350,13 +3499,29 @@ export default function JobDetailsPage({ params }) {
     );
   }
 
-  async function handleShareJob() {
-    const shareUrl = `${window.location.origin}${ROUTES.JOB(jobId)}`;
+  function handleShareJob() {
+    setShareJobOpen(true);
+  }
+/* - - - - - - - - - - - - - - - - */
 
+  async function handleCopyJobLink() {
     try {
       await navigator.clipboard.writeText(shareUrl);
+      showSuccess("Job link copied", "Job link copied");
     } catch {
       window.prompt("Copy job link", shareUrl);
+    }
+  }
+/* - - - - - - - - - - - - - - - - */
+
+  async function handleCopyChannelJobLink(channel) {
+    const channelUrl = `${shareUrl}&src=${channel?.src || "1"}`;
+
+    try {
+      await navigator.clipboard.writeText(channelUrl);
+      showSuccess("Job link copied", `${channel?.label || "Channel"} link copied`);
+    } catch {
+      window.prompt("Copy job link", channelUrl);
     }
   }
 
@@ -4096,6 +4261,14 @@ export default function JobDetailsPage({ params }) {
           onDeleteNote={handleDeleteCandidateNote}
           onOpenCandidatePool={handleOpenCandidatePool}
           onDownloadResume={handleDownloadCandidateResume}
+        />
+        <ShareJobSheet
+          open={shareJobOpen}
+          onOpenChange={setShareJobOpen}
+          job={job}
+          shareUrl={shareUrl}
+          onCopyLink={handleCopyJobLink}
+          onCopyChannelLink={handleCopyChannelJobLink}
         />
         <PreScreenResultSheet
           open={preScreenResultOpen}
