@@ -304,9 +304,9 @@ function CheckboxOptionGrid({ options, selectedValues, onToggle, prescreenMode, 
               "rounded-[10px] border text-left transition-colors",
               disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
               checked
-                ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                ? "border-[color:color-mix(in_srgb,var(--fx-primary)_55%,var(--fx-border)_45%)] bg-[var(--fx-surface)]"
                 : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-transparent",
-              !disabled ? "hover:bg-[var(--fx-surface-hover)]/60" : "",
+              !disabled ? "hover:bg-[var(--fx-surface-hover)]/40" : "",
             )}
           >
             <label
@@ -356,8 +356,8 @@ function CheckboxOptionGrid({ options, selectedValues, onToggle, prescreenMode, 
                         className={cn(
                           "flex items-start gap-[10px] rounded-[8px] border px-[12px] py-[12px] text-left transition-colors",
                           active
-                            ? "border-[var(--fx-primary)] bg-[var(--fx-surface)]"
-                            : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)]/80 hover:bg-[var(--fx-surface)]",
+                            ? "border-[color:color-mix(in_srgb,var(--fx-primary)_55%,var(--fx-border)_45%)] bg-[var(--fx-surface-subtle)]"
+                            : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]/35",
                         )}
                       >
                         <RadioGroupItem
@@ -426,10 +426,10 @@ function SetupChecklistItem({ children, completed = false, onClick }) {
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex min-w-0 items-start gap-[8px] px-0 py-0 text-left transition-colors",
+        "inline-flex min-w-0 items-start gap-[8px] rounded-[6px] px-[6px] py-[4px] text-left transition-colors",
         completed
-          ? "text-[var(--fx-text-muted)] hover:text-[var(--fx-text)]"
-          : "text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]",
+          ? "text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)]/50 hover:text-[var(--fx-text)]"
+          : "text-[var(--fx-primary)] hover:bg-[color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]",
       )}
     >
       {completed ? (
@@ -442,7 +442,6 @@ function SetupChecklistItem({ children, completed = false, onClick }) {
         completed ? "text-[var(--fx-text-muted)]" : "text-[var(--fx-primary)]",
       )}>
         {children}
-        {!completed ? " →" : ""}
       </span>
     </button>
   );
@@ -1099,6 +1098,10 @@ function SectionContent({
   onConnectCalendarProvider,
   calendarPreferences,
   onCalendarPreferenceChange,
+  onSaveRecruitingStatus,
+  onSaveScreeningSettings,
+  recruitingStatusDirty = false,
+  screeningSettingsDirty = false,
 }) {
   if (sectionId === "organization") {
     const safeOrganizationProfile = organizationProfile ?? buildIdentityOrganizationSeed();
@@ -1190,7 +1193,7 @@ function SectionContent({
       <SettingsCard
         title="Recruiting Status"
         description="Controls default recruiting workflows and available settings."
-        action={<FxButton variant="secondary" size="md">Save</FxButton>}
+        action={<FxButton variant="secondary" size="md" disabled={!recruitingStatusDirty} onClick={onSaveRecruitingStatus}>Save</FxButton>}
       >
         <RecruitingStatusGroup
           options={RECRUITING_STATUS_OPTIONS}
@@ -1206,7 +1209,7 @@ function SectionContent({
       <SettingsCard
         title="Screening Setup"
         description="Choose the default screening path and question flow applied to new roles."
-        action={<FxButton variant="secondary" size="md">Save</FxButton>}
+        action={<FxButton variant="secondary" size="md" disabled={!screeningSettingsDirty} onClick={onSaveScreeningSettings}>Save</FxButton>}
       >
         <div className="space-y-[8px]">
           <h3 className={FX_TYPOGRAPHY.button}>Default Method</h3>
@@ -1405,8 +1408,13 @@ export default function SettingsPage() {
   const [organizationProfile, setOrganizationProfile] = useState(() => buildIdentityOrganizationSeed());
   const [profileForm, setProfileForm] = useState(() => getProfileSeed());
   const [recruitingStatus, setRecruitingStatus] = useState(WORKSPACE_TYPES.MY_COMPANY);
+  const [savedRecruitingStatus, setSavedRecruitingStatus] = useState(WORKSPACE_TYPES.MY_COMPANY);
   const [screeningChannels, setScreeningChannels] = useState(["manual", "form"]);
   const [prescreenMode, setPrescreenMode] = useState("cv_and_prescreen");
+  const [savedScreeningSettings, setSavedScreeningSettings] = useState({
+    channels: ["manual", "form"],
+    prescreenMode: "cv_and_prescreen",
+  });
   const [emailProviderConnections, setEmailProviderConnections] = useState({
     gmail: false,
     outlook: false,
@@ -1451,6 +1459,7 @@ export default function SettingsPage() {
       storedWorkspaceType === WORKSPACE_TYPES.BOTH
     ) {
       setRecruitingStatus(storedWorkspaceType);
+      setSavedRecruitingStatus(storedWorkspaceType);
     }
   }, []);
 
@@ -1526,6 +1535,21 @@ export default function SettingsPage() {
         ),
       }));
     }
+
+    const storedScreeningSettings = readStoredJSON(STORAGE_KEYS.SCREENING_SETTINGS);
+    if (storedScreeningSettings && typeof storedScreeningSettings === "object") {
+      const nextChannels = Array.isArray(storedScreeningSettings.channels)
+        ? ["manual", ...storedScreeningSettings.channels.filter((value) => value && value !== "manual")]
+        : ["manual", "form"];
+      const nextPrescreenMode = storedScreeningSettings.prescreenMode || "cv_and_prescreen";
+
+      setScreeningChannels(nextChannels);
+      setPrescreenMode(nextPrescreenMode);
+      setSavedScreeningSettings({
+        channels: nextChannels,
+        prescreenMode: nextPrescreenMode,
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -1541,7 +1565,12 @@ export default function SettingsPage() {
 
   function handleRecruitingStatusChange(nextValue) {
     setRecruitingStatus(nextValue);
-    writeStoredValue(STORAGE_KEYS.WORKSPACE_TYPE, nextValue);
+  }
+/* - - - - - - - - - - - - - - - - */
+
+  function handleSaveRecruitingStatus() {
+    writeStoredValue(STORAGE_KEYS.WORKSPACE_TYPE, recruitingStatus);
+    setSavedRecruitingStatus(recruitingStatus);
   }
 /* - - - - - - - - - - - - - - - - */
 
@@ -1559,6 +1588,17 @@ export default function SettingsPage() {
 
       return baseValues.filter((item) => item !== value);
     });
+  }
+/* - - - - - - - - - - - - - - - - */
+
+  function handleSaveScreeningSettings() {
+    const nextSettings = {
+      channels: screeningChannels,
+      prescreenMode,
+    };
+
+    writeStoredJSON(STORAGE_KEYS.SCREENING_SETTINGS, nextSettings);
+    setSavedScreeningSettings(nextSettings);
   }
 /* - - - - - - - - - - - - - - - - */
 
@@ -1732,6 +1772,10 @@ export default function SettingsPage() {
     emailConnected: Boolean(emailProviderConnections.gmail || emailProviderConnections.outlook),
     calendarConnected: Boolean(calendarProviderConnections.googleCalendar || calendarProviderConnections.outlookCalendar),
   };
+  const recruitingStatusDirty = recruitingStatus !== savedRecruitingStatus;
+  const screeningSettingsDirty =
+    prescreenMode !== savedScreeningSettings.prescreenMode ||
+    screeningChannels.join("|") !== savedScreeningSettings.channels.join("|");
 
   return (
     <FxProtectedAppPage pageId="settings">
@@ -1802,6 +1846,10 @@ export default function SettingsPage() {
                   onCalendarWeeklyAvailabilityChange={handleCalendarWeeklyAvailabilityChange}
                   calendarPreferences={calendarPreferences}
                   onCalendarPreferenceChange={handleCalendarPreferenceChange}
+                  onSaveRecruitingStatus={handleSaveRecruitingStatus}
+                  onSaveScreeningSettings={handleSaveScreeningSettings}
+                  recruitingStatusDirty={recruitingStatusDirty}
+                  screeningSettingsDirty={screeningSettingsDirty}
                 />
                 </div>
               </div>

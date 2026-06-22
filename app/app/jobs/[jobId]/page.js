@@ -23,6 +23,8 @@ import {
   MessageSquareMore,
   Phone,
   PhoneCall,
+  PanelLeftClose,
+  PanelLeftOpen,
   Play,
   Plus,
   Send,
@@ -37,6 +39,7 @@ import {
   Users,
   ArrowUpRight,
   ScanSearch,
+  X,
 } from "lucide-react";
 
 import { FxAiButton } from "@/components/FxAiButton";
@@ -48,6 +51,16 @@ import { FxTable } from "@/components/FxTable";
 import { FxTabs } from "@/components/FxTabs";
 import { showSuccess } from "@/components/FxToast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -519,21 +532,6 @@ function buildEmailScreeningTemplate(candidate, job) {
 }
 /* - - - - - - - - - - - - - - - - */
 
-function formatDaysSince(value) {
-  if (!value) {
-    return "";
-  }
-
-  const timestamp = new Date(value).getTime();
-  if (Number.isNaN(timestamp)) {
-    return "";
-  }
-
-  const diffDays = Math.max(0, Math.floor((Date.now() - timestamp) / (24 * 60 * 60 * 1000)));
-  return `${diffDays}d`;
-}
-/* - - - - - - - - - - - - - - - - */
-
 function getMatchScoreToneClass(score) {
   if (score == null || Number.isNaN(Number(score))) {
     return "text-[var(--fx-text-muted)]";
@@ -887,11 +885,14 @@ function EmailScreeningSheet({
   candidates,
   selectedCandidateId,
   onSelectCandidate,
+  onRemoveCandidate,
   job,
   onStart,
 }) {
   const [showResumePane, setShowResumePane] = useState(true);
+  const [candidatePendingRemoval, setCandidatePendingRemoval] = useState(null);
   const [emailDrafts, setEmailDrafts] = useState({});
+  const [subjectDrafts, setSubjectDrafts] = useState({});
   const [messageDrafts, setMessageDrafts] = useState({});
   const candidateList = useMemo(() => candidates ?? [], [candidates]);
   const activeCandidate = useMemo(
@@ -899,9 +900,16 @@ function EmailScreeningSheet({
     [candidateList, selectedCandidateId],
   );
   const activeEmailValue = activeCandidate ? (emailDrafts[activeCandidate.id] ?? "") : "";
+  const activeSubjectValue = activeCandidate ? (subjectDrafts[activeCandidate.id] ?? "") : "";
   const activeMessageValue = activeCandidate ? (messageDrafts[activeCandidate.id] ?? "") : "";
+  const activeCandidateIndex = useMemo(
+    () => candidateList.findIndex((candidate) => candidate.id === activeCandidate?.id),
+    [activeCandidate?.id, candidateList],
+  );
   const hasCandidateEmail = Boolean(activeCandidate?.email && activeCandidate.email !== "—");
   const isBulkMode = candidateList.length > 1;
+  const hasPreviousCandidate = isBulkMode && activeCandidateIndex > 0;
+  const hasNextCandidate = isBulkMode && activeCandidateIndex >= 0 && activeCandidateIndex < candidateList.length - 1;
   const resumePreview = useMemo(() => {
     return activeCandidate ? [
       `${activeCandidate.name || "Candidate"}`,
@@ -920,100 +928,172 @@ function EmailScreeningSheet({
 
   useEffect(() => {
     const nextEmailDrafts = {};
+    const nextSubjectDrafts = {};
     const nextMessageDrafts = {};
 
     candidateList.forEach((candidate) => {
       nextEmailDrafts[candidate.id] = candidate?.email && candidate.email !== "—" ? candidate.email : "";
+      nextSubjectDrafts[candidate.id] = `Pre-Screening Questions for ${job?.title || "the role"}`;
       nextMessageDrafts[candidate.id] = candidate?.jobContext?.emailScreeningMessage || buildEmailScreeningTemplate(candidate, job);
     });
 
     setEmailDrafts(nextEmailDrafts);
+    setSubjectDrafts(nextSubjectDrafts);
     setMessageDrafts(nextMessageDrafts);
     setShowResumePane(true);
   }, [candidateList, job]);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="xl" widthPx={showResumePane ? 1100 : 760}>
-        <SheetHeader
-          title={<span className="text-[var(--fx-text-muted)]">Email Pre-Screening</span>}
-          actions={(
-            <FxButton type="button" variant="ghost" size="sm" onClick={() => setShowResumePane((current) => !current)}>
-              {showResumePane ? "Hide CV" : "Show CV"}
-            </FxButton>
-          )}
-        />
-        <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent size="xl" widthPx={showResumePane ? 1160 : 780}>
+          <SheetHeader
+            title={<span className="text-[var(--fx-text-muted)]">Email Pre-Screening</span>}
+            actions={(
+              <>
+                {isBulkMode ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!hasPreviousCandidate) {
+                          return;
+                        }
+
+                        onSelectCandidate?.(candidateList[activeCandidateIndex - 1]?.id);
+                      }}
+                      disabled={!hasPreviousCandidate}
+                      className="flex h-[32px] items-center justify-center rounded-[6px] px-[8px] text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!hasNextCandidate) {
+                          return;
+                        }
+
+                        onSelectCandidate?.(candidateList[activeCandidateIndex + 1]?.id);
+                      }}
+                      disabled={!hasNextCandidate}
+                      className="flex h-[32px] items-center justify-center rounded-[6px] px-[8px] text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </>
+                ) : null}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setShowResumePane((current) => !current)}
+                      className="flex h-[32px] w-[32px] cursor-pointer items-center justify-center rounded-[6px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                      aria-label={showResumePane ? "Collapse" : "Expand"}
+                    >
+                      {showResumePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={8}>{showResumePane ? "Collapse" : "Expand"}</TooltipContent>
+                </Tooltip>
+              </>
+            )}
+          />
+          <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
           {activeCandidate ? (
-            <div className={cn("grid h-full min-h-0 gap-[32px]", showResumePane ? "xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1.15fr)]" : "grid-cols-1")}>
+            <div className={cn("grid h-full min-h-0", showResumePane ? "grid-cols-[minmax(0,1.3fr)_24px_minmax(0,1fr)]" : "grid-cols-1")}>
               {showResumePane ? (
-                <div className="flex min-h-0 flex-col bg-[var(--fx-surface)]">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[12px]">
+                <>
+                  <div className={cn("grid min-h-0 gap-[16px]", isBulkMode ? "grid-cols-[196px_minmax(0,1fr)]" : "grid-cols-1")}>
+                    {isBulkMode ? (
+                      <div className="min-h-0 overflow-auto rounded-[8px] bg-[var(--fx-bg-soft)] p-[6px]">
+                        <div className="space-y-[8px]">
+                          {candidateList.map((candidate) => (
+                            <div
+                              key={candidate.id}
+                              className={cn(
+                                "flex w-full items-start justify-between gap-[8px] rounded-[8px] px-[10px] py-[8px] text-left transition-colors",
+                                candidate.id === activeCandidate.id
+                                  ? "bg-[var(--fx-surface)] text-[var(--fx-text)] shadow-sm"
+                                  : "bg-transparent text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]",
+                              )}
+                            >
+                              <button type="button" onClick={() => onSelectCandidate?.(candidate.id)} className="flex min-w-0 flex-1 flex-col items-start text-left">
+                                <span className="w-full truncate text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">{candidate.name}</span>
+                                <span className={cn("text-[12px] leading-[16px] font-medium", getMatchScoreToneClass(candidate.matchScore))}>
+                                  {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setCandidatePendingRemoval(candidate);
+                                }}
+                                className="inline-flex size-[20px] shrink-0 items-center justify-center rounded-[4px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                                aria-label={`Remove ${candidate.name}`}
+                              >
+                                <X className="size-[14px]" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className={`min-h-0 flex-1 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                      <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                        {resumePreview}
+                      </pre>
+                    </div>
+                  </div>
+                  <div className="relative flex items-stretch justify-center pt-[32px]">
+                    <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
+                  </div>
+                </>
+              ) : (
+                <div />
+              )}
+
+              <div className="flex min-h-0 flex-col">
+                {!showResumePane ? (
+                  <div className="mb-[16px] flex items-center justify-between gap-[16px]">
                     <p className="truncate text-[15px] leading-[24px] font-medium text-[var(--fx-text)]">{activeCandidate.name}</p>
-                    <p className={cn("justify-self-end text-[16px] leading-[24px] font-medium", getMatchScoreToneClass(activeCandidate.matchScore))}>
+                    <p className={cn("shrink-0 text-[16px] leading-[24px] font-medium", getMatchScoreToneClass(activeCandidate.matchScore))}>
                       {activeCandidate.matchScore != null ? `CV Match ${activeCandidate.matchScore}%` : "CV Match unavailable"}
                     </p>
-                  </div>
-                  <div className={`mt-[16px] min-h-0 flex-1 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                    <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                      {resumePreview}
-                    </pre>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className={cn("flex min-h-0 flex-col", showResumePane ? `xl:border-l ${FX_COLORS.border} xl:pl-[32px]` : "")}>
-                {isBulkMode ? (
-                  <div className="mb-[16px] flex flex-wrap gap-[8px]">
-                    {candidateList.map((candidate) => (
-                      <button
-                        key={candidate.id}
-                        type="button"
-                        onClick={() => onSelectCandidate?.(candidate.id)}
-                        className={cn(
-                          "inline-flex items-center gap-[8px] rounded-full border px-[12px] py-[6px] text-[13px] leading-[20px] transition-colors",
-                          candidate.id === activeCandidate.id
-                            ? "border-[var(--fx-primary)] bg-[color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface)_90%)] text-[var(--fx-primary)]"
-                            : "border-[var(--fx-border)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]",
-                        )}
-                      >
-                        <span className="truncate">{candidate.name}</span>
-                        <span className="text-[var(--fx-text-muted)]">{candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}</span>
-                      </button>
-                    ))}
                   </div>
                 ) : null}
 
-                <div className={`rounded-[8px] border ${FX_COLORS.border} p-[16px]`}>
-                  <div className="flex items-start justify-between gap-[16px]">
-                    <p className={FX_TYPOGRAPHY.cardTitle}>{activeCandidate.name}</p>
-                    <p className={cn(`${FX_TYPOGRAPHY.body} text-right font-medium`, getMatchScoreToneClass(activeCandidate.matchScore))}>
-                      {activeCandidate.matchScore != null ? `CV Match ${activeCandidate.matchScore}%` : "CV Match unavailable"}
-                    </p>
-                  </div>
-                  <div className="mt-[12px]">
-                    <FxInput
-                      label={hasCandidateEmail ? "Email" : "Email Address"}
-                      value={activeEmailValue}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setEmailDrafts((current) => ({ ...current, [activeCandidate.id]: value }));
-                      }}
-                      placeholder="candidate@company.com"
-                      helperText={hasCandidateEmail ? null : "Email is missing. Add it before sending."}
-                    />
-                  </div>
+                <div className={cn("flex min-h-0 w-full flex-1", showResumePane ? "justify-center" : "justify-start")}>
+                  <div className={cn("flex min-h-0 w-full flex-1 flex-col", showResumePane ? "max-w-[560px]" : "")}>
+                <div className="space-y-[14px]">
+                  <FxInput
+                    label="To"
+                    value={activeEmailValue}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setEmailDrafts((current) => ({ ...current, [activeCandidate.id]: value }));
+                    }}
+                    placeholder="candidate@company.com"
+                    helperText={hasCandidateEmail ? null : "Email is missing. Add it before sending."}
+                  />
+                  <FxInput
+                    label="Subject"
+                    value={activeSubjectValue}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setSubjectDrafts((current) => ({ ...current, [activeCandidate.id]: value }));
+                    }}
+                    placeholder="Pre-screening questions"
+                  />
                 </div>
 
-                <div className="mt-[16px] min-h-0 flex-1 overflow-auto">
-                  <div className={`space-y-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                    <div className="flex items-center justify-between gap-[12px]">
-                      <p className={FX_TYPOGRAPHY.cardTitle}>Email Template</p>
-                      <div className="flex items-center gap-[12px]">
-                        <span className="text-[12px] leading-[18px] text-[var(--fx-warning)]">Resets your edited content.</span>
-                        <FxButton
+                <div className="mt-[14px] min-h-0 flex-1 overflow-auto">
+                  <div className="mb-[8px] flex items-center justify-end">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <FxAiButton
                           type="button"
-                          variant="outline"
                           size="sm"
                           onClick={() => {
                             setMessageDrafts((current) => ({
@@ -1022,25 +1102,31 @@ function EmailScreeningSheet({
                             }));
                           }}
                         >
-                          Generate AI Email
-                        </FxButton>
-                      </div>
-                    </div>
-                    <FxRichTextEditor
-                      value={activeMessageValue}
-                      onChange={(value) => {
-                        setMessageDrafts((current) => ({ ...current, [activeCandidate.id]: value }));
-                      }}
-                      placeholder="Write email template"
-                      minHeight={460}
-                    />
+                          Generate Using AI
+                        </FxAiButton>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" sideOffset={6}>
+                        Resets your edited content.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <FxRichTextEditor
+                    value={activeMessageValue}
+                    onChange={(value) => {
+                      setMessageDrafts((current) => ({ ...current, [activeCandidate.id]: value }));
+                    }}
+                    placeholder="Write email template"
+                    className="min-h-0 flex-1"
+                    minHeight={showResumePane ? 620 : 720}
+                  />
+                </div>
                   </div>
                 </div>
               </div>
             </div>
           ) : null}
-        </SheetBody>
-        <SheetFooter
+          </SheetBody>
+          <SheetFooter
           left={(
             <FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
@@ -1059,6 +1145,7 @@ function EmailScreeningSheet({
                   candidateList.reduce((accumulator, candidate) => {
                     accumulator[candidate.id] = {
                       email: emailDrafts[candidate.id] ?? "",
+                      subject: subjectDrafts[candidate.id] ?? `Pre-Screening Questions for ${job?.title || "the role"}`,
                       message: messageDrafts[candidate.id] ?? buildEmailScreeningTemplate(candidate, job),
                     };
                     return accumulator;
@@ -1066,12 +1153,36 @@ function EmailScreeningSheet({
                 );
               }}
             >
-              {isBulkMode ? "Send to All" : "Send & Start"}
+              {isBulkMode ? "Send Emails" : "Send & Start"}
             </FxButton>
           )}
         />
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+      <AlertDialog open={Boolean(candidatePendingRemoval)} onOpenChange={(open) => !open && setCandidatePendingRemoval(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove candidate?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {candidatePendingRemoval ? `Remove ${candidatePendingRemoval.name} from this email screening batch?` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (candidatePendingRemoval) {
+                  onRemoveCandidate?.(candidatePendingRemoval.id);
+                }
+                setCandidatePendingRemoval(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 /* - - - - - - - - - - - - - - - - */
@@ -3737,6 +3848,28 @@ export default function JobDetailsPage({ params }) {
     },
     [handleSetCandidateScreeningMode, markCandidateViewed],
   );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleRemoveCandidateFromEmailScreening = useCallback(
+    (candidateId) => {
+      setEmailScreeningCandidateIds((current) => {
+        const nextIds = current.filter((id) => id !== candidateId);
+
+        if (!nextIds.length) {
+          setEmailScreeningOpen(false);
+          return [];
+        }
+
+        if (selectedCandidateId === candidateId) {
+          setSelectedCandidateId(nextIds[0]);
+        }
+
+        return nextIds;
+      });
+    },
+    [selectedCandidateId],
+  );
+/* - - - - - - - - - - - - - - - - */
 
   const handleOpenManualScreening = useCallback(
     (candidate) => {
@@ -3810,6 +3943,7 @@ export default function JobDetailsPage({ params }) {
               unscreenedFilterStatus: "in_progress",
               emailScreeningMessage: payload.message ?? current.jobContexts?.[job.id]?.emailScreeningMessage ?? "",
               emailScreeningStartedAt: startedAt,
+              emailScreeningAttemptCount: Math.max(1, Number(current.jobContexts?.[job.id]?.emailScreeningAttemptCount || 0) + 1),
             },
           },
         }));
@@ -3821,10 +3955,10 @@ export default function JobDetailsPage({ params }) {
       setEmailScreeningCandidateIds([]);
       clearSelectedCandidates();
       showSuccess(
-        "Email screening started",
+        "Email sent",
         nextCandidates.length === 1
-          ? `${nextCandidates[0].name} moved to In Progress.`
-          : `${nextCandidates.length} candidates moved to In Progress.`,
+          ? `Email sent to ${nextCandidates[0].name}.`
+          : `Emails sent to ${nextCandidates.length} candidates.`,
       );
     },
     [clearSelectedCandidates, handleSetUnscreenedFilterStatus, job?.id, updateWorkspaceCandidate],
@@ -4710,17 +4844,18 @@ export default function JobDetailsPage({ params }) {
 
     if (activeStage === "unscreened") {
       const emailStartedAt = candidate.jobContext?.emailScreeningStartedAt || "";
-      const hasEmailSent = Boolean(emailStartedAt) && candidate.unscreenedFilterStatus !== "failed";
-      const elapsedDaysLabel = formatDaysSince(emailStartedAt);
+      const emailAttemptCount = Math.max(0, Number(candidate.jobContext?.emailScreeningAttemptCount || 0));
+      const hasEmailSent = (Boolean(emailStartedAt) || emailAttemptCount > 0) && candidate.unscreenedFilterStatus !== "failed";
 
       return (
         <>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="inline-flex items-center gap-[6px]">
+              <span className="inline-flex">
                 <button
                   type="button"
                   className={cn(
+                    "relative",
                     className,
                     hasEmailSent
                       ? "bg-[color-mix(in_srgb,var(--fx-success)_10%,var(--fx-surface-raised)_90%)] text-[var(--fx-success)] hover:bg-[color-mix(in_srgb,var(--fx-success)_16%,var(--fx-surface-raised)_84%)] hover:text-[var(--fx-success)]"
@@ -4732,14 +4867,18 @@ export default function JobDetailsPage({ params }) {
                   }}
                 >
                   <Mail className="size-[14px]" />
+                  {hasEmailSent && emailAttemptCount > 0 ? (
+                    <span className="absolute -right-[5px] -top-[5px] inline-flex min-w-[16px] items-center justify-center rounded-full bg-[var(--fx-success)] px-[4px] text-[10px] leading-[14px] font-semibold text-white">
+                      {emailAttemptCount}
+                    </span>
+                  ) : null}
                 </button>
-                {hasEmailSent && elapsedDaysLabel ? (
-                  <span className="text-[12px] leading-[18px] font-medium text-[var(--fx-success)]">{elapsedDaysLabel}</span>
-                ) : null}
               </span>
             </TooltipTrigger>
             <TooltipContent side="bottom" sideOffset={8}>
-              {hasEmailSent ? `Email sent ${elapsedDaysLabel || ""}`.trim() : "Email Pre-Screening"}
+              {hasEmailSent
+                ? `Email sent${emailAttemptCount > 0 ? ` ${emailAttemptCount} ${emailAttemptCount === 1 ? "time" : "times"}` : ""}`
+                : "Email Pre-Screening"}
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -5624,6 +5763,7 @@ export default function JobDetailsPage({ params }) {
           candidates={emailScreeningCandidates}
           selectedCandidateId={selectedCandidateId}
           onSelectCandidate={setSelectedCandidateId}
+          onRemoveCandidate={handleRemoveCandidateFromEmailScreening}
           job={job}
           onStart={handleStartEmailScreening}
         />
