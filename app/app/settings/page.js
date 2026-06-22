@@ -70,7 +70,7 @@ const RECRUITING_STATUS_OPTIONS = [
 const PRESCREEN_OPTIONS = [
   {
     value: "cv_and_prescreen",
-    title: "CV + pre-screening",
+    title: "Standard Questions and AI led Email",
     description: "Use CV context first, then ask focused qualification questions.",
   },
   {
@@ -293,6 +293,8 @@ function CheckboxOptionGrid({ options, selectedValues, onToggle, prescreenMode, 
         const checked = selectedValues.includes(option.value);
         const optionId = `option-${option.value}`;
         const disabled = Boolean(option.disabled);
+        const isFixedSelected = option.value === "manual";
+        const checkboxDisabled = disabled || isFixedSelected;
         const shouldShowAccordion = checked && option.value !== "manual" && !disabled;
 
         return (
@@ -314,9 +316,9 @@ function CheckboxOptionGrid({ options, selectedValues, onToggle, prescreenMode, 
               <Checkbox
                 id={optionId}
                 checked={checked}
-                disabled={disabled}
+                disabled={checkboxDisabled}
                 onCheckedChange={(nextChecked) => {
-                  if (!disabled) {
+                  if (!checkboxDisabled) {
                     onToggle(option.value, Boolean(nextChecked));
                   }
                 }}
@@ -341,7 +343,7 @@ function CheckboxOptionGrid({ options, selectedValues, onToggle, prescreenMode, 
                 <RadioGroup
                   value={prescreenMode}
                   onValueChange={onPrescreenModeChange}
-                  className="grid gap-[10px]"
+                  className="grid gap-[10px] md:grid-cols-2"
                 >
                   {PRESCREEN_OPTIONS.map((flowOption) => {
                     const flowOptionId = `${optionId}-${flowOption.value}`;
@@ -1212,6 +1214,7 @@ function SectionContent({
           onToggle={onScreeningChannelChange}
           prescreenMode={prescreenMode}
           onPrescreenModeChange={onPrescreenModeChange}
+          columns="grid-cols-1"
         />
       </SettingsCard>
     );
@@ -1399,7 +1402,7 @@ export default function SettingsPage() {
   const [organizationProfile, setOrganizationProfile] = useState(() => buildIdentityOrganizationSeed());
   const [profileForm, setProfileForm] = useState(() => getProfileSeed());
   const [recruitingStatus, setRecruitingStatus] = useState(WORKSPACE_TYPES.MY_COMPANY);
-  const [screeningChannels, setScreeningChannels] = useState(["form"]);
+  const [screeningChannels, setScreeningChannels] = useState(["manual", "form"]);
   const [prescreenMode, setPrescreenMode] = useState("cv_and_prescreen");
   const [emailProviderConnections, setEmailProviderConnections] = useState({
     gmail: false,
@@ -1540,12 +1543,18 @@ export default function SettingsPage() {
 /* - - - - - - - - - - - - - - - - */
 
   function handleScreeningChannelChange(value, checked) {
+    if (value === "manual") {
+      return;
+    }
+
     setScreeningChannels((current) => {
+      const baseValues = current.includes("manual") ? current : ["manual", ...current];
+
       if (checked) {
-        return current.includes(value) ? current : [...current, value];
+        return baseValues.includes(value) ? baseValues : [...baseValues, value];
       }
 
-      return current.filter((item) => item !== value);
+      return baseValues.filter((item) => item !== value);
     });
   }
 /* - - - - - - - - - - - - - - - - */
