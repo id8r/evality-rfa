@@ -1102,6 +1102,8 @@ function SectionContent({
   }
 
   if (sectionId === "screening") {
+    const shouldShowScreeningFlow = screeningChannel !== "manual";
+
     return (
       <SettingsCard
         title="Screening Setup"
@@ -1117,14 +1119,18 @@ function SectionContent({
           onSelect={onScreeningChannelChange}
         />
 
-        <div className="space-y-[8px]">
-          <h3 className={FX_TYPOGRAPHY.button}>Default Flow</h3>
-        </div>
-        <OptionGrid
-          options={PRESCREEN_OPTIONS}
-          selectedValue={prescreenMode}
-          onSelect={onPrescreenModeChange}
-        />
+        {shouldShowScreeningFlow ? (
+          <>
+            <div className="space-y-[8px]">
+              <h3 className={FX_TYPOGRAPHY.button}>Default Flow</h3>
+            </div>
+            <OptionGrid
+              options={PRESCREEN_OPTIONS}
+              selectedValue={prescreenMode}
+              onSelect={onPrescreenModeChange}
+            />
+          </>
+        ) : null}
       </SettingsCard>
     );
   }

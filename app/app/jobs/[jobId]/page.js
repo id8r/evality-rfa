@@ -60,7 +60,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/sheet";
 import { ROUTES, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
-import { DEFAULT_JOB_QUESTION_SUGGESTIONS, normalizeJobRecord } from "@/lib/FxJobSchema";
+import {
+  DEFAULT_JOB_QUESTION_SUGGESTIONS,
+  formatCurrencyInputValue,
+  formatCurrencyValue as formatCurrencyDisplay,
+  normalizeJobRecord,
+  parseCurrencyInputValue,
+} from "@/lib/FxJobSchema";
 import {
   findStoredCandidatesByJob,
   findStoredCandidate,
@@ -360,6 +366,7 @@ function normalizeCandidate(candidate, job) {
     ...candidate,
     jobId: candidate.jobId ?? job?.id ?? null,
     jobTitle: candidate.jobTitle ?? job?.title ?? "",
+    jobCurrency: candidate.jobCurrency ?? job?.currency ?? "INR",
     client: candidate.client ?? job?.client ?? job?.company ?? "",
     status: candidate.status ?? "unscreened",
     trustScore,
@@ -462,20 +469,9 @@ function formatTime(value) {
   });
 }
 
-function formatCurrency(value) {
-  if (value == null || value === "") {
-    return "—";
-  }
-
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(value);
-  }
-
-  return String(value);
+function formatCurrency(value, currency = "INR") {
+  const formattedValue = formatCurrencyDisplay(value, currency);
+  return formattedValue || "—";
 }
 
 function formatAvailability(value) {
@@ -949,6 +945,7 @@ function ManualScreeningSheet({
   onDownloadResume,
 }) {
   const [activeStep, setActiveStep] = useState("resume");
+  const salaryCurrency = job?.currency || "INR";
   const [formState, setFormState] = useState({
     interested: "Yes",
     availabilityMode: "days",
@@ -1147,17 +1144,27 @@ function ManualScreeningSheet({
                     <div className="grid gap-[16px] md:grid-cols-2">
                       <FxInput
                         label="Current Salary"
-                        type="number"
-                        value={formState.currentSalary}
-                        onChange={(event) => setFormState((current) => ({ ...current, currentSalary: event.target.value }))}
-                        placeholder="Enter current CTC in INR"
+                        type="text"
+                        inputMode="numeric"
+                        value={formatCurrencyInputValue(formState.currentSalary, salaryCurrency)}
+                        onChange={(event) => setFormState((current) => ({
+                          ...current,
+                          currentSalary: parseCurrencyInputValue(event.target.value),
+                        }))}
+                        placeholder={`Enter current CTC in ${salaryCurrency}`}
+                        className="text-right"
                       />
                       <FxInput
                         label="Salary Expectation"
-                        type="number"
-                        value={formState.expectedSalary}
-                        onChange={(event) => setFormState((current) => ({ ...current, expectedSalary: event.target.value }))}
-                        placeholder="Enter expected CTC in INR"
+                        type="text"
+                        inputMode="numeric"
+                        value={formatCurrencyInputValue(formState.expectedSalary, salaryCurrency)}
+                        onChange={(event) => setFormState((current) => ({
+                          ...current,
+                          expectedSalary: parseCurrencyInputValue(event.target.value),
+                        }))}
+                        placeholder={`Enter expected CTC in ${salaryCurrency}`}
+                        className="text-right"
                       />
                       <FxInput
                         label="Current Company"
@@ -1223,6 +1230,7 @@ function ManualScreeningSheet({
 function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist, onReject, onDownloadResume, onEditCandidate }) {
   const [activeStep, setActiveStep] = useState("details");
   const [activeRecordingMarker, setActiveRecordingMarker] = useState("Q1");
+  const salaryCurrency = job?.currency || candidate?.jobCurrency || "INR";
   const screeningMethod = getPreScreeningSourceLabel(candidate);
   const isManualScreening = screeningMethod === "Manual Screening";
   const RESULT_STEPS = isManualScreening
@@ -1241,8 +1249,8 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
     { label: "Interested", value: candidate?.interested || "Not Answered" },
     { label: "Notice Period", value: formatNoticePeriod(candidate) !== "—" ? formatNoticePeriod(candidate) : "Not Answered" },
     { label: "Location Preference", value: candidate?.jobContext?.commuteComfortable || "Not Answered" },
-    { label: "Current CTC", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "Not Answered" },
-    { label: "Expected CTC", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "Not Answered" },
+    { label: "Current CTC", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary, salaryCurrency) : "Not Answered" },
+    { label: "Expected CTC", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary, salaryCurrency) : "Not Answered" },
     { label: "Current Company", value: candidate?.currentCompany || "Not Answered" },
     { label: "Recruiter Notes", value: candidate?.jobContext?.manualScreeningNotes || candidate?.notes || "Not Answered" },
   ];
@@ -1321,7 +1329,7 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
       id: "q5",
       question: "What is your current annual compensation and expected compensation for your next role?",
       answer: candidate?.currentSalary != null || candidate?.expectedSalary != null
-        ? `Current: ${candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "Not shared"} · Expected: ${candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "Not shared"}`
+        ? `Current: ${candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary, salaryCurrency) : "Not shared"} · Expected: ${candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary, salaryCurrency) : "Not shared"}`
         : "No answer found for this question.",
     },
     {
@@ -1783,6 +1791,7 @@ function SendToClientConfirmSheet({
   onGenerateDraft,
 }) {
   const candidateList = Array.isArray(candidates) ? candidates : [];
+  const salaryCurrency = job?.currency || "INR";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -1815,8 +1824,8 @@ function SendToClientConfirmSheet({
                       <div className="truncate text-[var(--fx-text-muted)]">{candidate.email || "—"}</div>
                     </div>
                     <span className="text-center">{formatAvailability(candidate.availabilityDays)}</span>
-                    <span className="text-right tabular-nums">{formatCurrency(candidate.currentSalary)}</span>
-                    <span className="text-right tabular-nums">{formatCurrency(candidate.expectedSalary)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(candidate.currentSalary, salaryCurrency)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(candidate.expectedSalary, salaryCurrency)}</span>
                   </div>
                 ))}
               </div>
@@ -1861,6 +1870,7 @@ function SendToClientDraftSheet({
   onDownloadResumes,
 }) {
   const candidateList = Array.isArray(candidates) ? candidates : [];
+  const salaryCurrency = job?.currency || "INR";
   const candidateCount = candidateList.length;
   const recruiterName = job?.updatedBy || "Recruiter";
   const isReviewMode = mode === "review";
@@ -1899,7 +1909,7 @@ function SendToClientDraftSheet({
     "",
     "Candidate Snapshot",
     ...candidateList.flatMap((candidate) => [
-      `- ${candidate.name} | ${candidate.matchScore != null ? `${candidate.matchScore}% Fit Score` : "Fit Score —"} | ${formatAvailability(candidate.availabilityDays)} | Current ${formatCurrency(candidate.currentSalary)} | Expected ${formatCurrency(candidate.expectedSalary)}`,
+      `- ${candidate.name} | ${candidate.matchScore != null ? `${candidate.matchScore}% Fit Score` : "Fit Score —"} | ${formatAvailability(candidate.availabilityDays)} | Current ${formatCurrency(candidate.currentSalary, salaryCurrency)} | Expected ${formatCurrency(candidate.expectedSalary, salaryCurrency)}`,
       `  Resume: https://www.evalityjobs.com/resume/${candidate.id}`,
     ]),
   ].join("\n");
@@ -1970,8 +1980,8 @@ function SendToClientDraftSheet({
                     </div>
                     <span className="text-center">{candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}</span>
                     <span className="text-center">{formatAvailability(candidate.availabilityDays)}</span>
-                    <span className="text-right tabular-nums">{formatCurrency(candidate.currentSalary)}</span>
-                    <span className="text-right tabular-nums">{formatCurrency(candidate.expectedSalary)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(candidate.currentSalary, salaryCurrency)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(candidate.expectedSalary, salaryCurrency)}</span>
                     <button
                       type="button"
                       className="text-center text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
@@ -2024,6 +2034,7 @@ function ClientStatusUpdateSheet({
 }) {
   const [commentValue, setCommentValue] = useState("");
   const commentRef = useRef(null);
+  const salaryCurrency = candidate?.jobCurrency || "INR";
 
   useEffect(() => {
     setCommentValue("");
@@ -2140,8 +2151,8 @@ function ClientStatusUpdateSheet({
                     </button>
                   )} />
                   <MetaField label="Availability / Joining" value={formatAvailability(candidate.availabilityDays)} />
-                  <MetaField label="Current CTC" value={formatCurrency(candidate.currentSalary)} />
-                  <MetaField label="Expected CTC" value={formatCurrency(candidate.expectedSalary)} />
+                  <MetaField label="Current CTC" value={formatCurrency(candidate.currentSalary, salaryCurrency)} />
+                  <MetaField label="Expected CTC" value={formatCurrency(candidate.expectedSalary, salaryCurrency)} />
                   <MetaField label="Current Stage" value={candidate.clientStatus || "Feedback Awaited"} />
                   <MetaField label="Last Updated" value={candidate.updatedAt ? formatCompactDate(candidate.updatedAt) : "—"} />
                 </div>
@@ -2180,6 +2191,7 @@ function CandidateWorkspaceSheet({
 }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [noteDraft, setNoteDraft] = useState("");
+  const salaryCurrency = job?.currency || candidate?.jobCurrency || "INR";
   const isRejected = candidate?.status === "rejected";
   const activeFlowStage = isRejected ? null : (candidate?.status ?? "unscreened");
   const currentStageLabel = isRejected
@@ -2198,8 +2210,8 @@ function CandidateWorkspaceSheet({
     "Key Highlights",
     `• CV Match Score: ${candidate?.matchScore != null ? `${candidate.matchScore}%` : "—"}`,
     `• Availability: ${candidate?.availabilityDays != null ? formatAvailability(candidate.availabilityDays) : "—"}`,
-    `• Current Salary: ${candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "—"}`,
-    `• Expected Salary: ${candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "—"}`,
+    `• Current Salary: ${candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary, salaryCurrency) : "—"}`,
+    `• Expected Salary: ${candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary, salaryCurrency) : "—"}`,
     "",
     "Recruiter Notes",
     "This is a demo resume preview rendered from seeded candidate data.",
@@ -2220,8 +2232,8 @@ function CandidateWorkspaceSheet({
   const screeningSnapshot = [
     { label: "Interested", value: candidate?.interested || "—" },
     { label: "Notice Period", value: formatNoticePeriod(candidate) },
-    { label: "Current CTC", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary) : "—" },
-    { label: "Expected CTC", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary) : "—" },
+    { label: "Current CTC", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary, salaryCurrency) : "—" },
+    { label: "Expected CTC", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary, salaryCurrency) : "—" },
     { label: "Pre-Screen Result", value: screeningResult },
     { label: "Screening Source", value: getPreScreeningSourceLabel(candidate) },
   ];
@@ -2885,6 +2897,7 @@ export default function JobDetailsPage({ params }) {
     }
   }, [jobId, jobSnapshot]);
   const workspaceType = useSyncExternalStore(subscribeToWorkspaceTypeChange, readStoredWorkspaceType, () => null);
+  const salaryCurrency = job?.currency || "INR";
   const candidateSnapshot = useSyncExternalStore(
     subscribeToJobStoreChange,
     () => JSON.stringify(readStoredCandidates()),
@@ -4835,12 +4848,12 @@ export default function JobDetailsPage({ params }) {
     ),
     currentSalary: (
       <span className="tabular-nums text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-        {formatCurrency(candidate.currentSalary)}
+        {formatCurrency(candidate.currentSalary, salaryCurrency)}
       </span>
     ),
     expectedSalary: (
       <span className="tabular-nums text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-        {formatCurrency(candidate.expectedSalary)}
+        {formatCurrency(candidate.expectedSalary, salaryCurrency)}
       </span>
     ),
     noticePeriod: (

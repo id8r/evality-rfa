@@ -9,6 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { fxButtonClassName } from "@/components/FxButton";
 import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { ROUTES } from "@/lib/FxConstants";
+import { formatCurrencyValue as formatCurrencyDisplay } from "@/lib/FxJobSchema";
 import { findStoredCandidate, findStoredJob } from "@/lib/FxStore";
 import { FX_COLORS, FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 
@@ -21,20 +22,9 @@ function MetaField({ label, value }) {
   );
 }
 
-function formatCurrency(value) {
-  if (value == null || value === "") {
-    return "—";
-  }
-
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(value);
-  }
-
-  return String(value);
+function formatCurrency(value, currency = "INR") {
+  const formattedValue = formatCurrencyDisplay(value, currency);
+  return formattedValue || "—";
 }
 
 function formatAvailability(value) {
@@ -55,6 +45,7 @@ export default function CandidateWorkspacePage({ params }) {
   const { candidateId } = React.use(params);
   const candidate = findStoredCandidate(candidateId);
   const job = candidate?.jobId ? findStoredJob(candidate.jobId) : null;
+  const salaryCurrency = job?.currency || "INR";
 
   return (
     <FxProtectedAppPage
@@ -96,8 +87,8 @@ export default function CandidateWorkspacePage({ params }) {
                 <MetaField label="Job" value={candidate.jobTitle || job?.title || "—"} />
                 <MetaField label="Status" value={candidate.status} />
                 <MetaField label="Availability" value={formatAvailability(candidate.availabilityDays)} />
-                <MetaField label="Current Salary" value={formatCurrency(candidate.currentSalary)} />
-                <MetaField label="Expected Salary" value={formatCurrency(candidate.expectedSalary)} />
+                <MetaField label="Current Salary" value={formatCurrency(candidate.currentSalary, salaryCurrency)} />
+                <MetaField label="Expected Salary" value={formatCurrency(candidate.expectedSalary, salaryCurrency)} />
                 <MetaField label="Source" value={candidate.uploadedBy || "—"} />
               </div>
             </div>

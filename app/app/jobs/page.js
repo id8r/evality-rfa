@@ -134,6 +134,15 @@ const JOB_SHEET_STEPS = [
   { value: "evaluation", label: "Evaluation" },
   { value: "review", label: "Review" },
 ];
+const JOB_BASIC_DETAILS_FOCUS_ORDER = [
+  "title",
+  "employmentType",
+  "workplaceType",
+  "city",
+  "experienceFrom",
+  "experienceTo",
+  "positions",
+];
 
 const EVALUATION_CONTEXT_PROMPTS = [
   {
@@ -1376,11 +1385,7 @@ export default function JobsPage() {
 
   function validateBasicDetailsStep() {
     const validation = validateJobForm(jobForm, { includeClientInfo: false });
-    const relevantFields = ["title", "experienceFrom", "experienceTo", "employmentType", "workplaceType", "positions"];
-
-    if (isCityRequired) {
-      relevantFields.push("city");
-    }
+    const relevantFields = JOB_BASIC_DETAILS_FOCUS_ORDER.filter((fieldName) => isCityRequired || fieldName !== "city");
 
     const nextErrors = Object.fromEntries(
       Object.entries(validation.errors).filter(([fieldName]) => relevantFields.includes(fieldName)),

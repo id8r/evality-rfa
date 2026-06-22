@@ -14,24 +14,14 @@ import { FxTabs } from "@/components/FxTabs";
 import { showWarning } from "@/components/FxToast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ROUTES } from "@/lib/FxConstants";
+import { formatCurrencyValue as formatCurrencyDisplay } from "@/lib/FxJobSchema";
 import { FX_COLORS, FX_LAYOUT, FX_RADIUS, FX_TYPOGRAPHY, TABLE_TYPOGRAPHY } from "@/lib/FxTheme";
 import { findStoredJob, readStoredCandidates } from "@/lib/FxStore";
 import { cn } from "@/lib/FxUtils";
 
-function formatCurrency(value) {
-  if (value == null || value === "") {
-    return "—";
-  }
-
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(value);
-  }
-
-  return String(value);
+function formatCurrency(value, currency = "INR") {
+  const formattedValue = formatCurrencyDisplay(value, currency);
+  return formattedValue || "—";
 }
 
 function formatAvailability(value) {
@@ -217,6 +207,7 @@ export default function CandidatesPage() {
         }
 
         const job = candidate.jobId ? findStoredJob(candidate.jobId) : null;
+        const salaryCurrency = job?.currency || "INR";
         const haystack = [
           candidate.name,
           candidate.jobTitle,
@@ -293,7 +284,7 @@ export default function CandidatesPage() {
           availability: <span className={`${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)]`}>{formatAvailability(candidate.availabilityDays)}</span>,
           salary: (
             <span className={`tabular-nums ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)]`}>
-              {formatCurrency(candidate.currentSalary)}
+              {formatCurrency(candidate.currentSalary, salaryCurrency)}
             </span>
           ),
           updatedAt: <span className={`${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text-muted)]`}>{formatRelativeTime(candidate.updatedAt)}</span>,
