@@ -69,14 +69,14 @@ const RECRUITING_STATUS_OPTIONS = [
 ];
 const PRESCREEN_OPTIONS = [
   {
+    value: "prescreen_only",
+    title: "Standard Questions Only",
+    description: "Keep the flow shorter when the goal is quick qualification.",
+  },
+  {
     value: "cv_and_prescreen",
     title: "Standard Questions and AI led Email",
     description: "Use CV context first, then ask focused qualification questions.",
-  },
-  {
-    value: "prescreen_only",
-    title: "Pre-screening only",
-    description: "Keep the flow shorter when the goal is quick qualification.",
   },
 ];
 const TIMEZONE_OPTIONS = [
