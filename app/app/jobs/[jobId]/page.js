@@ -3782,6 +3782,11 @@ export default function JobDetailsPage({ params }) {
   }, [manualScreeningCandidates, markCandidateViewed, selectedManualScreeningCandidateIndex]);
 /* - - - - - - - - - - - - - - - - */
 
+  function clearSelectedCandidates() {
+    setSelectedCandidateIds([]);
+  }
+/* - - - - - - - - - - - - - - - - */
+
   const handleStartEmailScreening = useCallback(
     (candidates, payloadById = {}) => {
       const nextCandidates = Array.isArray(candidates) ? candidates.filter(Boolean) : [candidates].filter(Boolean);
@@ -3947,10 +3952,6 @@ export default function JobDetailsPage({ params }) {
     },
     [handleSetUnscreenedFilterStatus, updateWorkspaceCandidate],
   );
-
-  const clearSelectedCandidates = useCallback(() => {
-    setSelectedCandidateIds([]);
-  }, []);
 
   const handleMoveCandidateToStage = useCallback(
     (candidate, nextStage, successLabel = null) => {
