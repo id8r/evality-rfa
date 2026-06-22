@@ -284,6 +284,101 @@ function OptionGrid({ options, selectedValue, onSelect, columns = "md:grid-cols-
     </RadioGroup>
   );
 }
+/* - - - - - - - - - - - - - - - - */
+
+function CheckboxOptionGrid({ options, selectedValues, onToggle, prescreenMode, onPrescreenModeChange, columns = "md:grid-cols-2" }) {
+  return (
+    <div className={cn("grid gap-[12px]", columns)}>
+      {options.map((option) => {
+        const checked = selectedValues.includes(option.value);
+        const optionId = `option-${option.value}`;
+        const disabled = Boolean(option.disabled);
+        const shouldShowAccordion = checked && option.value !== "manual" && !disabled;
+
+        return (
+          <div
+            key={option.value}
+            className={cn(
+              "rounded-[10px] border text-left transition-colors",
+              disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+              checked
+                ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
+                : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-transparent",
+              !disabled ? "hover:bg-[var(--fx-surface-hover)]/60" : "",
+            )}
+          >
+            <label
+              htmlFor={optionId}
+              className="flex items-start gap-[12px] px-[14px] py-[14px]"
+            >
+              <Checkbox
+                id={optionId}
+                checked={checked}
+                disabled={disabled}
+                onCheckedChange={(nextChecked) => {
+                  if (!disabled) {
+                    onToggle(option.value, Boolean(nextChecked));
+                  }
+                }}
+                className="mt-[1px]"
+              />
+              <span className="min-w-0 flex-1 space-y-[2px]">
+                <span className="block text-[14px] font-medium leading-[20px] text-[var(--fx-text)]">{option.title}</span>
+                <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{option.description}</span>
+              </span>
+              {option.value !== "manual" && !disabled ? (
+                <ChevronDown
+                  className={cn(
+                    "mt-[1px] size-[16px] shrink-0 text-[var(--fx-text-muted)] transition-transform duration-200",
+                    shouldShowAccordion ? "rotate-180" : "rotate-0",
+                  )}
+                />
+              ) : null}
+            </label>
+
+            {shouldShowAccordion ? (
+              <div className="border-t border-[color:color-mix(in_srgb,var(--fx-border)_56%,transparent)] px-[14px] py-[14px]">
+                <RadioGroup
+                  value={prescreenMode}
+                  onValueChange={onPrescreenModeChange}
+                  className="grid gap-[10px]"
+                >
+                  {PRESCREEN_OPTIONS.map((flowOption) => {
+                    const flowOptionId = `${optionId}-${flowOption.value}`;
+                    const active = prescreenMode === flowOption.value;
+
+                    return (
+                      <label
+                        key={flowOption.value}
+                        htmlFor={flowOptionId}
+                        className={cn(
+                          "flex items-start gap-[10px] rounded-[8px] border px-[12px] py-[12px] text-left transition-colors",
+                          active
+                            ? "border-[var(--fx-primary)] bg-[var(--fx-surface)]"
+                            : "border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)]/80 hover:bg-[var(--fx-surface)]",
+                        )}
+                      >
+                        <RadioGroupItem
+                          id={flowOptionId}
+                          value={flowOption.value}
+                          className="mt-[1px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+                        />
+                        <span className="space-y-[2px]">
+                          <span className="block text-[14px] font-medium leading-[20px] text-[var(--fx-text)]">{flowOption.title}</span>
+                          <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{flowOption.description}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function RecruitingStatusGroup({ options, selectedValue, onSelect }) {
   return (
@@ -977,7 +1072,7 @@ function SectionContent({
   onRecruitingStatusChange,
   organizationIndustries,
   onOrganizationIndustriesChange,
-  screeningChannel,
+  screeningChannels,
   onScreeningChannelChange,
   prescreenMode,
   onPrescreenModeChange,
@@ -1102,8 +1197,6 @@ function SectionContent({
   }
 
   if (sectionId === "screening") {
-    const shouldShowScreeningFlow = screeningChannel !== "manual";
-
     return (
       <SettingsCard
         title="Screening Setup"
@@ -1113,24 +1206,13 @@ function SectionContent({
         <div className="space-y-[8px]">
           <h3 className={FX_TYPOGRAPHY.button}>Default Method</h3>
         </div>
-        <OptionGrid
+        <CheckboxOptionGrid
           options={SCREENING_METHOD_OPTIONS}
-          selectedValue={screeningChannel}
-          onSelect={onScreeningChannelChange}
+          selectedValues={screeningChannels}
+          onToggle={onScreeningChannelChange}
+          prescreenMode={prescreenMode}
+          onPrescreenModeChange={onPrescreenModeChange}
         />
-
-        {shouldShowScreeningFlow ? (
-          <>
-            <div className="space-y-[8px]">
-              <h3 className={FX_TYPOGRAPHY.button}>Default Flow</h3>
-            </div>
-            <OptionGrid
-              options={PRESCREEN_OPTIONS}
-              selectedValue={prescreenMode}
-              onSelect={onPrescreenModeChange}
-            />
-          </>
-        ) : null}
       </SettingsCard>
     );
   }
@@ -1317,7 +1399,7 @@ export default function SettingsPage() {
   const [organizationProfile, setOrganizationProfile] = useState(() => buildIdentityOrganizationSeed());
   const [profileForm, setProfileForm] = useState(() => getProfileSeed());
   const [recruitingStatus, setRecruitingStatus] = useState(WORKSPACE_TYPES.MY_COMPANY);
-  const [screeningChannel, setScreeningChannel] = useState("email");
+  const [screeningChannels, setScreeningChannels] = useState(["form"]);
   const [prescreenMode, setPrescreenMode] = useState("cv_and_prescreen");
   const [emailProviderConnections, setEmailProviderConnections] = useState({
     gmail: false,
@@ -1454,6 +1536,17 @@ export default function SettingsPage() {
   function handleRecruitingStatusChange(nextValue) {
     setRecruitingStatus(nextValue);
     writeStoredValue(STORAGE_KEYS.WORKSPACE_TYPE, nextValue);
+  }
+/* - - - - - - - - - - - - - - - - */
+
+  function handleScreeningChannelChange(value, checked) {
+    setScreeningChannels((current) => {
+      if (checked) {
+        return current.includes(value) ? current : [...current, value];
+      }
+
+      return current.filter((item) => item !== value);
+    });
   }
 /* - - - - - - - - - - - - - - - - */
 
@@ -1678,8 +1771,8 @@ export default function SettingsPage() {
                   onRecruitingStatusChange={handleRecruitingStatusChange}
                   organizationIndustries={organizationIndustries}
                   onOrganizationIndustriesChange={setOrganizationIndustries}
-                  screeningChannel={screeningChannel}
-                  onScreeningChannelChange={setScreeningChannel}
+                  screeningChannels={screeningChannels}
+                  onScreeningChannelChange={handleScreeningChannelChange}
                   prescreenMode={prescreenMode}
                   onPrescreenModeChange={setPrescreenMode}
                   emailProviderConnections={emailProviderConnections}
