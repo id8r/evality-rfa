@@ -426,10 +426,10 @@ function SetupChecklistItem({ children, completed = false, onClick }) {
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex min-w-0 items-start gap-[8px] rounded-full border px-[10px] py-[6px] text-left transition-colors",
+        "inline-flex min-w-0 items-start gap-[8px] px-0 py-0 text-left transition-colors",
         completed
-          ? "border-[color:color-mix(in_srgb,var(--fx-success)_42%,var(--fx-border)_58%)] bg-[color:color-mix(in_srgb,var(--fx-success)_12%,var(--fx-surface)_88%)] text-[var(--fx-success)] hover:bg-[color:color-mix(in_srgb,var(--fx-success)_16%,var(--fx-surface)_84%)]"
-          : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:border-[color:color-mix(in_srgb,var(--fx-text-muted)_26%,var(--fx-border)_74%)] hover:bg-[var(--fx-surface-hover)]/40",
+          ? "text-[var(--fx-text-muted)] hover:text-[var(--fx-text)]"
+          : "text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]",
       )}
     >
       {completed ? (
@@ -439,8 +439,11 @@ function SetupChecklistItem({ children, completed = false, onClick }) {
       )}
       <span className={cn(
         "text-[15px] leading-[22px] font-normal",
-        completed ? "text-[var(--fx-success)]" : "text-[var(--fx-primary)]",
-      )}>{children}</span>
+        completed ? "text-[var(--fx-text-muted)]" : "text-[var(--fx-primary)]",
+      )}>
+        {children}
+        {!completed ? " →" : ""}
+      </span>
     </button>
   );
 }
@@ -1035,7 +1038,7 @@ function ProfileCompletionBanner({
 
       {expanded ? (
         <div className="border-t border-[color:color-mix(in_srgb,var(--fx-primary)_14%,var(--fx-border)_86%)] bg-[var(--fx-surface)] px-[24px] py-[24px]">
-          <div className="flex flex-wrap gap-[16px]">
+          <div className="flex flex-wrap gap-x-[16px] gap-y-[12px]">
             {checklist.map((item) => (
               <SetupChecklistItem
                 key={item.label}
@@ -1734,9 +1737,6 @@ export default function SettingsPage() {
     <FxProtectedAppPage pageId="settings">
       <section className={`${FX_LAYOUT.contentWidthWide} flex w-full min-w-0 flex-1 flex-col gap-[24px] bg-transparent pt-[16px]`}>
         <div className="grid gap-[24px] lg:grid-cols-[280px_minmax(0,1fr)]">
-          <div className="hidden lg:block" aria-hidden="true" />
-          <ProfileCompletionBanner onNavigate={setActiveSection} {...profileCompletion} />
-
           <aside className="sticky top-0 self-start h-[calc(100vh-64px)] overflow-hidden py-[32px]">
             <div className="fx-scrollbar-hidden h-full min-h-0 overflow-y-auto px-[4px]" ref={sidebarScrollRef} onScroll={updateSidebarScrollState}>
               <div className="space-y-[8px] pr-[4px]">
@@ -1767,8 +1767,10 @@ export default function SettingsPage() {
           </aside>
 
           <main className="min-w-0 py-[32px]">
-            <div className={`flex flex-col rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-              <div className="px-[24px] py-[32px] md:px-[32px]">
+            <div className="space-y-[24px]">
+              <ProfileCompletionBanner onNavigate={setActiveSection} {...profileCompletion} />
+              <div className={`flex flex-col rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                <div className="px-[24px] py-[32px] md:px-[32px]">
                 <SectionContent
                   sectionId={activeSection}
                   organizationProfile={organizationProfile}
@@ -1801,6 +1803,7 @@ export default function SettingsPage() {
                   calendarPreferences={calendarPreferences}
                   onCalendarPreferenceChange={handleCalendarPreferenceChange}
                 />
+                </div>
               </div>
             </div>
           </main>

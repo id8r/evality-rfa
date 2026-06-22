@@ -251,6 +251,7 @@ export default function CandidatesPage() {
     () =>
       visibleCandidates.map((candidate) => {
         const job = candidate.jobId ? findStoredJob(candidate.jobId) : null;
+        const salaryCurrency = job?.currency || "INR";
 
         return {
           id: candidate.id,

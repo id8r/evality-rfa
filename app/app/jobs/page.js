@@ -3064,7 +3064,7 @@ function formatDisplayLabel(value) {
 
                       <div className="space-y-[12px]">
                         <div className="flex items-center justify-between gap-[12px]">
-                          <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Pre-Screening Questions</h4>
+                          <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Setup Standard Pre-Screening Questions</h4>
                         </div>
 
                         {jobForm.questions.length ? (
