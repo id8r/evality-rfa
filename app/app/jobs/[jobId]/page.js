@@ -1890,6 +1890,7 @@ function ManualScreeningSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="xl" widthPx={showResumePane ? 1100 : 760}>
         <SheetHeader
+          className="bg-[var(--fx-surface)]"
           title={<span className="text-[var(--fx-text-muted)]">Manual Pre-Screening</span>}
           actions={candidate ? (
             <div className="flex items-center gap-[8px]">
@@ -1934,198 +1935,198 @@ function ManualScreeningSheet({
             </div>
           ) : null}
         />
-        <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
+        <SheetBody className="bg-[var(--fx-bg-soft)] px-[24px] py-[32px]">
           {candidate ? (
             <div
               className={cn(
-                "grid h-full min-h-0 gap-[24px]",
-                showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_24px_minmax(0,1fr)]" : "xl:grid-cols-1",
+                "grid h-full min-h-0 gap-[16px]",
+                showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]" : "xl:grid-cols-1",
               )}
             >
               {showResumePane ? (
-                <>
-                  <div className="flex min-h-0 flex-col">
-                    <div className={`flex min-h-0 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                      <div className={`border-b ${FX_COLORS.border} px-[16px] py-[12px]`}>
-                        <p className={FX_TYPOGRAPHY.button}>Resume</p>
-                      </div>
-                      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
-                        <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                          {resumePreview}
-                        </pre>
-                      </div>
+                <div className="flex min-h-0 flex-col">
+                  <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                    <div className={`border-b ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[16px] py-[12px]`}>
+                      <p className={FX_TYPOGRAPHY.button}>Resume</p>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-surface)] p-[16px]">
+                      <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                        {resumePreview}
+                      </pre>
                     </div>
                   </div>
-                  <div className="relative flex items-stretch justify-center">
-                    <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
-                  </div>
-                </>
+                </div>
               ) : null}
 
-              <div className="flex min-h-0 flex-col gap-[16px]">
-                <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[16px] py-[12px]`}>
-                  <FxTabs
-                    variant="underlined"
-                    value={activeStep}
-                    onValueChange={setActiveStep}
-                    items={[
-                      { value: "interview", label: "AI Generated Questions" },
-                      { value: "prescreen", label: "Standard Screening Questions" },
-                    ]}
-                    itemClassName="text-[12px] leading-[18px]"
-                  />
-                </div>
+              <div className={cn("flex min-h-0 flex-col", showResumePane ? `border-l ${FX_COLORS.border} pl-[16px]` : "")}>
+                <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                  <div className={`shrink-0 border-b ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[16px] py-[12px]`}>
+                    <FxTabs
+                      variant="underlined"
+                      value={activeStep}
+                      onValueChange={setActiveStep}
+                      items={[
+                        { value: "interview", label: "AI Generated Questions" },
+                        { value: "prescreen", label: "Standard Screening Questions" },
+                      ]}
+                      itemClassName="text-[12px] leading-[18px]"
+                    />
+                  </div>
 
-                <div className="min-h-0 flex-1 overflow-auto">
-                  {activeStep === "interview" ? (
-                    <div className="space-y-[12px]">
-                      {interviewQuestions.map((item, index) => (
-                        <div key={item.question} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
-                          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Question {index + 1}</p>
-                          <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{item.question}</p>
-                          <p className="mt-[8px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{item.guidance}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-[16px]">
-                      <div className={`space-y-[8px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">Is the candidate interested in the role?</p>
-                        <RadioGroup
-                          value={formState.interested}
-                          onValueChange={(value) => setFormState((current) => ({ ...current, interested: value }))}
-                          className="flex flex-wrap items-center gap-[20px]"
-                        >
-                          {["Yes", "No"].map((value) => (
-                            <label key={value} className="flex cursor-pointer items-center gap-[8px]">
-                              <RadioGroupItem value={value} />
-                              <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
-                            </label>
-                          ))}
-                        </RadioGroup>
-                      </div>
-
-                      <div className={`space-y-[10px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">By when can the candidate join?</p>
-                        <RadioGroup
-                          value={formState.availabilityMode}
-                          onValueChange={(value) => setFormState((current) => ({ ...current, availabilityMode: value }))}
-                          className="flex flex-wrap items-center gap-[20px]"
-                        >
-                          <label className="flex cursor-pointer items-center gap-[8px]">
-                            <RadioGroupItem value="date" />
-                            <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Specific Date</span>
-                          </label>
-                          <label className="flex cursor-pointer items-center gap-[8px]">
-                            <RadioGroupItem value="days" />
-                            <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Availability in Days</span>
-                          </label>
-                        </RadioGroup>
-
-                        {formState.availabilityMode === "date" ? (
-                          <div className="w-[168px]">
-                            <FxInput
-                              type="date"
-                              value={formState.availabilityDate}
-                              onChange={(event) => setFormState((current) => ({ ...current, availabilityDate: event.target.value }))}
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-[8px]">
-                            <div className="w-[72px]">
-                              <FxInput
-                                value={formState.availabilityDays}
-                                onChange={(event) => setFormState((current) => ({ ...current, availabilityDays: event.target.value }))}
-                                placeholder="30"
-                                inputMode="numeric"
-                                className="text-center"
-                              />
-                            </div>
-                            <span className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">Days</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {shouldShowCommuteQuestion ? (
-                        <div className={`space-y-[8px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                          <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">{commuteQuestion}</p>
-                          <RadioGroup
-                            value={formState.commuteComfortable}
-                            onValueChange={(value) => setFormState((current) => ({ ...current, commuteComfortable: value }))}
-                            className="flex flex-wrap items-center gap-[20px]"
-                          >
-                            {["Yes", "No"].map((value) => (
-                              <label key={value} className="flex cursor-pointer items-center gap-[8px]">
-                                <RadioGroupItem value={value} />
-                                <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
-                              </label>
-                            ))}
-                          </RadioGroup>
-                        </div>
-                      ) : null}
-
-                      <div className={`space-y-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                        <div className="grid gap-[16px] md:grid-cols-2">
-                          <FxInput
-                            label="Current Salary"
-                            type="text"
-                            inputMode="numeric"
-                            value={formatCurrencyInputValue(formState.currentSalary, salaryCurrency)}
-                            onChange={(event) => setFormState((current) => ({
-                              ...current,
-                              currentSalary: parseCurrencyInputValue(event.target.value),
-                            }))}
-                            placeholder={`Enter current CTC in ${salaryCurrency}`}
-                            className="text-right"
-                          />
-                          <FxInput
-                            label="Salary Expectation"
-                            type="text"
-                            inputMode="numeric"
-                            value={formatCurrencyInputValue(formState.expectedSalary, salaryCurrency)}
-                            onChange={(event) => setFormState((current) => ({
-                              ...current,
-                              expectedSalary: parseCurrencyInputValue(event.target.value),
-                            }))}
-                            placeholder={`Enter expected CTC in ${salaryCurrency}`}
-                            className="text-right"
-                          />
-                          <FxInput
-                            label="Fit Score"
-                            type="text"
-                            inputMode="numeric"
-                            value={formState.fitScore}
-                            onChange={(event) => setFormState((current) => ({ ...current, fitScore: event.target.value }))}
-                            placeholder="Enter fit score"
-                            className="text-right"
-                          />
-                        </div>
-                        <FxInput
-                          textarea
-                          label="Recruiter Notes"
-                          value={formState.notes}
-                          onChange={(event) => setFormState((current) => ({ ...current, notes: event.target.value }))}
-                          placeholder="Add notes from the conversation"
-                          className="min-h-[120px]"
-                        />
-                      </div>
-
-                      <div className={`space-y-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
-                        {standardScreeningQuestions.map((item, index) => (
-                          <div key={item.id} className="space-y-[2px]">
-                            <p className="text-[12px] leading-[16px] font-medium text-[var(--fx-text-muted)]">Question {index + 1}</p>
-                            <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">{item.question}</p>
+                  <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-surface)] p-[16px]">
+                    {activeStep === "interview" ? (
+                      <div className="space-y-[12px]">
+                        {interviewQuestions.map((item, index) => (
+                          <div key={item.question} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                            <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Question {index + 1}</p>
+                            <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{item.question}</p>
+                            <p className="mt-[8px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{item.guidance}</p>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="space-y-[16px]">
+                        <div className={`space-y-[16px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                          <div className="space-y-[8px]">
+                            <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">Is the candidate interested in the role?</p>
+                            <RadioGroup
+                              value={formState.interested}
+                              onValueChange={(value) => setFormState((current) => ({ ...current, interested: value }))}
+                              className="flex flex-wrap items-center gap-[20px]"
+                            >
+                              {["Yes", "No"].map((value) => (
+                                <label key={value} className="flex cursor-pointer items-center gap-[8px]">
+                                  <RadioGroupItem value={value} />
+                                  <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
+                                </label>
+                              ))}
+                            </RadioGroup>
+                          </div>
+
+                          <div className="space-y-[10px]">
+                            <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">By when can the candidate join?</p>
+                            <RadioGroup
+                              value={formState.availabilityMode}
+                              onValueChange={(value) => setFormState((current) => ({ ...current, availabilityMode: value }))}
+                              className="flex flex-wrap items-center gap-[20px]"
+                            >
+                              <label className="flex cursor-pointer items-center gap-[8px]">
+                                <RadioGroupItem value="date" />
+                                <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Specific Date</span>
+                              </label>
+                              <label className="flex cursor-pointer items-center gap-[8px]">
+                                <RadioGroupItem value="days" />
+                                <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Availability in Days</span>
+                              </label>
+                            </RadioGroup>
+
+                            {formState.availabilityMode === "date" ? (
+                              <div className="w-[168px]">
+                                <FxInput
+                                  type="date"
+                                  value={formState.availabilityDate}
+                                  onChange={(event) => setFormState((current) => ({ ...current, availabilityDate: event.target.value }))}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-[8px]">
+                                <div className="w-[72px]">
+                                  <FxInput
+                                    value={formState.availabilityDays}
+                                    onChange={(event) => setFormState((current) => ({ ...current, availabilityDays: event.target.value }))}
+                                    placeholder="30"
+                                    inputMode="numeric"
+                                    className="text-center"
+                                  />
+                                </div>
+                                <span className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">Days</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {shouldShowCommuteQuestion ? (
+                            <div className="space-y-[8px]">
+                              <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">{commuteQuestion}</p>
+                              <RadioGroup
+                                value={formState.commuteComfortable}
+                                onValueChange={(value) => setFormState((current) => ({ ...current, commuteComfortable: value }))}
+                                className="flex flex-wrap items-center gap-[20px]"
+                              >
+                                {["Yes", "No"].map((value) => (
+                                  <label key={value} className="flex cursor-pointer items-center gap-[8px]">
+                                    <RadioGroupItem value={value} />
+                                    <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
+                                  </label>
+                                ))}
+                              </RadioGroup>
+                            </div>
+                          ) : null}
+
+                          <div className="grid gap-[16px] md:grid-cols-2">
+                            <FxInput
+                              label="Current Salary"
+                              type="text"
+                              inputMode="numeric"
+                              value={formatCurrencyInputValue(formState.currentSalary, salaryCurrency)}
+                              onChange={(event) => setFormState((current) => ({
+                                ...current,
+                                currentSalary: parseCurrencyInputValue(event.target.value),
+                              }))}
+                              placeholder={`Enter current CTC in ${salaryCurrency}`}
+                              className="text-right"
+                            />
+                            <FxInput
+                              label="Salary Expectation"
+                              type="text"
+                              inputMode="numeric"
+                              value={formatCurrencyInputValue(formState.expectedSalary, salaryCurrency)}
+                              onChange={(event) => setFormState((current) => ({
+                                ...current,
+                                expectedSalary: parseCurrencyInputValue(event.target.value),
+                              }))}
+                              placeholder={`Enter expected CTC in ${salaryCurrency}`}
+                              className="text-right"
+                            />
+                            <FxInput
+                              label="Fit Score"
+                              type="text"
+                              inputMode="numeric"
+                              value={formState.fitScore}
+                              onChange={(event) => setFormState((current) => ({ ...current, fitScore: event.target.value }))}
+                              placeholder="Enter fit score"
+                              className="text-right"
+                            />
+                          </div>
+                          <FxInput
+                            textarea
+                            label="Recruiter Notes"
+                            value={formState.notes}
+                            onChange={(event) => setFormState((current) => ({ ...current, notes: event.target.value }))}
+                            placeholder="Add notes from the conversation"
+                            className="min-h-[120px]"
+                          />
+                        </div>
+
+                        <div className={`space-y-[10px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+                          <div className="space-y-[10px]">
+                            {standardScreeningQuestions.map((item, index) => (
+                              <div key={item.id} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                                <p className="text-[12px] leading-[16px] font-medium text-[var(--fx-text-muted)]">Question {index + 1}</p>
+                                <p className="mt-[4px] text-[14px] leading-[22px] text-[var(--fx-text)]">{item.question}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           ) : null}
         </SheetBody>
         <SheetFooter
+          className="bg-[var(--fx-bg-soft)]"
           left={(
             <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate)}>
               Reject
