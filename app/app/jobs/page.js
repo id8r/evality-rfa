@@ -129,7 +129,7 @@ const CURRENCY_FORMAT_LOCALES = {
 const JOB_SHEET_STEPS = [
   { value: "basic", label: "Basic Details" },
   { value: "description", label: "Job Description" },
-  { value: "questionnaire", label: "Screening Method" },
+  { value: "questionnaire", label: "Screening Mode" },
   { value: "benefits", label: "Benefits" },
   { value: "evaluation", label: "Evaluation" },
   { value: "review", label: "Review" },
@@ -3183,7 +3183,7 @@ function formatDisplayLabel(value) {
                     })}
 
                     {renderReviewSummaryRow({
-                      title: "Screening Method",
+                      title: "Screening Mode",
                       step: "questionnaire",
                       complete: reviewQuestionnaireComplete,
                       lines: reviewQuestionnaireComplete ? [] : ["Set at least 1 pre-screen question."],

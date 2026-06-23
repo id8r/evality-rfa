@@ -207,7 +207,7 @@ const JOB_WORKSPACE_TABLE_HEADERS = {
     actions: "Actions",
   },
   unscreened: {
-    matchScore: "Fit Score",
+    matchScore: "Match Score",
   },
   screened: {
     matchScore: "Fit Score",
@@ -524,6 +524,47 @@ function formatContactValue(value) {
 
 function buildEmailScreeningTemplate(candidate, job) {
   return `Hi ${candidate?.name || "{{CandidateName}"}},\n\nThank you for your interest in ${job?.title || "{{JobTitle}}"}. Please reply to this email with your updated details so we can continue evaluating your profile.\n\nRegards,\n${job?.company || "{{Company}}"}`;
+}
+/* - - - - - - - - - - - - - - - - */
+
+function buildShareForReviewEmailTemplate(candidates, job, options = {}) {
+  const candidateList = Array.isArray(candidates) ? candidates.filter(Boolean) : [candidates].filter(Boolean);
+  const candidateNames = candidateList.map((candidate) => candidate.name).filter(Boolean);
+  const {
+    shareMode = "cv_only",
+    includePhone = false,
+    includeEmail = false,
+    includeCompensation = false,
+    includeScreening = true,
+  } = options;
+  const roleLabel = job?.title || "the role";
+  const companyLabel = job?.company || "the team";
+  const candidateLabel =
+    candidateNames.length <= 2
+      ? candidateNames.join(" and ")
+      : `${candidateNames.slice(0, 2).join(", ")}, and ${candidateNames.length - 2} more candidates`;
+  const detailSummary = shareMode === "custom"
+    ? [
+        includePhone ? "phone number" : null,
+        includeEmail ? "email address" : null,
+        includeCompensation ? "CTC details" : null,
+        includeScreening ? "screening summary" : null,
+      ].filter(Boolean)
+    : [];
+
+  return [
+    `Hi,`,
+    "",
+    `Sharing ${candidateLabel || "the shortlisted candidates"} for your review against ${roleLabel} at ${companyLabel}.`,
+    shareMode === "custom" && detailSummary.length
+      ? `Included details: ${detailSummary.join(", ")}.`
+      : "Included details: CVs only.",
+    "",
+    "Please review and share your feedback on whom we should move forward with.",
+    "",
+    "Regards,",
+    "Recruiting Team",
+  ].join("\n");
 }
 /* - - - - - - - - - - - - - - - - */
 
@@ -1324,10 +1365,12 @@ function ManualScreeningSheet({
     availabilityDays: "",
     availabilityDate: "",
     commuteComfortable: "Yes",
+    fitScore: "",
     currentSalary: "",
     expectedSalary: "",
     notes: "",
   });
+  const standardScreeningQuestions = useMemo(() => getJobScreeningQuestions(job), [job]);
   const shouldShowCommuteQuestion = job?.workplaceType === "On-site" || job?.workplaceType === "Hybrid";
   const commuteQuestion = useMemo(() => {
     if (job?.workplaceType === "Hybrid") {
@@ -1360,12 +1403,13 @@ function ManualScreeningSheet({
   useEffect(() => {
     setActiveStep("interview");
     setShowResumePane(true);
-    setFormState({
+      setFormState({
       interested: candidate?.interested || "Yes",
       availabilityMode: candidate?.jobContext?.availabilityMode || (candidate?.jobContext?.availabilityDate ? "date" : "date"),
       availabilityDays: candidate?.availabilityDays != null ? String(candidate.availabilityDays) : "",
       availabilityDate: candidate?.jobContext?.availabilityDate || "",
       commuteComfortable: candidate?.jobContext?.commuteComfortable || "Yes",
+      fitScore: candidate?.matchScore != null ? String(candidate.matchScore) : "",
       currentSalary: candidate?.currentSalary != null ? String(candidate.currentSalary) : "",
       expectedSalary: candidate?.expectedSalary != null ? String(candidate.expectedSalary) : "",
       notes: candidate?.jobContext?.manualScreeningNotes || candidate?.notes || "",
@@ -1431,11 +1475,53 @@ function ManualScreeningSheet({
               {showResumePane ? (
                 <>
                   <div className="flex min-h-0 flex-col">
-                    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
-                        <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                          {resumePreview}
-                        </pre>
+                    <div className="grid min-h-0 flex-1 gap-[16px] xl:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
+                      <div className={`flex min-h-0 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                        <div className={`border-b ${FX_COLORS.border} px-[16px] py-[12px]`}>
+                          <p className={FX_TYPOGRAPHY.button}>Reference Panel</p>
+                          <p className="mt-[2px] text-[12px] leading-[16px] text-[var(--fx-text-muted)]">Resume</p>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
+                          <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                            {resumePreview}
+                          </pre>
+                        </div>
+                      </div>
+                      <div className={`flex min-h-0 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                        <div className={`border-b ${FX_COLORS.border} px-[16px] py-[12px]`}>
+                          <FxTabs
+                            variant="underlined"
+                            value={activeStep}
+                            onValueChange={setActiveStep}
+                            items={[
+                              { value: "interview", label: "AI Generated Questions" },
+                              { value: "prescreen", label: "Standard Screening Questions" },
+                            ]}
+                            itemClassName="text-[12px] leading-[18px]"
+                          />
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
+                          {activeStep === "interview" ? (
+                            <div className="space-y-[12px]">
+                              {interviewQuestions.map((item, index) => (
+                                <div key={item.question} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+                                  <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Question {index + 1}</p>
+                                  <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{item.question}</p>
+                                  <p className="mt-[8px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{item.guidance}</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="space-y-[10px]">
+                              {standardScreeningQuestions.map((item, index) => (
+                                <div key={item.id} className="space-y-[2px]">
+                                  <p className="text-[12px] leading-[16px] font-medium text-[var(--fx-text-muted)]">Question {index + 1}</p>
+                                  <p className="text-[14px] leading-[22px] text-[var(--fx-text)]">{item.question}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1446,37 +1532,76 @@ function ManualScreeningSheet({
               ) : null}
 
               <div className="flex min-h-0 flex-col gap-[16px]">
-                <FxTabs
-                  variant="underlined"
-                  value={activeStep}
-                  onValueChange={setActiveStep}
-                  items={[
-                    { value: "interview", label: "AI Generated Interview Questions" },
-                    { value: "prescreen", label: "Standard Screening Questions" },
-                  ]}
-                  itemClassName="text-[12px] leading-[18px]"
-                />
+                <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[16px] py-[12px]`}>
+                  <p className={FX_TYPOGRAPHY.button}>Assessment Panel</p>
+                  <p className="mt-[2px] text-[12px] leading-[16px] text-[var(--fx-text-muted)]">Recruiter inputs, score, notes, and decision fields</p>
+                </div>
 
                 <div className="min-h-0 flex-1 overflow-auto">
-                  {activeStep === "interview" ? (
-                    <div className="space-y-[12px]">
-                      {interviewQuestions.map((item, index) => (
-                        <div key={item.question} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
-                          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Question {index + 1}</p>
-                          <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{item.question}</p>
-                          <p className="mt-[8px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{item.guidance}</p>
-                        </div>
-                      ))}
+                  <div className="space-y-[16px]">
+                    <div className={`space-y-[8px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                      <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">Is the candidate interested in the role?</p>
+                      <RadioGroup
+                        value={formState.interested}
+                        onValueChange={(value) => setFormState((current) => ({ ...current, interested: value }))}
+                        className="flex flex-wrap items-center gap-[20px]"
+                      >
+                        {["Yes", "No"].map((value) => (
+                          <label key={value} className="flex cursor-pointer items-center gap-[8px]">
+                            <RadioGroupItem value={value} />
+                            <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
+                          </label>
+                        ))}
+                      </RadioGroup>
                     </div>
-                  ) : null}
 
-                  {activeStep === "prescreen" ? (
-                    <div className="space-y-[16px]">
+                    <div className={`space-y-[10px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                      <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">By when can the candidate join?</p>
+                      <RadioGroup
+                        value={formState.availabilityMode}
+                        onValueChange={(value) => setFormState((current) => ({ ...current, availabilityMode: value }))}
+                        className="flex flex-wrap items-center gap-[20px]"
+                      >
+                        <label className="flex cursor-pointer items-center gap-[8px]">
+                          <RadioGroupItem value="date" />
+                          <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Specific Date</span>
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-[8px]">
+                          <RadioGroupItem value="days" />
+                          <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Availability in Days</span>
+                        </label>
+                      </RadioGroup>
+
+                      {formState.availabilityMode === "date" ? (
+                        <div className="w-[168px]">
+                          <FxInput
+                            type="date"
+                            value={formState.availabilityDate}
+                            onChange={(event) => setFormState((current) => ({ ...current, availabilityDate: event.target.value }))}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-[8px]">
+                          <div className="w-[72px]">
+                            <FxInput
+                              value={formState.availabilityDays}
+                              onChange={(event) => setFormState((current) => ({ ...current, availabilityDays: event.target.value }))}
+                              placeholder="30"
+                              inputMode="numeric"
+                              className="text-center"
+                            />
+                          </div>
+                          <span className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">Days</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {shouldShowCommuteQuestion ? (
                       <div className={`space-y-[8px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">Is the candidate interested in the role?</p>
+                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">{commuteQuestion}</p>
                         <RadioGroup
-                          value={formState.interested}
-                          onValueChange={(value) => setFormState((current) => ({ ...current, interested: value }))}
+                          value={formState.commuteComfortable}
+                          onValueChange={(value) => setFormState((current) => ({ ...current, commuteComfortable: value }))}
                           className="flex flex-wrap items-center gap-[20px]"
                         >
                           {["Yes", "No"].map((value) => (
@@ -1487,65 +1612,7 @@ function ManualScreeningSheet({
                           ))}
                         </RadioGroup>
                       </div>
-
-                      <div className={`space-y-[10px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">By when can the candidate join?</p>
-                        <RadioGroup
-                          value={formState.availabilityMode}
-                          onValueChange={(value) => setFormState((current) => ({ ...current, availabilityMode: value }))}
-                          className="flex flex-wrap items-center gap-[20px]"
-                        >
-                          <label className="flex cursor-pointer items-center gap-[8px]">
-                            <RadioGroupItem value="date" />
-                            <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Specific Date</span>
-                          </label>
-                          <label className="flex cursor-pointer items-center gap-[8px]">
-                            <RadioGroupItem value="days" />
-                            <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Availability in Days</span>
-                          </label>
-                        </RadioGroup>
-
-                        {formState.availabilityMode === "date" ? (
-                          <div className="w-[168px]">
-                            <FxInput
-                              type="date"
-                              value={formState.availabilityDate}
-                              onChange={(event) => setFormState((current) => ({ ...current, availabilityDate: event.target.value }))}
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-[8px]">
-                            <div className="w-[72px]">
-                              <FxInput
-                                value={formState.availabilityDays}
-                                onChange={(event) => setFormState((current) => ({ ...current, availabilityDays: event.target.value }))}
-                                placeholder="30"
-                                inputMode="numeric"
-                                className="text-center"
-                              />
-                            </div>
-                            <span className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">Days</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {shouldShowCommuteQuestion ? (
-                        <div className={`space-y-[8px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                          <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">{commuteQuestion}</p>
-                          <RadioGroup
-                            value={formState.commuteComfortable}
-                            onValueChange={(value) => setFormState((current) => ({ ...current, commuteComfortable: value }))}
-                            className="flex flex-wrap items-center gap-[20px]"
-                          >
-                            {["Yes", "No"].map((value) => (
-                              <label key={value} className="flex cursor-pointer items-center gap-[8px]">
-                                <RadioGroupItem value={value} />
-                                <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
-                              </label>
-                            ))}
-                          </RadioGroup>
-                        </div>
-                      ) : null}
+                    ) : null}
 
                       <div className={`space-y-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
                         <div className="grid gap-[16px] md:grid-cols-2">
@@ -1573,18 +1640,26 @@ function ManualScreeningSheet({
                             placeholder={`Enter expected CTC in ${salaryCurrency}`}
                             className="text-right"
                           />
+                          <FxInput
+                            label="Fit Score"
+                            type="text"
+                            inputMode="numeric"
+                            value={formState.fitScore}
+                            onChange={(event) => setFormState((current) => ({ ...current, fitScore: event.target.value }))}
+                            placeholder="Enter fit score"
+                            className="text-right"
+                          />
                         </div>
-                        <FxInput
-                          textarea
-                          label="Recruiter Notes"
-                          value={formState.notes}
-                          onChange={(event) => setFormState((current) => ({ ...current, notes: event.target.value }))}
-                          placeholder="Add notes from the conversation"
-                          className="min-h-[120px]"
-                        />
-                      </div>
+                      <FxInput
+                        textarea
+                        label="Recruiter Notes"
+                        value={formState.notes}
+                        onChange={(event) => setFormState((current) => ({ ...current, notes: event.target.value }))}
+                        placeholder="Add notes from the conversation"
+                        className="min-h-[120px]"
+                      />
                     </div>
-                  ) : null}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1606,7 +1681,17 @@ function ManualScreeningSheet({
 }
 /* - - - - - - - - - - - - - - - - */
 
-function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist, onReject, onDownloadResume, onEditCandidate }) {
+function PreScreenResultSheet({
+  open,
+  onOpenChange,
+  candidate,
+  job,
+  onShortlist,
+  onReject,
+  onDownloadResume,
+  onEditCandidate,
+  initialStep = "details",
+}) {
   const [activeStep, setActiveStep] = useState("details");
   const [activeRecordingMarker, setActiveRecordingMarker] = useState("Q1");
   const salaryCurrency = job?.currency || candidate?.jobCurrency || "INR";
@@ -1615,7 +1700,6 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
   const RESULT_STEPS = isManualScreening
     ? [
         { key: "details", label: "Details Retrieved" },
-        { key: "resume", label: "Resume" },
       ]
     : [
         { key: "details", label: "Details Retrieved" },
@@ -1624,15 +1708,20 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
         { key: "recording", label: "Voice Recording" },
         { key: "resume", label: "Resume" },
       ];
-  const screeningSummary = [
-    { label: "Interested", value: candidate?.interested || "Not Answered" },
-    { label: "Notice Period", value: formatNoticePeriod(candidate) !== "—" ? formatNoticePeriod(candidate) : "Not Answered" },
-    { label: "Location Preference", value: candidate?.jobContext?.commuteComfortable || "Not Answered" },
-    { label: "Current CTC", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary, salaryCurrency) : "Not Answered" },
-    { label: "Expected CTC", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary, salaryCurrency) : "Not Answered" },
-    { label: "Current Company", value: candidate?.currentCompany || "Not Answered" },
-    { label: "Recruiter Notes", value: candidate?.jobContext?.manualScreeningNotes || candidate?.notes || "Not Answered" },
-  ];
+  const screeningSummary = isManualScreening
+    ? [
+        { label: "Fit Score", value: candidate?.matchScore != null ? `${candidate.matchScore}%` : "Not Entered" },
+        { label: "Recruiter Notes", value: candidate?.jobContext?.manualScreeningNotes || candidate?.notes || "Not Entered" },
+      ]
+    : [
+        { label: "Interested", value: candidate?.interested || "Not Answered" },
+        { label: "Notice Period", value: formatNoticePeriod(candidate) !== "—" ? formatNoticePeriod(candidate) : "Not Answered" },
+        { label: "Location Preference", value: candidate?.jobContext?.commuteComfortable || "Not Answered" },
+        { label: "Current CTC", value: candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary, salaryCurrency) : "Not Answered" },
+        { label: "Expected CTC", value: candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary, salaryCurrency) : "Not Answered" },
+        { label: "Current Company", value: candidate?.currentCompany || "Not Answered" },
+        { label: "Recruiter Notes", value: candidate?.jobContext?.manualScreeningNotes || candidate?.notes || "Not Answered" },
+      ];
   const activeIndex = RESULT_STEPS.findIndex((step) => step.key === activeStep);
   const screeningTimestamp = candidate?.jobContext?.manualScreeningCompletedAt || candidate?.updatedAt || candidate?.createdAt;
   const screeningScore = candidate?.matchScore != null ? `${candidate.matchScore}%` : "—";
@@ -1748,10 +1837,11 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
 
   useEffect(() => {
     if (open) {
-      setActiveStep("details");
+      const allowedStepKeys = new Set(RESULT_STEPS.map((step) => step.key));
+      setActiveStep(allowedStepKeys.has(initialStep) ? initialStep : "details");
       setActiveRecordingMarker("Q1");
     }
-  }, [open, candidate?.id, isManualScreening]);
+  }, [RESULT_STEPS, candidate?.id, initialStep, isManualScreening, open]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -1958,7 +2048,7 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
 }
 /* - - - - - - - - - - - - - - - - */
 
-function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCandidate, onOpenCandidatePool }) {
+function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCandidate, onOpenCandidatePool, onSubmitShare }) {
   const [emailValue, setEmailValue] = useState("");
   const [messageValue, setMessageValue] = useState("");
   const [shareMode, setShareMode] = useState("cv_only");
@@ -2008,6 +2098,17 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
 
     onOpenChange(nextOpen);
   };
+  const handleGenerateEmail = useCallback(() => {
+    setMessageValue(
+      buildShareForReviewEmailTemplate(candidateList, job, {
+        shareMode,
+        includePhone,
+        includeEmail,
+        includeCompensation,
+        includeScreening,
+      }),
+    );
+  }, [candidateList, includeCompensation, includeEmail, includePhone, includeScreening, job, shareMode]);
 
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange}>
@@ -2180,14 +2281,21 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
                           ) : null}
                         </div>
                       </div>
-                      <FxInput
-                        textarea
-                        label="Optional Message"
-                        value={messageValue}
-                        onChange={(event) => setMessageValue(event.target.value)}
-                        placeholder={`Sharing ${candidateList.length === 1 ? candidateList[0]?.name || "this candidate" : `${candidateList.length} candidates`} for review.`}
-                        className="min-h-[160px]"
-                      />
+                      <div className="space-y-[8px]">
+                        <div className="flex items-center justify-between gap-[12px]">
+                          <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>Email</p>
+                          <FxAiButton type="button" size="sm" onClick={handleGenerateEmail}>
+                            Generate Email
+                          </FxAiButton>
+                        </div>
+                        <FxInput
+                          textarea
+                          value={messageValue}
+                          onChange={(event) => setMessageValue(event.target.value)}
+                          placeholder={`Sharing ${candidateList.length === 1 ? candidateList[0]?.name || "this candidate" : `${candidateList.length} candidates`} for review.`}
+                          className="min-h-[160px]"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2205,13 +2313,15 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
             <FxButton
               size="sm"
               onClick={() => {
-                showSuccess(
-                  "Review shared",
-                  candidateList.length === 1
-                    ? `${candidateList[0]?.name || "Candidate"} was shared for review.`
-                    : `${candidateList.length} candidates were shared for review.`,
-                );
-                handleSheetOpenChange(false);
+                onSubmitShare?.(candidateList, {
+                  recipients: emailValue,
+                  message: messageValue,
+                  shareMode,
+                  includePhone,
+                  includeEmail,
+                  includeCompensation,
+                  includeScreening,
+                });
               }}
             >
               Send
@@ -2975,287 +3085,293 @@ function CandidateWorkspaceSheet({
         />
         <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
           {candidate ? (
-            <div className={cn("grid min-h-0 h-full gap-[24px]", showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_24px_minmax(0,1fr)]" : "xl:grid-cols-1")}>
-              {showResumePane ? (
-                <>
-                  <div className="flex min-h-0 flex-col">
-                    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
-                        <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                          {effectiveResumePreview}
-                        </pre>
-                      </div>
-                    </div>
+            <div className="flex min-h-0 h-full flex-col gap-[16px]">
+              <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className="flex items-start justify-between gap-[16px]">
+                  <div className="space-y-[4px]">
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Current Status</p>
+                    <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                      {candidate.status === "rejected" ? "Rejected" : PIPELINE_STAGES.find((stage) => stage.value === candidate.status)?.label || "Unscreened"}
+                    </p>
                   </div>
-                  <div className="relative flex items-stretch justify-center">
-                    <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
-                  </div>
-                </>
-              ) : null}
+                </div>
+                <div className="mt-[12px] flex justify-center overflow-x-auto overflow-y-hidden">
+                  <div className="inline-flex items-center gap-[4px]">
+                    {workflowStages.map((stage, index) => {
+                      const isPast = currentStageIndex > index;
+                      const isCurrent = activeFlowStage === stage.value;
+                      const isFuture = currentStageIndex < index || isRejected;
 
-              <div className="flex min-h-0 flex-col gap-[16px]">
-                <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <div className="flex items-start justify-between gap-[16px]">
-                    <div className="space-y-[4px]">
-                      <p className={FX_TYPOGRAPHY.cardTitle}>Current Status</p>
-                      <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-                        {candidate.status === "rejected" ? "Rejected" : PIPELINE_STAGES.find((stage) => stage.value === candidate.status)?.label || "Unscreened"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-[12px] flex justify-center overflow-x-auto overflow-y-hidden">
-                    <div className="inline-flex items-center gap-[4px]">
-                      {workflowStages.map((stage, index) => {
-                        const isPast = currentStageIndex > index;
-                        const isCurrent = activeFlowStage === stage.value;
-                        const isFuture = currentStageIndex < index || isRejected;
-
-                        return (
-                          <React.Fragment key={stage.value}>
+                      return (
+                        <React.Fragment key={stage.value}>
+                          <div
+                            className={cn(
+                              "inline-flex min-h-[24px] min-w-[76px] items-center justify-center rounded-[7px] border px-[5px] py-[2px] text-center text-[10px] leading-[14px] font-medium transition-colors",
+                              isCurrent
+                                ? "border-[color:color-mix(in_srgb,var(--fx-primary)_28%,var(--fx-border)_72%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface)_84%)] text-[var(--fx-primary)]"
+                                : isPast
+                                  ? "border-[color:color-mix(in_srgb,var(--fx-primary)_20%,var(--fx-border)_80%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)] text-[var(--fx-text)]"
+                                  : isFuture
+                                    ? "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]"
+                                    : "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]",
+                            )}
+                          >
+                            <span className="whitespace-nowrap">{stage.label}</span>
+                          </div>
+                          {index < workflowStages.length - 1 ? (
                             <div
                               className={cn(
-                                "inline-flex min-h-[24px] min-w-[76px] items-center justify-center rounded-[7px] border px-[5px] py-[2px] text-center text-[10px] leading-[14px] font-medium transition-colors",
-                                isCurrent
-                                  ? "border-[color:color-mix(in_srgb,var(--fx-primary)_28%,var(--fx-border)_72%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface)_84%)] text-[var(--fx-primary)]"
-                                  : isPast
-                                    ? "border-[color:color-mix(in_srgb,var(--fx-primary)_20%,var(--fx-border)_80%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)] text-[var(--fx-text)]"
-                                    : isFuture
-                                      ? "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]"
-                                      : "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]",
+                                "h-[2px] w-[16px] shrink-0 rounded-full",
+                                isPast || isCurrent
+                                  ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_36%,var(--fx-border)_64%)]"
+                                  : "bg-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)]",
                               )}
-                            >
-                              <span className="whitespace-nowrap">{stage.label}</span>
-                            </div>
-                            {index < workflowStages.length - 1 ? (
-                              <div
-                                className={cn(
-                                  "h-[2px] w-[16px] shrink-0 rounded-full",
-                                  isPast || isCurrent
-                                    ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_36%,var(--fx-border)_64%)]"
-                                    : "bg-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)]",
-                                )}
-                              />
-                            ) : null}
-                          </React.Fragment>
-                        );
-                      })}
-                    </div>
+                            />
+                          ) : null}
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 </div>
+              </div>
 
-                <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Overview</p>
-                  <div className="mt-[12px] grid gap-[16px] md:grid-cols-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-[6px]">
-                        {isEditingEmail ? (
-                          <>
-                            <button
-                              type="button"
-                              aria-label="Save email"
-                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                              onClick={() => handleSaveContactField("email")}
-                            >
-                              <Check className="size-[14px]" />
-                            </button>
-                            <button
-                              type="button"
-                              aria-label="Cancel email edit"
-                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
-                              onClick={() => handleCancelContactField("email")}
-                            >
-                              <X className="size-[14px]" />
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            aria-label="Edit email"
-                            className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                            onClick={() => setIsEditingEmail(true)}
-                          >
-                            <PencilLine className="size-[14px]" />
-                          </button>
-                        )}
-                        <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Email</p>
-                      </div>
-                      <div className="mt-[2px] flex min-h-[28px] items-center gap-[6px]">
-                        {isEditingEmail ? (
-                          <input
-                            ref={emailInputRef}
-                            value={emailDraft}
-                            onChange={(event) => setEmailDraft(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Escape") {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                handleCancelContactField("email");
-                              }
-
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                handleSaveContactField("email");
-                              }
-                            }}
-                            placeholder="candidate@company.com"
-                            className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
-                          />
-                        ) : candidate.email && candidate.email !== "—" ? (
-                          <a className="min-w-0 flex-1 break-all text-[14px] leading-[22px] text-[var(--fx-primary)] hover:underline" href={`mailto:${candidate.email}`}>
-                            {candidate.email}
-                          </a>
-                        ) : (
-                          <input
-                            ref={emailInputRef}
-                            value={emailDraft}
-                            onChange={(event) => setEmailDraft(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Escape") {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                handleCancelContactField("email");
-                              }
-
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                handleSaveContactField("email");
-                              }
-                            }}
-                            placeholder="candidate@company.com"
-                            className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="flex items-center justify-end gap-[6px]">
-                        <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)] text-right">Phone</p>
-                        {isEditingPhone ? (
-                          <>
-                            <button
-                              type="button"
-                              aria-label="Save phone"
-                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                              onClick={() => handleSaveContactField("phone")}
-                            >
-                              <Check className="size-[14px]" />
-                            </button>
-                            <button
-                              type="button"
-                              aria-label="Cancel phone edit"
-                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
-                              onClick={() => handleCancelContactField("phone")}
-                            >
-                              <X className="size-[14px]" />
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            aria-label="Edit phone"
-                            className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                            onClick={() => setIsEditingPhone(true)}
-                          >
-                            <PencilLine className="size-[14px]" />
-                          </button>
-                        )}
-                      </div>
-                      <div className="mt-[2px] flex min-h-[28px] items-center justify-end gap-[6px]">
-                        {isEditingPhone ? (
-                          <input
-                            ref={phoneInputRef}
-                            value={phoneDraft}
-                            onChange={(event) => setPhoneDraft(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Escape") {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                handleCancelContactField("phone");
-                              }
-
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                handleSaveContactField("phone");
-                              }
-                            }}
-                            placeholder="+91 98765 43210"
-                            className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-right text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
-                          />
-                        ) : candidate.phone && candidate.phone !== "—" ? (
-                          <a className="min-w-0 flex-1 text-right text-[14px] leading-[22px] text-[var(--fx-primary)] hover:underline" href={`tel:${candidate.phone}`}>
-                            {candidate.phone}
-                          </a>
-                        ) : (
-                          <input
-                            ref={phoneInputRef}
-                            value={phoneDraft}
-                            onChange={(event) => setPhoneDraft(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Escape") {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                handleCancelContactField("phone");
-                              }
-
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                handleSaveContactField("phone");
-                              }
-                            }}
-                            placeholder="+91 98765 43210"
-                            className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-right text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <p className={FX_TYPOGRAPHY.cardTitle}>Notes</p>
-                  <div className="mt-[12px] space-y-[12px]">
-                    {noteItems.length ? (
-                      noteItems.map((item, index) => (
-                        <div key={`${item.text}-${index}`} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                          <div className="flex items-start justify-between gap-[12px]">
-                            <div className="min-w-0">
-                              <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{item.author || "Renny"}</p>
-                              <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{formatRelativeTime(item.timestamp)}</p>
-                              <p className="mt-[8px] text-[14px] leading-[22px] text-[var(--fx-text)]">{item.text}</p>
-                            </div>
-                            <button
-                              type="button"
-                              className="inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
-                              onClick={() => item.id && onDeleteNote?.(candidate, item.id)}
-                              aria-label="Delete note"
-                            >
-                              <Trash2 className="size-[14px]" />
-                            </button>
-                          </div>
+              <div className={cn("grid min-h-0 flex-1 gap-[24px]", showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_24px_minmax(0,1fr)]" : "xl:grid-cols-1")}>
+                {showResumePane ? (
+                  <>
+                    <div className="flex min-h-0 flex-col">
+                      <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
+                          <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                            {effectiveResumePreview}
+                          </pre>
                         </div>
-                      ))
-                    ) : (
-                      <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                        No notes added yet.
-                      </p>
-                    )}
-                    <FxInput
-                      textarea
-                      value={noteDraft}
-                      onChange={(event) => setNoteDraft(event.target.value)}
-                      placeholder="Add recruiter note..."
-                      className="min-h-[120px]"
-                    />
-                    <div className="flex justify-end">
-                      <FxButton
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => candidate && onSaveNote?.(candidate, noteDraft)}
-                      >
-                        Save Note
-                      </FxButton>
+                      </div>
+                    </div>
+                    <div className="relative flex items-stretch justify-center">
+                      <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
+                    </div>
+                  </>
+                ) : null}
+
+                <div className="flex min-h-0 flex-col gap-[16px]">
+                  <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Overview</p>
+                    <div className="mt-[12px] grid gap-[16px] md:grid-cols-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-[6px]">
+                          {isEditingEmail ? (
+                            <>
+                              <button
+                                type="button"
+                                aria-label="Save email"
+                                className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                                onClick={() => handleSaveContactField("email")}
+                              >
+                                <Check className="size-[14px]" />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label="Cancel email edit"
+                                className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                                onClick={() => handleCancelContactField("email")}
+                              >
+                                <X className="size-[14px]" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              aria-label="Edit email"
+                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                              onClick={() => setIsEditingEmail(true)}
+                            >
+                              <PencilLine className="size-[14px]" />
+                            </button>
+                          )}
+                          <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Email</p>
+                        </div>
+                        <div className="mt-[2px] flex min-h-[28px] items-center gap-[6px]">
+                          {isEditingEmail ? (
+                            <input
+                              ref={emailInputRef}
+                              value={emailDraft}
+                              onChange={(event) => setEmailDraft(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleCancelContactField("email");
+                                }
+
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  handleSaveContactField("email");
+                                }
+                              }}
+                              placeholder="candidate@company.com"
+                              className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
+                            />
+                          ) : candidate.email && candidate.email !== "—" ? (
+                            <a className="min-w-0 flex-1 break-all text-[14px] leading-[22px] text-[var(--fx-primary)] hover:underline" href={`mailto:${candidate.email}`}>
+                              {candidate.email}
+                            </a>
+                          ) : (
+                            <input
+                              ref={emailInputRef}
+                              value={emailDraft}
+                              onChange={(event) => setEmailDraft(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleCancelContactField("email");
+                                }
+
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  handleSaveContactField("email");
+                                }
+                              }}
+                              placeholder="candidate@company.com"
+                              className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-end gap-[6px]">
+                          <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)] text-right">Phone</p>
+                          {isEditingPhone ? (
+                            <>
+                              <button
+                                type="button"
+                                aria-label="Save phone"
+                                className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                                onClick={() => handleSaveContactField("phone")}
+                              >
+                                <Check className="size-[14px]" />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label="Cancel phone edit"
+                                className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                                onClick={() => handleCancelContactField("phone")}
+                              >
+                                <X className="size-[14px]" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              aria-label="Edit phone"
+                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                              onClick={() => setIsEditingPhone(true)}
+                            >
+                              <PencilLine className="size-[14px]" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="mt-[2px] flex min-h-[28px] items-center justify-end gap-[6px]">
+                          {isEditingPhone ? (
+                            <input
+                              ref={phoneInputRef}
+                              value={phoneDraft}
+                              onChange={(event) => setPhoneDraft(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleCancelContactField("phone");
+                                }
+
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  handleSaveContactField("phone");
+                                }
+                              }}
+                              placeholder="+91 98765 43210"
+                              className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-right text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
+                            />
+                          ) : candidate.phone && candidate.phone !== "—" ? (
+                            <a className="min-w-0 flex-1 text-right text-[14px] leading-[22px] text-[var(--fx-primary)] hover:underline" href={`tel:${candidate.phone}`}>
+                              {candidate.phone}
+                            </a>
+                          ) : (
+                            <input
+                              ref={phoneInputRef}
+                              value={phoneDraft}
+                              onChange={(event) => setPhoneDraft(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleCancelContactField("phone");
+                                }
+
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  handleSaveContactField("phone");
+                                }
+                              }}
+                              placeholder="+91 98765 43210"
+                              className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-right text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`flex min-h-0 flex-1 flex-col rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <p className={FX_TYPOGRAPHY.cardTitle}>Notes</p>
+                    <div className="mt-[12px] space-y-[12px]">
+                      <FxInput
+                        textarea
+                        value={noteDraft}
+                        onChange={(event) => setNoteDraft(event.target.value)}
+                        placeholder="Add recruiter note..."
+                        className="min-h-[120px]"
+                      />
+                      <div className="flex justify-end">
+                        <FxButton
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => candidate && onSaveNote?.(candidate, noteDraft)}
+                        >
+                          Save Note
+                        </FxButton>
+                      </div>
+                    </div>
+                    <div className="mt-[12px] min-h-0 flex-1 overflow-y-auto">
+                      <div className="space-y-[12px] pr-[4px]">
+                        {noteItems.length ? (
+                          noteItems.map((item, index) => (
+                            <div key={`${item.text}-${index}`} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                              <div className="flex items-start justify-between gap-[12px]">
+                                <div className="min-w-0">
+                                  <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{item.author || "Renny"}</p>
+                                  <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{formatRelativeTime(item.timestamp)}</p>
+                                  <p className="mt-[8px] text-[14px] leading-[22px] text-[var(--fx-text)]">{item.text}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                                  onClick={() => item.id && onDeleteNote?.(candidate, item.id)}
+                                  aria-label="Delete note"
+                                >
+                                  <Trash2 className="size-[14px]" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
+                            No notes added yet.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3650,7 +3766,15 @@ function AddCandidatesDrawer({
                                 <FxButton type="button" variant="outline" size="sm" onClick={() => handleHideCandidate(selectedCandidate.id)}>
                                   Ignore
                                 </FxButton>
-                                <FxButton type="button" size="sm" className="min-w-[116px]" onClick={() => onPickExistingCandidate(selectedCandidate)}>
+                                <FxButton
+                                  type="button"
+                                  size="sm"
+                                  className="min-w-[116px]"
+                                  onClick={() => {
+                                    onPickExistingCandidate(selectedCandidate);
+                                    handleHideCandidate(selectedCandidate.id);
+                                  }}
+                                >
                                   Add to Job
                                 </FxButton>
                               </div>
@@ -3798,6 +3922,7 @@ export default function JobDetailsPage({ params }) {
   const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
   const [cvMatchSheetOpen, setCvMatchSheetOpen] = useState(false);
   const [preScreenResultOpen, setPreScreenResultOpen] = useState(false);
+  const [preScreenResultInitialStep, setPreScreenResultInitialStep] = useState("details");
   const [shareForReviewOpen, setShareForReviewOpen] = useState(false);
   const [shareForReviewCandidateIds, setShareForReviewCandidateIds] = useState([]);
   const [shareJobOpen, setShareJobOpen] = useState(false);
@@ -4175,11 +4300,12 @@ export default function JobDetailsPage({ params }) {
 /* - - - - - - - - - - - - - - - - */
 
   const handleOpenPreScreenResult = useCallback(
-    (candidate) => {
+    (candidate, initialStep = "details") => {
       if (!candidate) {
         return;
       }
 
+      setPreScreenResultInitialStep(initialStep);
       setSelectedCandidateId(candidate.id);
       setPreScreenResultOpen(true);
       markCandidateViewed(candidate.id);
@@ -4219,6 +4345,55 @@ export default function JobDetailsPage({ params }) {
       return nextIds;
     });
   }, []);
+
+  const handleSubmitShareForReview = useCallback(
+    (candidatesToShare, payload = {}) => {
+      if (!job?.id) {
+        return;
+      }
+
+      const nextCandidates = Array.isArray(candidatesToShare) ? candidatesToShare.filter(Boolean) : [candidatesToShare].filter(Boolean);
+      if (!nextCandidates.length) {
+        return;
+      }
+
+      const sharedAt = new Date().toISOString();
+
+      nextCandidates.forEach((candidate) => {
+        updateWorkspaceCandidate(candidate.id, (current) => ({
+          ...current,
+          jobContexts: {
+            ...(current.jobContexts ?? {}),
+            [job.id]: {
+              ...(current.jobContexts?.[job.id] ?? {}),
+              reviewShareRecipients: payload.recipients ?? current.jobContexts?.[job.id]?.reviewShareRecipients ?? "",
+              reviewShareMessage: payload.message ?? current.jobContexts?.[job.id]?.reviewShareMessage ?? "",
+              reviewShareMode: payload.shareMode ?? current.jobContexts?.[job.id]?.reviewShareMode ?? "cv_only",
+              reviewShareIncludes: {
+                phone: Boolean(payload.includePhone),
+                email: Boolean(payload.includeEmail),
+                compensation: Boolean(payload.includeCompensation),
+                screening: payload.includeScreening !== false,
+              },
+              reviewSharedAt: sharedAt,
+              reviewShareCount: Math.max(1, Number(current.jobContexts?.[job.id]?.reviewShareCount || 0) + 1),
+            },
+          },
+        }));
+      });
+
+      setShareForReviewOpen(false);
+      setShareForReviewCandidateIds([]);
+      clearSelectedCandidates();
+      showSuccess(
+        "Review shared",
+        nextCandidates.length === 1
+          ? `${nextCandidates[0]?.name || "Candidate"} was shared for review.`
+          : `${nextCandidates.length} candidates were shared for review.`,
+      );
+    },
+    [clearSelectedCandidates, job?.id, updateWorkspaceCandidate],
+  );
 
   const handleMoveCandidateToNextStage = useCallback(
     (candidate) => {
@@ -4518,6 +4693,7 @@ export default function JobDetailsPage({ params }) {
       const availabilityDate = String(formState?.availabilityDate ?? "").trim();
       const noticePeriod = availabilityMode === "date" ? (availabilityDate ? formatDate(availabilityDate) : "") : (availabilityDays ? `${availabilityDays} days` : "");
       const commuteComfortable = String(formState?.commuteComfortable ?? "").trim() || "Yes";
+      const fitScore = String(formState?.fitScore ?? "").trim();
       const currentSalary = String(formState?.currentSalary ?? "").trim();
       const expectedSalary = String(formState?.expectedSalary ?? "").trim();
       const notes = String(formState?.notes ?? "").trim();
@@ -4570,6 +4746,7 @@ export default function JobDetailsPage({ params }) {
             availabilityMode === "days"
               ? (availabilityDays ? Number.parseInt(availabilityDays, 10) || current.availabilityDays || null : current.availabilityDays ?? null)
               : current.availabilityDays ?? null,
+          matchScore: fitScore ? Number.parseInt(fitScore, 10) || current.matchScore || null : current.matchScore ?? null,
           currentSalary: currentSalary ? Number.parseInt(currentSalary, 10) || null : current.currentSalary ?? null,
           expectedSalary: expectedSalary ? Number.parseInt(expectedSalary, 10) || null : current.expectedSalary ?? null,
           screeningOutcome: "Passed",
@@ -5133,9 +5310,10 @@ export default function JobDetailsPage({ params }) {
   const recommendedCandidates = useMemo(() => {
     const allCandidates = readStoredCandidates();
     const attachedIds = new Set(candidateRows.map((candidate) => candidate.id));
+    const attachedSourceIds = new Set(candidateRows.map((candidate) => candidate.sourceCandidateId).filter(Boolean));
 
     return allCandidates
-      .filter((candidate) => candidate.jobId !== job?.id && !attachedIds.has(candidate.id))
+      .filter((candidate) => candidate.jobId !== job?.id && !attachedIds.has(candidate.id) && !attachedSourceIds.has(candidate.id))
       .map((candidate) => normalizeCandidate(candidate, findStoredJob(candidate.jobId)))
       .sort((left, right) => (right.matchScore ?? 0) - (left.matchScore ?? 0))
       .slice(0, 6);
@@ -5195,6 +5373,7 @@ export default function JobDetailsPage({ params }) {
         currentCompany: String(currentCompany ?? baseCandidate?.currentCompany ?? "").trim() || "",
         currentRole: String(currentRole ?? baseCandidate?.currentRole ?? "").trim() || "",
         experience: experience != null && experience !== "" ? Number(experience) : baseCandidate?.experience ?? null,
+        sourceCandidateId: baseCandidate?.id ?? null,
         status: "unscreened",
         uploadedBy: source ?? baseCandidate?.uploadedBy ?? "Manual entry",
         interested: baseCandidate?.interested ?? "Maybe",
@@ -5426,17 +5605,38 @@ export default function JobDetailsPage({ params }) {
     }
 
     if (activeStage === "screened") {
+      const reviewShareCount = Math.max(0, Number(candidate.jobContext?.reviewShareCount || 0));
+      const hasBeenSharedForReview = reviewShareCount > 0;
+
       return (
         <>
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="inline-flex">
-                <button type="button" className={className} aria-label={`Share ${candidate.name} for review`} onClick={() => handleOpenShareForReview(candidate)}>
+                <button
+                  type="button"
+                  className={cn(
+                    "relative",
+                    className,
+                    hasBeenSharedForReview
+                      ? "bg-[color-mix(in_srgb,var(--fx-success)_10%,var(--fx-surface-raised)_90%)] text-[var(--fx-success)] hover:bg-[color-mix(in_srgb,var(--fx-success)_16%,var(--fx-surface-raised)_84%)] hover:text-[var(--fx-success)]"
+                      : null,
+                  )}
+                  aria-label={`Share ${candidate.name} for review`}
+                  onClick={() => handleOpenShareForReview(candidate)}
+                >
                   <Share2 className="size-[14px]" />
+                  {hasBeenSharedForReview ? (
+                    <span className="absolute -right-[5px] -top-[5px] inline-flex min-w-[16px] items-center justify-center rounded-full bg-[var(--fx-success)] px-[4px] text-[10px] leading-[14px] font-semibold text-white">
+                      {reviewShareCount}
+                    </span>
+                  ) : null}
                 </button>
               </span>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={8}>Share for Review</TooltipContent>
+            <TooltipContent side="bottom" sideOffset={8}>
+              {hasBeenSharedForReview ? `Shared ${reviewShareCount} ${reviewShareCount === 1 ? "time" : "times"}` : "Share for Review"}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -5713,7 +5913,7 @@ export default function JobDetailsPage({ params }) {
       menuActions: { key: "menuActions", label: null, width: 56, minWidth: 56, maxWidth: 56, align: "center", sticky: "right", cellClassName: "px-0 pr-0", required: true, locked: true, hideable: false },
     };
 
-    return [
+    const orderedColumns = [
       columnsByKey.name,
       columnsByKey.phone,
       columnsByKey.matchScore,
@@ -5721,12 +5921,16 @@ export default function JobDetailsPage({ params }) {
       columnsByKey.noticePeriod,
       columnsByKey.currentSalary,
       columnsByKey.expectedSalary,
-      columnsByKey.screeningOutcome,
       columnsByKey.email,
       columnsByKey.availability,
       columnsByKey.actions,
       columnsByKey.menuActions,
     ];
+    if (activeStage !== "unscreened") {
+      orderedColumns.splice(7, 0, columnsByKey.screeningOutcome);
+    }
+
+    return orderedColumns;
   }, [activeStage, sortConfig]);
 
   const rows = sortedCandidates.map((candidate) => ({
@@ -5755,7 +5959,19 @@ export default function JobDetailsPage({ params }) {
     matchScore: (
       <button
         type="button"
-        onClick={() => handleOpenCvMatchBreakdown(candidate)}
+        onClick={() => {
+          if (activeStage === "screened") {
+            if (getPreScreeningFilterKey(candidate) === "manual") {
+              handleOpenPreScreenResult(candidate, "details");
+              return;
+            }
+
+            handleOpenCvMatchBreakdown(candidate);
+            return;
+          }
+
+          handleOpenCvMatchBreakdown(candidate);
+        }}
         className="inline-flex min-w-[64px] items-center justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface-selected)_84%)]"
       >
         {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
@@ -6275,6 +6491,7 @@ export default function JobDetailsPage({ params }) {
           onOpenChange={setPreScreenResultOpen}
           candidate={selectedCandidate}
           job={job}
+          initialStep={preScreenResultInitialStep}
           onShortlist={handleShortlistCandidate}
           onReject={handleRejectCandidateFromResults}
           onDownloadResume={handleDownloadCandidateResume}
@@ -6292,6 +6509,7 @@ export default function JobDetailsPage({ params }) {
           job={job}
           onRemoveCandidate={handleRemoveShareForReviewCandidate}
           onOpenCandidatePool={handleOpenCandidatePool}
+          onSubmitShare={handleSubmitShareForReview}
         />
         <CvMatchBreakdownSheet
           open={cvMatchSheetOpen}

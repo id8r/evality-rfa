@@ -277,7 +277,7 @@ export default function DesignSystemRoute() {
                   items={[
                     { value: "basic", label: "Basic Details" },
                     { value: "description", label: "Job Description" },
-                    { value: "screening", label: "Screening Method" },
+                    { value: "screening", label: "Screening Mode" },
                   ]}
                   value="screening"
                   onValueChange={() => {}}
@@ -293,7 +293,7 @@ export default function DesignSystemRoute() {
                   items={[
                     { value: "basic", label: "Basic Details" },
                     { value: "description", label: "Job Description" },
-                    { value: "screening", label: "Screening Method" },
+                    { value: "screening", label: "Screening Mode" },
                   ]}
                   value="screening"
                   onValueChange={() => {}}
