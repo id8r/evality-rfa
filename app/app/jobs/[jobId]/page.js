@@ -527,6 +527,49 @@ function buildEmailScreeningTemplate(candidate, job) {
 }
 /* - - - - - - - - - - - - - - - - */
 
+function buildResumePreview(candidate, job, options = {}) {
+  const {
+    includeContact = true,
+    includeFooter = true,
+  } = options;
+  const roleLabel = candidate?.currentRole || candidate?.jobTitle || "Current Role";
+  const companyLabel = candidate?.currentCompany ? ` at ${candidate.currentCompany}` : "";
+  const locationLabel = candidate?.location || candidate?.city || job?.location || "Remote / Flexible";
+  const experienceLabel = candidate?.experience != null ? `${candidate.experience}+ years` : "Relevant experience";
+  const skills = candidate?.skills?.length
+    ? candidate.skills.slice(0, 4).join(" · ")
+    : [job?.title, candidate?.currentRole || candidate?.jobTitle, candidate?.currentCompany]
+        .filter(Boolean)
+        .slice(0, 4)
+        .join(" · ") || "Recruiting · Coordination · Screening";
+  const educationLabel = candidate?.education || "Bachelor's degree or equivalent";
+
+  return [
+    `${candidate?.name || "Candidate"}`,
+    `${roleLabel}${companyLabel}`,
+    locationLabel,
+    includeContact && (candidate?.email || candidate?.phone)
+      ? `${candidate?.email || "—"}${candidate?.phone && candidate.phone !== "—" ? ` · ${candidate.phone}` : ""}`
+      : null,
+    "",
+    "Professional Summary",
+    `${candidate?.name || "This candidate"} brings ${experienceLabel.toLowerCase()} and a background aligned to ${job?.title || "the role"}.`,
+    "",
+    "Experience",
+    `Current role: ${roleLabel}${companyLabel}`,
+    `Focus areas: ${candidate?.jobTitle || job?.title || "target role"} delivery, stakeholder coordination, and execution.`,
+    "",
+    "Skills",
+    skills,
+    "",
+    "Education",
+    educationLabel,
+    includeFooter ? "" : null,
+    includeFooter ? "Preview rendered from seeded candidate data." : null,
+  ].filter((line) => line !== null).join("\n");
+}
+/* - - - - - - - - - - - - - - - - */
+
 function getMatchScoreToneClass(score) {
   if (score == null || Number.isNaN(Number(score))) {
     return "text-[var(--fx-text-muted)]";
@@ -977,19 +1020,7 @@ function EmailScreeningSheet({
   const hasPreviousCandidate = isBulkMode && activeCandidateIndex > 0;
   const hasNextCandidate = isBulkMode && activeCandidateIndex >= 0 && activeCandidateIndex < candidateList.length - 1;
   const resumePreview = useMemo(() => {
-    return activeCandidate ? [
-      `${activeCandidate.name || "Candidate"}`,
-      `${activeCandidate.currentRole || activeCandidate.jobTitle || "Current Role"}${activeCandidate.currentCompany ? ` · ${activeCandidate.currentCompany}` : ""}`,
-      "",
-      "Summary",
-      `Candidate profile with ${activeCandidate.experience != null ? `${activeCandidate.experience} years` : "relevant"} experience for ${job?.title || "this role"}.`,
-      "",
-      "Contact",
-      `${formatContactValue(activeCandidate.email)}${activeCandidate.phone && activeCandidate.phone !== "—" ? ` · ${activeCandidate.phone}` : ""}`,
-      "",
-      "Notes",
-      "Demo resume preview rendered for recruiter email screening workflow.",
-    ].join("\n") : "";
+    return activeCandidate ? buildResumePreview(activeCandidate, job, { includeFooter: false }) : "";
   }, [activeCandidate, job?.title]);
 
   useEffect(() => {
@@ -1304,19 +1335,7 @@ function ManualScreeningSheet({
     [job?.title],
   );
   const resumePreview = useMemo(() => {
-    return candidate ? [
-      `${candidate.name || "Candidate"}`,
-      `${candidate.currentRole || candidate.jobTitle || "Current Role"}${candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}`,
-      "",
-      "Summary",
-      `Candidate profile with ${candidate.experience != null ? `${candidate.experience} years` : "relevant"} experience for ${job?.title || "this role"}.`,
-      "",
-      "Contact",
-      `${candidate.email || "—"}${candidate.phone && candidate.phone !== "—" ? ` · ${candidate.phone}` : ""}`,
-      "",
-      "Notes",
-      "Demo resume preview rendered for recruiter screening workflow.",
-    ].join("\n") : "";
+    return candidate ? buildResumePreview(candidate, job, { includeFooter: false }) : "";
   }, [candidate, job?.title]);
 
   useEffect(() => {
@@ -2702,12 +2721,14 @@ function CandidateWorkspaceSheet({
   onDownloadResume,
   onUpdateContact,
 }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [showResumePane, setShowResumePane] = useState(true);
   const [noteDraft, setNoteDraft] = useState("");
   const [emailDraft, setEmailDraft] = useState("");
   const [phoneDraft, setPhoneDraft] = useState("");
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const emailInputRef = useRef(null);
+  const phoneInputRef = useRef(null);
   const salaryCurrency = job?.currency || candidate?.jobCurrency || "INR";
   const isRejected = candidate?.status === "rejected";
   const activeFlowStage = isRejected ? null : (candidate?.status ?? "unscreened");
@@ -2722,31 +2743,34 @@ function CandidateWorkspaceSheet({
   ];
   const screeningResult = candidate?.screeningOutcome || candidate?.jobContext?.screeningResult || "—";
   const resumeText = candidate?.resumeText || candidate?.jobContext?.resumeText || candidate?.resume || "";
-  const effectiveResumePreview = resumeText || [
-    `${candidate?.name || "Candidate"}`,
-    `${candidate?.currentRole || candidate?.jobTitle || "Current Role"}${candidate?.currentCompany ? ` · ${candidate.currentCompany}` : ""}`,
-    "",
-    "Summary",
-    `Recruiter-ready profile with ${candidate?.experience != null ? `${candidate.experience} years` : "relevant"} experience aligned to ${candidate?.jobTitle || job?.title || "the target role"}.`,
-    "",
-    "Key Highlights",
-    `• CV Match Score: ${candidate?.matchScore != null ? `${candidate.matchScore}%` : "—"}`,
-    `• Availability: ${candidate?.availabilityDays != null ? formatAvailability(candidate.availabilityDays) : "—"}`,
-    `• Current Salary: ${candidate?.currentSalary != null ? formatCurrency(candidate.currentSalary, salaryCurrency) : "—"}`,
-    `• Expected Salary: ${candidate?.expectedSalary != null ? formatCurrency(candidate.expectedSalary, salaryCurrency) : "—"}`,
-    "",
-    "Recruiter Notes",
-    "This is a demo resume preview rendered from seeded candidate data.",
-  ].join("\n");
+  const effectiveResumePreview = resumeText || buildResumePreview(candidate, job, { includeFooter: true });
 
   useEffect(() => {
-    setActiveTab(initialTab);
+    setShowResumePane(true);
     setNoteDraft(candidate?.jobContext?.notes || candidate?.notes || "");
     setEmailDraft(candidate?.email && candidate.email !== "—" ? candidate.email : "");
     setPhoneDraft(candidate?.phone && candidate.phone !== "—" ? candidate.phone : "");
-    setIsEditingEmail(!(candidate?.email && candidate.email !== "—"));
-    setIsEditingPhone(!(candidate?.phone && candidate.phone !== "—"));
-  }, [candidate?.id, initialTab]);
+    setIsEditingEmail(false);
+    setIsEditingPhone(false);
+  }, [candidate?.id, open]);
+
+  useEffect(() => {
+    if (isEditingEmail) {
+      window.requestAnimationFrame(() => {
+        emailInputRef.current?.focus?.();
+        emailInputRef.current?.select?.();
+      });
+    }
+  }, [isEditingEmail]);
+
+  useEffect(() => {
+    if (isEditingPhone) {
+      window.requestAnimationFrame(() => {
+        phoneInputRef.current?.focus?.();
+        phoneInputRef.current?.select?.();
+      });
+    }
+  }, [isEditingPhone]);
 
   const persistContactField = useCallback((field, value) => {
     if (!candidate?.id || !onUpdateContact) {
@@ -2755,6 +2779,28 @@ function CandidateWorkspaceSheet({
 
     onUpdateContact(candidate.id, field, value);
   }, [candidate?.id, onUpdateContact]);
+
+  const handleSaveContactField = useCallback((field) => {
+    if (field === "email") {
+      persistContactField("email", emailDraft);
+      setIsEditingEmail(false);
+      return;
+    }
+
+    persistContactField("phone", phoneDraft);
+    setIsEditingPhone(false);
+  }, [emailDraft, phoneDraft, persistContactField]);
+
+  const handleCancelContactField = useCallback((field) => {
+    if (field === "email") {
+      setEmailDraft(candidate?.email && candidate.email !== "—" ? candidate.email : "");
+      setIsEditingEmail(false);
+      return;
+    }
+
+    setPhoneDraft(candidate?.phone && candidate.phone !== "—" ? candidate.phone : "");
+    setIsEditingPhone(false);
+  }, [candidate?.email, candidate?.phone]);
 
   const profileDetails = [
     { label: "Current Role", value: candidate?.currentRole || candidate?.jobTitle || "—" },
@@ -2793,62 +2839,203 @@ function CandidateWorkspaceSheet({
   }, [candidate]);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="xl" widthPx={800}>
+    <Sheet open={open} onOpenChange={(nextOpen) => {
+      if (!nextOpen) {
+        setShowResumePane(true);
+      }
+
+      onOpenChange(nextOpen);
+    }}>
+      <SheetContent size="xl" widthPx={showResumePane ? 1180 : 860}>
         <SheetHeader
           title="Candidate Details"
+          actions={(
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setShowResumePane((current) => !current)}
+                  className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                  aria-label={showResumePane ? "Collapse resume pane" : "Expand resume pane"}
+                >
+                  {showResumePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={8}>{showResumePane ? "Collapse" : "Expand"}</TooltipContent>
+            </Tooltip>
+          )}
         />
-        <SheetBody>
+        <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
           {candidate ? (
-            <div className="space-y-[20px]">
-              <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="space-y-[12px]">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-[12px]">
-                    <p className="truncate text-[20px] leading-[28px] font-semibold text-[var(--fx-text)]">{candidate.name || "—"}</p>
-                    <p className={cn("text-[15px] leading-[22px] font-semibold", scoreToneClassName)}>
-                      {candidate.matchScore != null ? `Fit Score ${candidate.matchScore}%` : "Fit Score —"}
-                    </p>
-                    <div className="justify-self-end">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            aria-label="Open in Candidate Pool"
-                            className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                            onClick={() => onOpenCandidatePool?.(candidate)}
-                          >
-                            <ArrowUpRight className="size-[16px]" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" sideOffset={6}>
-                          Open in Candidate Pool
-                        </TooltipContent>
-                      </Tooltip>
+            <div className={cn("grid min-h-0 h-full gap-[24px]", showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_24px_minmax(0,1fr)]" : "xl:grid-cols-1")}>
+              {showResumePane ? (
+                <>
+                  <div className="flex min-h-0 flex-col">
+                    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                      <div className={`border-b ${FX_COLORS.border} px-[16px] py-[14px]`}>
+                        <div className="flex items-start justify-between gap-[12px]">
+                          <div className="min-w-0 space-y-[4px]">
+                            <p className={`${FX_TYPOGRAPHY.cardTitle} truncate`}>{candidate.name || "—"}</p>
+                            <p className={cn("truncate text-[14px] leading-[20px] font-medium", scoreToneClassName)}>
+                              {candidate.matchScore != null ? `Fit Score ${candidate.matchScore}%` : "Fit Score —"}
+                            </p>
+                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="Open in Candidate Pool"
+                                className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                                onClick={() => onOpenCandidatePool?.(candidate)}
+                              >
+                                <ArrowUpRight className="size-[16px]" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" sideOffset={6}>
+                              Open in Candidate Pool
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
+                      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
+                        <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                          {effectiveResumePreview}
+                        </pre>
+                      </div>
                     </div>
                   </div>
+                  <div className="relative flex items-stretch justify-center">
+                    <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
+                  </div>
+                </>
+              ) : null}
 
-                  <div className="grid gap-[16px] md:grid-cols-2">
+              <div className="flex min-h-0 flex-col gap-[16px]">
+                <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <div className="flex items-start justify-between gap-[16px]">
+                    <div className="space-y-[4px]">
+                      <p className={FX_TYPOGRAPHY.cardTitle}>Current Status</p>
+                      <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                        {candidate.status === "rejected" ? "Rejected" : PIPELINE_STAGES.find((stage) => stage.value === candidate.status)?.label || "Unscreened"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-[12px] flex justify-center overflow-x-auto overflow-y-hidden">
+                    <div className="inline-flex items-center gap-[4px]">
+                      {workflowStages.map((stage, index) => {
+                        const isPast = currentStageIndex > index;
+                        const isCurrent = activeFlowStage === stage.value;
+                        const isFuture = currentStageIndex < index || isRejected;
+
+                        return (
+                          <React.Fragment key={stage.value}>
+                            <div
+                              className={cn(
+                                "inline-flex min-h-[24px] min-w-[76px] items-center justify-center rounded-[7px] border px-[5px] py-[2px] text-center text-[10px] leading-[14px] font-medium transition-colors",
+                                isCurrent
+                                  ? "border-[color:color-mix(in_srgb,var(--fx-primary)_28%,var(--fx-border)_72%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface)_84%)] text-[var(--fx-primary)]"
+                                  : isPast
+                                    ? "border-[color:color-mix(in_srgb,var(--fx-primary)_20%,var(--fx-border)_80%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_8%,var(--fx-surface)_92%)] text-[var(--fx-text)]"
+                                    : isFuture
+                                      ? "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]"
+                                      : "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]",
+                              )}
+                            >
+                              <span className="whitespace-nowrap">{stage.label}</span>
+                            </div>
+                            {index < workflowStages.length - 1 ? (
+                              <div
+                                className={cn(
+                                  "h-[2px] w-[16px] shrink-0 rounded-full",
+                                  isPast || isCurrent
+                                    ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_36%,var(--fx-border)_64%)]"
+                                    : "bg-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)]",
+                                )}
+                              />
+                            ) : null}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                  <p className={FX_TYPOGRAPHY.cardTitle}>Overview</p>
+                  <div className="mt-[12px] grid gap-[16px] md:grid-cols-2">
+                    <div className="md:col-span-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-[12px]">
+                      <p className="truncate text-[20px] leading-[28px] font-semibold text-[var(--fx-text)]">{candidate.name || "—"}</p>
+                      <p className={cn("text-[15px] leading-[22px] font-semibold", scoreToneClassName)}>
+                        {candidate.matchScore != null ? `Fit Score ${candidate.matchScore}%` : "Fit Score —"}
+                      </p>
+                      <div className="justify-self-end">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label="Open in Candidate Pool"
+                              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                              onClick={() => onOpenCandidatePool?.(candidate)}
+                            >
+                              <ArrowUpRight className="size-[16px]" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" sideOffset={6}>
+                            Open in Candidate Pool
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+
                     <div className="min-w-0">
                       <div className="flex items-center gap-[6px]">
-                        <button
-                          type="button"
-                          aria-label="Edit email"
-                          className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                          onClick={() => setIsEditingEmail(true)}
-                        >
-                          <PencilLine className="size-[14px]" />
-                        </button>
+                        {isEditingEmail ? (
+                          <>
+                            <button
+                              type="button"
+                              aria-label="Save email"
+                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                              onClick={() => handleSaveContactField("email")}
+                            >
+                              <Check className="size-[14px]" />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Cancel email edit"
+                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                              onClick={() => handleCancelContactField("email")}
+                            >
+                              <X className="size-[14px]" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            aria-label="Edit email"
+                            className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                            onClick={() => setIsEditingEmail(true)}
+                          >
+                            <PencilLine className="size-[14px]" />
+                          </button>
+                        )}
                         <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Email</p>
                       </div>
                       <div className="mt-[2px] flex min-h-[28px] items-center gap-[6px]">
                         {isEditingEmail ? (
                           <input
+                            ref={emailInputRef}
                             value={emailDraft}
                             onChange={(event) => setEmailDraft(event.target.value)}
-                            onBlur={() => {
-                              persistContactField("email", emailDraft);
-                              if (emailDraft.trim()) {
-                                setIsEditingEmail(false);
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape") {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                handleCancelContactField("email");
+                              }
+
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                handleSaveContactField("email");
                               }
                             }}
                             placeholder="candidate@company.com"
@@ -2860,36 +3047,77 @@ function CandidateWorkspaceSheet({
                           </a>
                         ) : (
                           <input
+                            ref={emailInputRef}
                             value={emailDraft}
                             onChange={(event) => setEmailDraft(event.target.value)}
-                            onBlur={() => persistContactField("email", emailDraft)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape") {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                handleCancelContactField("email");
+                              }
+
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                handleSaveContactField("email");
+                              }
+                            }}
                             placeholder="candidate@company.com"
                             className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
                           />
                         )}
                       </div>
                     </div>
+
                     <div className="min-w-0">
                       <div className="flex items-center justify-end gap-[6px]">
                         <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)] text-right">Phone</p>
-                        <button
-                          type="button"
-                          aria-label="Edit phone"
-                          className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                          onClick={() => setIsEditingPhone(true)}
-                        >
-                          <PencilLine className="size-[14px]" />
-                        </button>
+                        {isEditingPhone ? (
+                          <>
+                            <button
+                              type="button"
+                              aria-label="Save phone"
+                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                              onClick={() => handleSaveContactField("phone")}
+                            >
+                              <Check className="size-[14px]" />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Cancel phone edit"
+                              className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                              onClick={() => handleCancelContactField("phone")}
+                            >
+                              <X className="size-[14px]" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            aria-label="Edit phone"
+                            className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                            onClick={() => setIsEditingPhone(true)}
+                          >
+                            <PencilLine className="size-[14px]" />
+                          </button>
+                        )}
                       </div>
                       <div className="mt-[2px] flex min-h-[28px] items-center justify-end gap-[6px]">
                         {isEditingPhone ? (
                           <input
+                            ref={phoneInputRef}
                             value={phoneDraft}
                             onChange={(event) => setPhoneDraft(event.target.value)}
-                            onBlur={() => {
-                              persistContactField("phone", phoneDraft);
-                              if (phoneDraft.trim()) {
-                                setIsEditingPhone(false);
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape") {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                handleCancelContactField("phone");
+                              }
+
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                handleSaveContactField("phone");
                               }
                             }}
                             placeholder="+91 98765 43210"
@@ -2901,9 +3129,21 @@ function CandidateWorkspaceSheet({
                           </a>
                         ) : (
                           <input
+                            ref={phoneInputRef}
                             value={phoneDraft}
                             onChange={(event) => setPhoneDraft(event.target.value)}
-                            onBlur={() => persistContactField("phone", phoneDraft)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape") {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                handleCancelContactField("phone");
+                              }
+
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                handleSaveContactField("phone");
+                              }
+                            }}
                             placeholder="+91 98765 43210"
                             className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-right text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
                           />
@@ -2912,213 +3152,8 @@ function CandidateWorkspaceSheet({
                     </div>
                   </div>
                 </div>
-                <div className="hidden items-start justify-between gap-[16px]">
-                  <div className="min-w-0 space-y-[8px]">
-                    <p className={FX_TYPOGRAPHY.cardTitle}>{candidate.name || "—"}</p>
-                    <div className="grid gap-[12px] md:grid-cols-3">
-                      <div className="min-w-0">
-                        <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">CV Match</p>
-                        <p className={cn("mt-[2px] truncate text-[14px] leading-[22px] font-medium", scoreToneClassName)}>
-                          {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
-                        </p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Email</p>
-                        <div className="mt-[2px] flex min-h-[28px] items-center gap-[6px]">
-                          {isEditingEmail ? (
-                            <input
-                              value={emailDraft}
-                              onChange={(event) => setEmailDraft(event.target.value)}
-                              onBlur={() => {
-                                persistContactField("email", emailDraft);
-                                if (emailDraft.trim()) {
-                                  setIsEditingEmail(false);
-                                }
-                              }}
-                              placeholder="candidate@company.com"
-                              className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
-                            />
-                          ) : candidate.email && candidate.email !== "—" ? (
-                            <a className="min-w-0 flex-1 break-all text-[14px] leading-[22px] text-[var(--fx-primary)] hover:underline" href={`mailto:${candidate.email}`}>
-                              {candidate.email}
-                            </a>
-                          ) : (
-                            <input
-                              value={emailDraft}
-                              onChange={(event) => setEmailDraft(event.target.value)}
-                              onBlur={() => persistContactField("email", emailDraft)}
-                              placeholder="candidate@company.com"
-                              className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
-                            />
-                          )}
-                          <button
-                            type="button"
-                            aria-label="Edit email"
-                            className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                            onClick={() => setIsEditingEmail(true)}
-                          >
-                            <PencilLine className="size-[14px]" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Phone</p>
-                        <div className="mt-[2px] flex min-h-[28px] items-center gap-[6px]">
-                          {isEditingPhone ? (
-                            <input
-                              value={phoneDraft}
-                              onChange={(event) => setPhoneDraft(event.target.value)}
-                              onBlur={() => {
-                                persistContactField("phone", phoneDraft);
-                                if (phoneDraft.trim()) {
-                                  setIsEditingPhone(false);
-                                }
-                              }}
-                              placeholder="+91 98765 43210"
-                              className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
-                            />
-                          ) : candidate.phone && candidate.phone !== "—" ? (
-                            <a className="min-w-0 flex-1 text-[14px] leading-[22px] text-[var(--fx-primary)] hover:underline" href={`tel:${candidate.phone}`}>
-                              {candidate.phone}
-                            </a>
-                          ) : (
-                            <input
-                              value={phoneDraft}
-                              onChange={(event) => setPhoneDraft(event.target.value)}
-                              onBlur={() => persistContactField("phone", phoneDraft)}
-                              placeholder="+91 98765 43210"
-                              className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
-                            />
-                          )}
-                          <button
-                            type="button"
-                            aria-label="Edit phone"
-                            className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                            onClick={() => setIsEditingPhone(true)}
-                          >
-                            <PencilLine className="size-[14px]" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label="Open in Candidate Pool"
-                        className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                        onClick={() => onOpenCandidatePool?.(candidate)}
-                      >
-                        <ArrowUpRight className="size-[16px]" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" sideOffset={6}>
-                      Open in Candidate Pool
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
 
-              <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[24px] py-[18px]`}>
-                <div className="flex justify-center overflow-x-auto overflow-y-hidden">
-                  <div className="inline-flex items-center gap-[6px]">
-                    {workflowStages.map((stage, index) => {
-                      const isPast = currentStageIndex > index;
-                      const isCurrent = activeFlowStage === stage.value;
-                      const isFuture = currentStageIndex < index || isRejected;
-
-                      return (
-                        <React.Fragment key={stage.value}>
-                          <div
-                            className={cn(
-                              "inline-flex min-h-[28px] min-w-[96px] items-center justify-center rounded-[8px] border px-[6px] py-[3px] text-center text-[11px] leading-[16px] font-medium transition-colors",
-                              isCurrent
-                                ? "border-[color:color-mix(in_srgb,var(--fx-primary)_28%,var(--fx-border)_72%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface)_84%)] text-[var(--fx-primary)]"
-                                : isPast
-                                  ? "border-[color:color-mix(in_srgb,var(--fx-primary)_20%,var(--fx-border)_80%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface)_90%)] text-[var(--fx-text)]"
-                                  : isFuture
-                                    ? "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]"
-                                    : "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]",
-                            )}
-                          >
-                            <span className="whitespace-nowrap">{stage.label}</span>
-                          </div>
-                          {index < workflowStages.length - 1 ? (
-                            <div
-                              className={cn(
-                                "h-[2px] w-[22px] shrink-0 rounded-full",
-                                isPast || isCurrent
-                                  ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_36%,var(--fx-border)_64%)]"
-                                  : "bg-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)]",
-                              )}
-                            />
-                          ) : null}
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
-                </div>
-                {isRejected ? (
-                  <div className="mt-[16px] flex items-center gap-[8px]">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex size-[28px] items-center justify-center rounded-full border border-[var(--fx-danger)] bg-[var(--fx-danger)] text-white">
-                          <Ban className="size-[14px]" />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" sideOffset={6}>
-                        Rejected
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                ) : null}
-              </div>
-
-              <FxTabs
-                variant="filter"
-                value={activeTab}
-                onValueChange={setActiveTab}
-                items={[
-                  { value: "overview", label: "Overview" },
-                  { value: "resume", label: "Resume" },
-                  { value: "notes", label: "Notes" },
-                ]}
-                className="gap-[16px]"
-                itemClassName="text-[15px] leading-[22px]"
-              />
-
-              {activeTab === "overview" ? (
-                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <div className="grid gap-[16px] md:grid-cols-2 xl:grid-cols-3">
-                    {profileDetails.map((item) => (
-                      <MetaField key={item.label} label={item.label} value={item.value} />
-                    ))}
-                    {screeningSnapshot.map((item) => (
-                      <MetaField key={item.label} label={item.label} value={item.value} />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {activeTab === "resume" ? (
-                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <div className="flex items-center justify-between gap-[12px]">
-                    <p className={FX_TYPOGRAPHY.cardTitle}>Resume</p>
-                    <FxButton type="button" variant="outline" size="sm" onClick={() => candidate && onDownloadResume?.(candidate)}>
-                      Download Resume
-                    </FxButton>
-                  </div>
-                  <div className={`mt-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[16px]`}>
-                    <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                      {effectiveResumePreview}
-                    </pre>
-                  </div>
-                </div>
-              ) : null}
-
-              {activeTab === "notes" ? (
-                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
                   <p className={FX_TYPOGRAPHY.cardTitle}>Notes</p>
                   <div className="mt-[12px] space-y-[12px]">
                     {noteItems.length ? (
@@ -3165,7 +3200,7 @@ function CandidateWorkspaceSheet({
                     </div>
                   </div>
                 </div>
-              ) : null}
+              </div>
             </div>
           ) : null}
         </SheetBody>
@@ -3285,20 +3320,7 @@ function AddCandidatesDrawer({
   const selectedCandidateIndex = visibleCandidates.findIndex((candidate) => candidate.id === selectedCandidate?.id);
   const hasPreviousCandidate = visibleCandidates.length > 1 && selectedCandidateIndex > 0;
   const hasNextCandidate = visibleCandidates.length > 1 && selectedCandidateIndex >= 0 && selectedCandidateIndex < visibleCandidates.length - 1;
-  const selectedCandidateResumePreview = selectedCandidate?.resumeText || selectedCandidate?.jobContext?.resumeText || selectedCandidate?.resume || [
-    `${selectedCandidate?.name || "Candidate"}`,
-    `${selectedCandidate?.currentRole || selectedCandidate?.jobTitle || "Current Role"}${selectedCandidate?.currentCompany ? ` · ${selectedCandidate.currentCompany}` : ""}`,
-    "",
-    "Summary",
-    `Profile with ${selectedCandidate?.experience != null ? `${selectedCandidate.experience} years` : "relevant"} experience aligned to ${job?.title || "the selected role"}.`,
-    "",
-    "Highlights",
-    `• CV Match Score: ${selectedCandidate?.matchScore != null ? `${selectedCandidate.matchScore}%` : "—"}`,
-    `• Email: ${selectedCandidate?.email || "—"}`,
-    `• Phone: ${selectedCandidate?.phone || "—"}`,
-    "",
-    "Resume preview is derived from demo candidate data.",
-  ].join("\n");
+  const selectedCandidateResumePreview = selectedCandidate?.resumeText || selectedCandidate?.jobContext?.resumeText || selectedCandidate?.resume || buildResumePreview(selectedCandidate, job, { includeFooter: true });
 
   useEffect(() => {
     if (!visibleCandidates.length) {
@@ -5827,7 +5849,6 @@ export default function JobDetailsPage({ params }) {
         renderBulkButton("share-for-review", Share2, "Share for Review", bulkActionHandlers.shareForReview, "accent"),
         renderBulkButton("shortlisted", Check, "Shortlist", bulkActionHandlers.moveToShortlisted, "accent"),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
-        renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
     }
 
@@ -5835,7 +5856,6 @@ export default function JobDetailsPage({ params }) {
       return [
         renderBulkButton("sent-to-client", Share2, "Send to Client", () => handleOpenSendToClientConfirm(bulkSelectedVisibleCandidates), "accent"),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
-        renderBulkButton("download-resumes", Download, "Download", handleBulkDownloadResumes, "accent"),
       ];
     }
 
