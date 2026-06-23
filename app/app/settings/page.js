@@ -35,7 +35,7 @@ const SETTINGS_SECTIONS = [
   { id: "organization", label: "Organization", description: "Workspace identity for internal hiring", icon: Building2 },
   { id: "career-page", label: "Career Page", description: "Public application and branding", icon: Cog },
   { id: "recruiting-status", label: "Recruiting Status", description: "Default recruiting context", icon: BriefcaseBusiness },
-  { id: "screening", label: "Screening Method", description: "AI screening defaults", icon: ListChecks },
+  { id: "screening", label: "Screening Mode", description: "AI screening defaults", icon: ListChecks },
   { id: "email-settings", label: "Email", description: "Connected mailboxes defaults", icon: Mail },
   { id: "calendar", label: "Calendar", description: "Calendar connection preferences", icon: CalendarDays },
   { id: "billing", label: "Billing", description: "Plan and invoices", icon: CreditCard },
@@ -980,7 +980,7 @@ function ProfileCompletionBanner({
     { label: "Organization", completed: organizationComplete, sectionId: "organization" },
     { label: "Career Page", completed: false, sectionId: "career-page" },
     { label: "Recruiting Status", completed: recruitingComplete, sectionId: "recruiting-status" },
-    { label: "Screening Method", completed: false, sectionId: "screening" },
+    { label: "Screening Mode", completed: false, sectionId: "screening" },
     { label: "Billing", completed: false, sectionId: "billing" },
     { label: "Email", completed: emailConnected, sectionId: "email-settings" },
     { label: "Calendar", completed: calendarConnected, sectionId: "calendar" },
@@ -1195,12 +1195,12 @@ function SectionContent({
   if (sectionId === "screening") {
     return (
       <SettingsCard
-        title="Screening Setup"
+        title="Screening Mode"
         description="Choose the default screening path and question flow applied to new roles."
         action={<FxButton variant="secondary" size="md" disabled={!screeningSettingsDirty} onClick={onSaveScreeningSettings}>Save</FxButton>}
       >
         <div className="space-y-[8px]">
-          <h3 className={FX_TYPOGRAPHY.button}>Default Method</h3>
+          <h3 className={FX_TYPOGRAPHY.button}>Setup Screening Method</h3>
         </div>
         <CheckboxOptionGrid
           options={SCREENING_METHOD_OPTIONS}
