@@ -995,6 +995,7 @@ function EmailScreeningSheet({
   selectedCandidateId,
   onSelectCandidate,
   onRemoveCandidate,
+  onOpenCandidatePool,
   job,
   onStart,
 }) {
@@ -1046,10 +1047,10 @@ function EmailScreeningSheet({
         <SheetContent size="xl" widthPx={showResumePane ? 1160 : 780}>
           <SheetHeader
             title={<span className="text-[var(--fx-text-muted)]">Email Pre-Screening</span>}
-            actions={(
-              <>
-                {isBulkMode ? (
-                  <>
+          actions={(
+            <>
+              {isBulkMode ? (
+                <>
                     <button
                       type="button"
                       onClick={() => {
@@ -1079,6 +1080,23 @@ function EmailScreeningSheet({
                       Next
                     </button>
                   </>
+                ) : null}
+                {activeCandidate && onOpenCandidatePool ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Open in Candidate Pool"
+                        className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                        onClick={() => onOpenCandidatePool(activeCandidate)}
+                      >
+                        <ArrowUpRight className="size-[16px]" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={6}>
+                      Open in Candidate Pool
+                    </TooltipContent>
+                  </Tooltip>
                 ) : null}
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1291,13 +1309,14 @@ function ManualScreeningSheet({
   job,
   onSubmit,
   onReject,
-  onDownloadResume,
+  onOpenCandidatePool,
   onPrevious,
   onNext,
   hasPrevious = false,
   hasNext = false,
 }) {
   const [activeStep, setActiveStep] = useState("interview");
+  const [showResumePane, setShowResumePane] = useState(true);
   const salaryCurrency = job?.currency || "INR";
   const [formState, setFormState] = useState({
     interested: "Yes",
@@ -1340,6 +1359,7 @@ function ManualScreeningSheet({
 
   useEffect(() => {
     setActiveStep("interview");
+    setShowResumePane(true);
     setFormState({
       interested: candidate?.interested || "Yes",
       availabilityMode: candidate?.jobContext?.availabilityMode || (candidate?.jobContext?.availabilityDate ? "date" : "date"),
@@ -1354,7 +1374,7 @@ function ManualScreeningSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="xl" widthPx={1100}>
+      <SheetContent size="xl" widthPx={showResumePane ? 1100 : 760}>
         <SheetHeader
           title={<span className="text-[var(--fx-text-muted)]">Manual Pre-Screening</span>}
           actions={candidate ? (
@@ -1367,27 +1387,65 @@ function ManualScreeningSheet({
                 Next
                 <ArrowRight className="size-[16px]" />
               </FxButton>
+              {onOpenCandidatePool ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Open in Candidate Pool"
+                      className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                      onClick={() => onOpenCandidatePool(candidate)}
+                    >
+                      <ArrowUpRight className="size-[16px]" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={6}>
+                    Open in Candidate Pool
+                  </TooltipContent>
+                </Tooltip>
+              ) : null}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setShowResumePane((current) => !current)}
+                    className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                    aria-label={showResumePane ? "Collapse resume pane" : "Expand resume pane"}
+                  >
+                    {showResumePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={8}>{showResumePane ? "Collapse" : "Expand"}</TooltipContent>
+              </Tooltip>
             </div>
           ) : null}
         />
         <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
           {candidate ? (
-            <div className="grid h-full min-h-0 gap-[32px] xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1.15fr)]">
-              <div className="flex min-h-0 flex-col bg-[var(--fx-surface)]">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[12px]">
-                  <p className="truncate text-[15px] leading-[24px] font-medium text-[var(--fx-text)]">{candidate.name}</p>
-                  <p className={cn("justify-self-end text-[16px] leading-[24px] font-medium", getMatchScoreToneClass(candidate.matchScore))}>
-                    {candidate.matchScore != null ? `CV Match ${candidate.matchScore}%` : "CV Match unavailable"}
-                  </p>
-                </div>
-                <div className={`mt-[16px] min-h-0 flex-1 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                    {resumePreview}
-                  </pre>
-                </div>
-              </div>
+            <div
+              className={cn(
+                "grid h-full min-h-0 gap-[24px]",
+                showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_24px_minmax(0,1fr)]" : "xl:grid-cols-1",
+              )}
+            >
+              {showResumePane ? (
+                <>
+                  <div className="flex min-h-0 flex-col">
+                    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
+                        <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                          {resumePreview}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="relative flex items-stretch justify-center">
+                    <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
+                  </div>
+                </>
+              ) : null}
 
-              <div className={`flex min-h-0 flex-col xl:border-l ${FX_COLORS.border} xl:pl-[32px]`}>
+              <div className="flex min-h-0 flex-col gap-[16px]">
                 <FxTabs
                   variant="underlined"
                   value={activeStep}
@@ -1399,86 +1457,26 @@ function ManualScreeningSheet({
                   itemClassName="text-[12px] leading-[18px]"
                 />
 
-                <div className="mt-[16px] min-h-0 flex-1 overflow-auto">
+                <div className="min-h-0 flex-1 overflow-auto">
                   {activeStep === "interview" ? (
-                  <div className="space-y-[12px]">
-                    {interviewQuestions.map((item, index) => (
-                      <div key={item.question} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
-                        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Question {index + 1}</p>
-                        <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{item.question}</p>
-                        <p className="mt-[8px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-                          {item.guidance}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {activeStep === "prescreen" ? (
-                  <div className="space-y-[16px]">
-                    <div className={`space-y-[8px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                      <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">Is the candidate interested in the role?</p>
-                      <RadioGroup
-                        value={formState.interested}
-                        onValueChange={(value) => setFormState((current) => ({ ...current, interested: value }))}
-                        className="flex flex-wrap items-center gap-[20px]"
-                      >
-                        {["Yes", "No"].map((value) => (
-                          <label key={value} className="flex cursor-pointer items-center gap-[8px]">
-                            <RadioGroupItem value={value} />
-                            <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
-                          </label>
-                        ))}
-                      </RadioGroup>
-                    </div>
-
-                    <div className={`space-y-[10px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                      <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">By when can the candidate join?</p>
-                      <RadioGroup
-                        value={formState.availabilityMode}
-                        onValueChange={(value) => setFormState((current) => ({ ...current, availabilityMode: value }))}
-                        className="flex flex-wrap items-center gap-[20px]"
-                      >
-                        <label className="flex cursor-pointer items-center gap-[8px]">
-                          <RadioGroupItem value="date" />
-                          <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Specific Date</span>
-                        </label>
-                        <label className="flex cursor-pointer items-center gap-[8px]">
-                          <RadioGroupItem value="days" />
-                          <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Availability in Days</span>
-                        </label>
-                      </RadioGroup>
-
-                      {formState.availabilityMode === "date" ? (
-                        <div className="w-[168px]">
-                          <FxInput
-                            type="date"
-                            value={formState.availabilityDate}
-                            onChange={(event) => setFormState((current) => ({ ...current, availabilityDate: event.target.value }))}
-                          />
+                    <div className="space-y-[12px]">
+                      {interviewQuestions.map((item, index) => (
+                        <div key={item.question} className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[12px]`}>
+                          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Question {index + 1}</p>
+                          <p className={`${FX_TYPOGRAPHY.body} mt-[4px] text-[var(--fx-text)]`}>{item.question}</p>
+                          <p className="mt-[8px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{item.guidance}</p>
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-[8px]">
-                          <div className="w-[72px]">
-                            <FxInput
-                              value={formState.availabilityDays}
-                              onChange={(event) => setFormState((current) => ({ ...current, availabilityDays: event.target.value }))}
-                              placeholder="30"
-                              inputMode="numeric"
-                              className="text-center"
-                            />
-                          </div>
-                          <span className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">Days</span>
-                        </div>
-                      )}
+                      ))}
                     </div>
+                  ) : null}
 
-                    {shouldShowCommuteQuestion ? (
+                  {activeStep === "prescreen" ? (
+                    <div className="space-y-[16px]">
                       <div className={`space-y-[8px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">{commuteQuestion}</p>
+                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">Is the candidate interested in the role?</p>
                         <RadioGroup
-                          value={formState.commuteComfortable}
-                          onValueChange={(value) => setFormState((current) => ({ ...current, commuteComfortable: value }))}
+                          value={formState.interested}
+                          onValueChange={(value) => setFormState((current) => ({ ...current, interested: value }))}
                           className="flex flex-wrap items-center gap-[20px]"
                         >
                           {["Yes", "No"].map((value) => (
@@ -1489,51 +1487,109 @@ function ManualScreeningSheet({
                           ))}
                         </RadioGroup>
                       </div>
-                    ) : null}
 
-                    <div className={`space-y-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
-                      <div className="grid gap-[16px] md:grid-cols-2">
+                      <div className={`space-y-[10px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                        <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">By when can the candidate join?</p>
+                        <RadioGroup
+                          value={formState.availabilityMode}
+                          onValueChange={(value) => setFormState((current) => ({ ...current, availabilityMode: value }))}
+                          className="flex flex-wrap items-center gap-[20px]"
+                        >
+                          <label className="flex cursor-pointer items-center gap-[8px]">
+                            <RadioGroupItem value="date" />
+                            <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Specific Date</span>
+                          </label>
+                          <label className="flex cursor-pointer items-center gap-[8px]">
+                            <RadioGroupItem value="days" />
+                            <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">Availability in Days</span>
+                          </label>
+                        </RadioGroup>
+
+                        {formState.availabilityMode === "date" ? (
+                          <div className="w-[168px]">
+                            <FxInput
+                              type="date"
+                              value={formState.availabilityDate}
+                              onChange={(event) => setFormState((current) => ({ ...current, availabilityDate: event.target.value }))}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-[8px]">
+                            <div className="w-[72px]">
+                              <FxInput
+                                value={formState.availabilityDays}
+                                onChange={(event) => setFormState((current) => ({ ...current, availabilityDays: event.target.value }))}
+                                placeholder="30"
+                                inputMode="numeric"
+                                className="text-center"
+                              />
+                            </div>
+                            <span className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">Days</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {shouldShowCommuteQuestion ? (
+                        <div className={`space-y-[8px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                          <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">{commuteQuestion}</p>
+                          <RadioGroup
+                            value={formState.commuteComfortable}
+                            onValueChange={(value) => setFormState((current) => ({ ...current, commuteComfortable: value }))}
+                            className="flex flex-wrap items-center gap-[20px]"
+                          >
+                            {["Yes", "No"].map((value) => (
+                              <label key={value} className="flex cursor-pointer items-center gap-[8px]">
+                                <RadioGroupItem value={value} />
+                                <span className="text-[14px] leading-[22px] text-[var(--fx-text)]">{value}</span>
+                              </label>
+                            ))}
+                          </RadioGroup>
+                        </div>
+                      ) : null}
+
+                      <div className={`space-y-[12px] rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[12px]`}>
+                        <div className="grid gap-[16px] md:grid-cols-2">
+                          <FxInput
+                            label="Current Salary"
+                            type="text"
+                            inputMode="numeric"
+                            value={formatCurrencyInputValue(formState.currentSalary, salaryCurrency)}
+                            onChange={(event) => setFormState((current) => ({
+                              ...current,
+                              currentSalary: parseCurrencyInputValue(event.target.value),
+                            }))}
+                            placeholder={`Enter current CTC in ${salaryCurrency}`}
+                            className="text-right"
+                          />
+                          <FxInput
+                            label="Salary Expectation"
+                            type="text"
+                            inputMode="numeric"
+                            value={formatCurrencyInputValue(formState.expectedSalary, salaryCurrency)}
+                            onChange={(event) => setFormState((current) => ({
+                              ...current,
+                              expectedSalary: parseCurrencyInputValue(event.target.value),
+                            }))}
+                            placeholder={`Enter expected CTC in ${salaryCurrency}`}
+                            className="text-right"
+                          />
+                        </div>
                         <FxInput
-                          label="Current Salary"
-                          type="text"
-                          inputMode="numeric"
-                          value={formatCurrencyInputValue(formState.currentSalary, salaryCurrency)}
-                          onChange={(event) => setFormState((current) => ({
-                            ...current,
-                            currentSalary: parseCurrencyInputValue(event.target.value),
-                          }))}
-                          placeholder={`Enter current CTC in ${salaryCurrency}`}
-                          className="text-right"
-                        />
-                        <FxInput
-                          label="Salary Expectation"
-                          type="text"
-                          inputMode="numeric"
-                          value={formatCurrencyInputValue(formState.expectedSalary, salaryCurrency)}
-                          onChange={(event) => setFormState((current) => ({
-                            ...current,
-                            expectedSalary: parseCurrencyInputValue(event.target.value),
-                          }))}
-                          placeholder={`Enter expected CTC in ${salaryCurrency}`}
-                          className="text-right"
+                          textarea
+                          label="Recruiter Notes"
+                          value={formState.notes}
+                          onChange={(event) => setFormState((current) => ({ ...current, notes: event.target.value }))}
+                          placeholder="Add notes from the conversation"
+                          className="min-h-[120px]"
                         />
                       </div>
-                      <FxInput
-                        textarea
-                        label="Recruiter Notes"
-                        value={formState.notes}
-                        onChange={(event) => setFormState((current) => ({ ...current, notes: event.target.value }))}
-                        placeholder="Add notes from the conversation"
-                        className="min-h-[120px]"
-                      />
                     </div>
-                  </div>
-                ) : null}
-	              </div>
-	            </div>
-	          </div>
-	          ) : null}
-	        </SheetBody>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </SheetBody>
         <SheetFooter
           left={(
             <FxButton variant="destructive" size="sm" onClick={() => candidate && onReject?.(candidate)}>
@@ -1902,7 +1958,7 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
 }
 /* - - - - - - - - - - - - - - - - */
 
-function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCandidate }) {
+function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCandidate, onOpenCandidatePool }) {
   const [emailValue, setEmailValue] = useState("");
   const [messageValue, setMessageValue] = useState("");
   const [shareMode, setShareMode] = useState("cv_only");
@@ -1959,19 +2015,38 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
         <SheetHeader
           title="Share Candidate for Review"
           actions={(
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => setShowCandidatePane((current) => !current)}
-                  className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
-                  aria-label={showCandidatePane ? "Collapse candidate pane" : "Expand candidate pane"}
-                >
-                  {showCandidatePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>{showCandidatePane ? "Collapse" : "Expand"}</TooltipContent>
-            </Tooltip>
+            <div className="flex items-center gap-[8px]">
+              {activeCandidate && onOpenCandidatePool ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Open in Candidate Pool"
+                      className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                      onClick={() => onOpenCandidatePool(activeCandidate)}
+                    >
+                      <ArrowUpRight className="size-[16px]" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={6}>
+                    Open in Candidate Pool
+                  </TooltipContent>
+                </Tooltip>
+              ) : null}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setShowCandidatePane((current) => !current)}
+                    className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                    aria-label={showCandidatePane ? "Collapse candidate pane" : "Expand candidate pane"}
+                  >
+                    {showCandidatePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={8}>{showCandidatePane ? "Collapse" : "Expand"}</TooltipContent>
+              </Tooltip>
+            </div>
           )}
         />
         <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
@@ -2714,10 +2789,13 @@ function CandidateWorkspaceSheet({
   onOpenChange,
   candidate,
   job,
-  initialTab = "overview",
   onSaveNote,
   onDeleteNote,
   onOpenCandidatePool,
+  onPrevious,
+  onNext,
+  hasPrevious = false,
+  hasNext = false,
   onDownloadResume,
   onUpdateContact,
 }) {
@@ -2818,7 +2896,6 @@ function CandidateWorkspaceSheet({
     { label: "Screening Source", value: getPreScreeningSourceLabel(candidate) },
   ];
 
-  const scoreToneClassName = getMatchScoreToneClass(candidate?.matchScore);
   const noteItems = useMemo(() => {
     const jobContextNotes = Array.isArray(candidate?.jobContext?.notesList) ? candidate.jobContext.notesList : [];
     if (jobContextNotes.length) {
@@ -2850,19 +2927,50 @@ function CandidateWorkspaceSheet({
         <SheetHeader
           title="Candidate Details"
           actions={(
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => setShowResumePane((current) => !current)}
-                  className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
-                  aria-label={showResumePane ? "Collapse resume pane" : "Expand resume pane"}
-                >
-                  {showResumePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={8}>{showResumePane ? "Collapse" : "Expand"}</TooltipContent>
-            </Tooltip>
+            <div className="flex items-center gap-[8px]">
+              {hasPrevious && onPrevious ? (
+                <FxButton type="button" variant="ghost" size="sm" onClick={() => onPrevious(candidate)}>
+                  <ArrowLeft className="size-[16px]" />
+                  Previous
+                </FxButton>
+              ) : null}
+              {hasNext && onNext ? (
+                <FxButton type="button" variant="ghost" size="sm" onClick={() => onNext(candidate)}>
+                  Next
+                  <ArrowRight className="size-[16px]" />
+                </FxButton>
+              ) : null}
+              {onOpenCandidatePool ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Open in Candidate Pool"
+                      className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                      onClick={() => candidate && onOpenCandidatePool(candidate)}
+                    >
+                      <ArrowUpRight className="size-[16px]" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={6}>
+                    Open in Candidate Pool
+                  </TooltipContent>
+                </Tooltip>
+              ) : null}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setShowResumePane((current) => !current)}
+                    className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                    aria-label={showResumePane ? "Collapse resume pane" : "Expand resume pane"}
+                  >
+                    {showResumePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={8}>{showResumePane ? "Collapse" : "Expand"}</TooltipContent>
+              </Tooltip>
+            </div>
           )}
         />
         <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
@@ -2872,31 +2980,6 @@ function CandidateWorkspaceSheet({
                 <>
                   <div className="flex min-h-0 flex-col">
                     <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                      <div className={`border-b ${FX_COLORS.border} px-[16px] py-[14px]`}>
-                        <div className="flex items-start justify-between gap-[12px]">
-                          <div className="min-w-0 space-y-[4px]">
-                            <p className={`${FX_TYPOGRAPHY.cardTitle} truncate`}>{candidate.name || "—"}</p>
-                            <p className={cn("truncate text-[14px] leading-[20px] font-medium", scoreToneClassName)}>
-                              {candidate.matchScore != null ? `Fit Score ${candidate.matchScore}%` : "Fit Score —"}
-                            </p>
-                          </div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                aria-label="Open in Candidate Pool"
-                                className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                                onClick={() => onOpenCandidatePool?.(candidate)}
-                              >
-                                <ArrowUpRight className="size-[16px]" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={6}>
-                              Open in Candidate Pool
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </div>
                       <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
                         <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
                           {effectiveResumePreview}
@@ -2963,30 +3046,6 @@ function CandidateWorkspaceSheet({
                 <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
                   <p className={FX_TYPOGRAPHY.cardTitle}>Overview</p>
                   <div className="mt-[12px] grid gap-[16px] md:grid-cols-2">
-                    <div className="md:col-span-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-[12px]">
-                      <p className="truncate text-[20px] leading-[28px] font-semibold text-[var(--fx-text)]">{candidate.name || "—"}</p>
-                      <p className={cn("text-[15px] leading-[22px] font-semibold", scoreToneClassName)}>
-                        {candidate.matchScore != null ? `Fit Score ${candidate.matchScore}%` : "Fit Score —"}
-                      </p>
-                      <div className="justify-self-end">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              aria-label="Open in Candidate Pool"
-                              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-                              onClick={() => onOpenCandidatePool?.(candidate)}
-                            >
-                              <ArrowUpRight className="size-[16px]" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" sideOffset={6}>
-                            Open in Candidate Pool
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </div>
-
                     <div className="min-w-0">
                       <div className="flex items-center gap-[6px]">
                         {isEditingEmail ? (
@@ -3267,6 +3326,7 @@ function AddCandidatesDrawer({
   candidatePool,
   onPickExistingCandidate,
   onUploadFiles,
+  onOpenCandidatePool,
 }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -3394,6 +3454,23 @@ function AddCandidatesDrawer({
                     Next
                   </button>
                 </>
+              ) : null}
+              {selectedCandidate && onOpenCandidatePool ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Open in Candidate Pool"
+                      className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                      onClick={() => onOpenCandidatePool(selectedCandidate)}
+                    >
+                      <ArrowUpRight className="size-[16px]" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={6}>
+                    Open in Candidate Pool
+                  </TooltipContent>
+                </Tooltip>
               ) : null}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -3555,13 +3632,7 @@ function AddCandidatesDrawer({
                       {selectedCandidate ? (
                         <>
                           <div className={`border-b ${FX_COLORS.border} px-[16px] py-[14px]`}>
-                            <div className="flex items-start justify-between gap-[12px]">
-                              <div className="min-w-0 space-y-[4px]">
-                                <p className={`${FX_TYPOGRAPHY.cardTitle} truncate`}>{selectedCandidate.name}</p>
-                                <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
-                                  {selectedCandidate.currentRole || selectedCandidate.jobTitle || "Candidate"}{selectedCandidate.currentCompany ? ` · ${selectedCandidate.currentCompany}` : ""}
-                                </p>
-                              </div>
+                            <div className="flex items-center justify-end">
                               <FxButton type="button" variant="outline" size="sm" onClick={() => onPickExistingCandidate(selectedCandidate)}>
                                 Add to Job
                               </FxButton>
@@ -3686,7 +3757,6 @@ export default function JobDetailsPage({ params }) {
   const [recommendedOpen, setRecommendedOpen] = useState(false);
   const [addCandidatesOpen, setAddCandidatesOpen] = useState(false);
   const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
-  const [candidateSheetInitialTab, setCandidateSheetInitialTab] = useState("overview");
   const [cvMatchSheetOpen, setCvMatchSheetOpen] = useState(false);
   const [preScreenResultOpen, setPreScreenResultOpen] = useState(false);
   const [shareForReviewOpen, setShareForReviewOpen] = useState(false);
@@ -3937,13 +4007,12 @@ export default function JobDetailsPage({ params }) {
   );
 
   const handleOpenCandidateSheet = useCallback(
-    (candidate, initialTab = "overview") => {
+    (candidate) => {
       if (!candidate) {
         return;
       }
 
       setSelectedCandidateId(candidate.id);
-      setCandidateSheetInitialTab(initialTab);
       setCandidateSheetOpen(true);
       markCandidateViewed(candidate.id);
     },
@@ -5505,7 +5574,7 @@ export default function JobDetailsPage({ params }) {
           <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate)}>
             {activeStage === "screened" ? "View Candidate" : "Open Candidate"}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate, "resume")}>
+          <DropdownMenuItem onClick={() => handleOpenCandidateSheet(candidate)}>
             View Resume
           </DropdownMenuItem>
           {activeStage === "screened" || activeStage === "shortlisted" ? (
@@ -6096,9 +6165,10 @@ export default function JobDetailsPage({ params }) {
         candidatePool={recommendedCandidates}
         onPickExistingCandidate={handleAttachExistingCandidate}
         onUploadFiles={handleUploadCandidateFiles}
+        onOpenCandidatePool={handleOpenCandidatePool}
         onViewResume={(candidate) => {
           setAddCandidatesOpen(false);
-          handleOpenCandidateSheet(candidate, "resume");
+          handleOpenCandidateSheet(candidate);
         }}
       />
         <CandidateWorkspaceSheet
@@ -6106,7 +6176,6 @@ export default function JobDetailsPage({ params }) {
           onOpenChange={setCandidateSheetOpen}
           candidate={selectedCandidate}
           job={job}
-          initialTab={candidateSheetInitialTab}
           onSaveNote={handleSaveCandidateNote}
           onDeleteNote={handleDeleteCandidateNote}
           onOpenCandidatePool={handleOpenCandidatePool}
@@ -6141,7 +6210,7 @@ export default function JobDetailsPage({ params }) {
           onCopyDetailedContent={(text) => handleCopyText(text, "Detailed content")}
           onViewResume={(candidate) => {
             setSendToClientDraftOpen(false);
-            handleOpenCandidateSheet(candidate, "resume");
+            handleOpenCandidateSheet(candidate);
           }}
           onDownloadZip={handleDownloadZipForCandidates}
           onDownloadResumes={handleDownloadResumesForCandidates}
@@ -6155,7 +6224,7 @@ export default function JobDetailsPage({ params }) {
           onSave={handleCommitClientStatus}
           onOpenResume={(candidate) => {
             setClientStatusSheetOpen(false);
-            handleOpenCandidateSheet(candidate, "resume");
+            handleOpenCandidateSheet(candidate);
           }}
         />
         <PreScreenResultSheet
@@ -6179,6 +6248,7 @@ export default function JobDetailsPage({ params }) {
           candidates={shareForReviewCandidates}
           job={job}
           onRemoveCandidate={handleRemoveShareForReviewCandidate}
+          onOpenCandidatePool={handleOpenCandidatePool}
         />
         <CvMatchBreakdownSheet
           open={cvMatchSheetOpen}
@@ -6197,6 +6267,7 @@ export default function JobDetailsPage({ params }) {
           selectedCandidateId={selectedCandidateId}
           onSelectCandidate={setSelectedCandidateId}
           onRemoveCandidate={handleRemoveCandidateFromEmailScreening}
+          onOpenCandidatePool={handleOpenCandidatePool}
           job={job}
           onStart={handleStartEmailScreening}
         />
@@ -6208,6 +6279,7 @@ export default function JobDetailsPage({ params }) {
           onSubmit={handleSubmitManualScreening}
           onReject={handleRejectCandidateFromManualScreening}
           onDownloadResume={handleDownloadCandidateResume}
+          onOpenCandidatePool={handleOpenCandidatePool}
           onPrevious={handlePreviousManualScreeningCandidate}
           onNext={handleNextManualScreeningCandidate}
           hasPrevious={selectedManualScreeningCandidateIndex > 0}

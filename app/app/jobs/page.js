@@ -82,7 +82,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DEMO_EXPERIENCE_MODES, ROUTES, SCREENING_METHOD_OPTIONS, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
+import { DEMO_EXPERIENCE_MODES, PRESCREEN_OPTIONS, ROUTES, SCREENING_METHOD_OPTIONS, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { PAGE_COPY } from "@/lib/FxCopy";
 import {
   createEmptyJobForm as createJobEmptyForm,
@@ -371,10 +371,10 @@ function formatReviewExperienceSummary(fromValue, toValue) {
 
 function formatQuestionFormatLabel(value) {
   if (value === "prescreen_only") {
-    return "Pre-Screening Only";
+    return "Standard Questions Only";
   }
 
-  return "CV + Pre-Screening";
+  return "Standard Questions and AI led Email";
 }
 
 function fieldButtonClassName(isInteractive = false) {
@@ -2068,7 +2068,6 @@ function formatDisplayLabel(value) {
     `Mode: ${reviewQuestionMode}`,
     `Questions: ${reviewQuestionCount}`,
   ]);
-  const shouldShowScreeningBuilder = jobForm.preScreeningMode !== "manual";
   const jobTitleValue = jobForm.title?.trim() || "";
   const jobCreationTitle = editingJob ? "Edit Job" : "Create Job";
   const navbarTitle = isSheetOpen ? jobCreationTitle : "Jobs";
@@ -2960,201 +2959,178 @@ function formatDisplayLabel(value) {
                     </p>
                   </div>
 
-                      <div className="space-y-[8px]">
-                        <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Screening Method</h4>
-                      </div>
-                  <RadioGroup
-                    value={jobForm.preScreeningMode || "manual"}
-                    onValueChange={(value) =>
-                      setJobForm((current) => ({
-                        ...current,
-                        preScreeningMode: value,
-                      }))
-                    }
-                    className="grid gap-[12px] md:grid-cols-2"
-                  >
-                    {SCREENING_METHOD_OPTIONS.map((option) => (
-                      <label
-                        key={option.value}
-                        htmlFor={`screening-method-${option.value}`}
-                        className={`flex items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
-                          option.disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-                        } ${
-                          jobForm.preScreeningMode === option.value
-                            ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-                            : "border-[var(--fx-border)] bg-[var(--fx-surface)]"
-                        } ${
-                          !option.disabled ? "hover:bg-[var(--fx-surface-hover)]" : ""
-                        }`}
-                      >
-                        <RadioGroupItem
-                          id={`screening-method-${option.value}`}
-                          value={option.value}
-                          disabled={Boolean(option.disabled)}
-                          className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
-                        />
+                  <div className="grid gap-[12px]">
+                    <div className="rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)]">
+                      <div className="flex items-start gap-[12px] px-[16px] py-[16px]">
+                        <Checkbox checked disabled className="mt-[2px]" />
                         <span className="min-w-0 space-y-[4px]">
-                          <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-                            {option.title}
-                          </span>
-                          <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-                            {option.description}
-                          </span>
+                          <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">Manual</span>
+                          <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Review candidates yourself.</span>
                         </span>
-                      </label>
-                    ))}
-                  </RadioGroup>
-
-                  {shouldShowScreeningBuilder ? (
-                    <>
-                      <div className="space-y-[8px]">
-                        <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Questionnaire</h4>
                       </div>
+                    </div>
 
-                      <RadioGroup
-                        value={jobForm.questionFormat || "cv_and_prescreen"}
-                        onValueChange={(value) =>
-                          setJobForm((current) => ({
-                            ...current,
-                            questionFormat: value,
-                          }))
-                        }
-                        className="mt-[16px] grid gap-[12px] md:grid-cols-2"
-                      >
-                        <label
-                          htmlFor="question-format-cv-and-prescreen"
-                          className={`flex cursor-pointer items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
-                            jobForm.questionFormat === "cv_and_prescreen"
-                              ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-                              : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
-                          }`}
+                    <div className={`rounded-[12px] border ${jobForm.preScreeningMode === "form" ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]" : "border-[var(--fx-border)] bg-[var(--fx-surface)]"}`}>
+                      <div className="grid gap-[12px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setJobForm((current) => ({
+                              ...current,
+                              preScreeningMode: "form",
+                            }))
+                          }
+                          className="flex items-start gap-[12px] px-[16px] py-[16px] text-left"
                         >
-                          <RadioGroupItem
-                            id="question-format-cv-and-prescreen"
-                            value="cv_and_prescreen"
-                            className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+                          <Checkbox
+                            checked={jobForm.preScreeningMode === "form"}
+                            onCheckedChange={(checked) =>
+                              setJobForm((current) => ({
+                                ...current,
+                                preScreeningMode: checked ? "form" : "manual",
+                              }))
+                            }
+                            className="mt-[2px]"
                           />
                           <span className="min-w-0 space-y-[4px]">
-                            <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-                              CV + Pre-Screening
-                            </span>
+                            <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">Automated Email</span>
+                            <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Candidates answer a questionnaire by email.</span>
                           </span>
-                        </label>
+                        </button>
 
-                        <label
-                          htmlFor="question-format-prescreen-only"
-                          className={`flex cursor-pointer items-start gap-[12px] rounded-[12px] border px-[16px] py-[16px] text-left transition-colors ${
-                            jobForm.questionFormat === "prescreen_only"
-                              ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
-                              : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
-                          }`}
+                        {jobForm.preScreeningMode === "form" ? (
+                          <div className="border-l border-[var(--fx-border)] px-[16px] py-[16px]">
+                            <RadioGroup
+                              value={jobForm.questionFormat || "cv_and_prescreen"}
+                              onValueChange={(value) =>
+                                setJobForm((current) => ({
+                                  ...current,
+                                  questionFormat: value,
+                                }))
+                              }
+                              className="grid gap-[10px]"
+                            >
+                              {PRESCREEN_OPTIONS.map((option) => (
+                                <label
+                                  key={option.value}
+                                  htmlFor={`question-format-${option.value}`}
+                                  className={`flex cursor-pointer items-start gap-[10px] rounded-[8px] border px-[12px] py-[12px] text-left transition-colors ${
+                                    jobForm.questionFormat === option.value
+                                      ? "border-[var(--fx-primary)] bg-[var(--fx-surface-subtle)]"
+                                      : "border-[var(--fx-border)] bg-[var(--fx-surface)] hover:bg-[var(--fx-surface-hover)]"
+                                  }`}
+                                >
+                                  <RadioGroupItem
+                                    id={`question-format-${option.value}`}
+                                    value={option.value}
+                                    className="mt-[1px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
+                                  />
+                                  <span className="space-y-[2px]">
+                                    <span className="block text-[14px] font-medium leading-[20px] text-[var(--fx-text)]">{option.title}</span>
+                                    <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">{option.description}</span>
+                                  </span>
+                                </label>
+                              ))}
+                            </RadioGroup>
+                          </div>
+                        ) : (
+                          <div className="hidden lg:block" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-[12px]">
+                    <div className="flex items-center justify-between gap-[12px]">
+                      <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Setup Standard Pre-Screening Questions</h4>
+                    </div>
+
+                    {jobForm.questions.length ? (
+                      <div className="space-y-[10px]">
+                        {jobForm.questions.map((question) => renderQuestionCard(question))}
+                      </div>
+                    ) : (
+                      <div className="rounded-[10px] border border-dashed border-[var(--fx-border)] bg-[var(--fx-surface)] px-[14px] py-[12px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                        No questions added yet.
+                      </div>
+                    )}
+
+                    {availableDefaultQuestions.length ? (
+                      <div className="flex flex-wrap gap-[8px]">
+                        {availableDefaultQuestions.map((question) => (
+                          <FxButton
+                            key={question.id}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-[6px]"
+                            onClick={() => addQuestion(question)}
+                          >
+                            <Plus className="size-[14px]" />
+                            {question.label}
+                          </FxButton>
+                        ))}
+                        <FxButton
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="gap-[6px] text-[var(--fx-primary)] hover:bg-[var(--fx-surface-selected)] hover:text-[var(--fx-primary)]"
+                          onClick={() => {
+                            setIsCustomQuestionComposerOpen(true);
+                            requestAnimationFrame(() => customQuestionInputRef.current?.focus?.());
+                          }}
                         >
-                          <RadioGroupItem
-                            id="question-format-prescreen-only"
-                            value="prescreen_only"
-                            className="mt-[2px] border-[color:color-mix(in_srgb,var(--fx-border)_82%,var(--fx-text)_18%)] data-[state=checked]:border-[var(--fx-primary)]"
-                          />
-                          <span className="min-w-0 space-y-[4px]">
-                            <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
-                              Pre-Screening Questions Only
-                            </span>
-                          </span>
-                        </label>
-                      </RadioGroup>
+                          <Plus className="size-[14px]" />
+                          Add Custom
+                        </FxButton>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-[8px]">
+                        <FxButton
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="gap-[6px] text-[var(--fx-primary)] hover:bg-[var(--fx-surface-selected)] hover:text-[var(--fx-primary)]"
+                          onClick={() => {
+                            setIsCustomQuestionComposerOpen(true);
+                            requestAnimationFrame(() => customQuestionInputRef.current?.focus?.());
+                          }}
+                        >
+                          <Plus className="size-[14px]" />
+                          Add Custom
+                        </FxButton>
+                      </div>
+                    )}
 
-                      <div className="space-y-[12px]">
-                        <div className="flex items-center justify-between gap-[12px]">
-                          <h4 className={`${FX_TYPOGRAPHY.button} text-[var(--fx-text-muted)]`}>Setup Standard Pre-Screening Questions</h4>
-                        </div>
-
-                        {jobForm.questions.length ? (
-                          <div className="space-y-[10px]">
-                            {jobForm.questions.map((question) => renderQuestionCard(question))}
-                          </div>
-                        ) : (
-                          <div className="rounded-[10px] border border-dashed border-[var(--fx-border)] bg-[var(--fx-surface)] px-[14px] py-[12px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-                            No questions added yet.
-                          </div>
-                        )}
-
-                        {availableDefaultQuestions.length ? (
-                          <div className="flex flex-wrap gap-[8px]">
-                            {availableDefaultQuestions.map((question) => (
-                              <FxButton
-                                key={question.id}
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="gap-[6px]"
-                                onClick={() => addQuestion(question)}
-                              >
-                                <Plus className="size-[14px]" />
-                                {question.label}
-                              </FxButton>
-                            ))}
-                            <FxButton
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="gap-[6px] text-[var(--fx-primary)] hover:bg-[var(--fx-surface-selected)] hover:text-[var(--fx-primary)]"
-                              onClick={() => {
-                                setIsCustomQuestionComposerOpen(true);
-                                requestAnimationFrame(() => customQuestionInputRef.current?.focus?.());
-                              }}
-                            >
-                              <Plus className="size-[14px]" />
-                              Add Custom
-                            </FxButton>
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-[8px]">
-                            <FxButton
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="gap-[6px] text-[var(--fx-primary)] hover:bg-[var(--fx-surface-selected)] hover:text-[var(--fx-primary)]"
-                              onClick={() => {
-                                setIsCustomQuestionComposerOpen(true);
-                                requestAnimationFrame(() => customQuestionInputRef.current?.focus?.());
-                              }}
-                            >
-                              <Plus className="size-[14px]" />
-                              Add Custom
-                            </FxButton>
-                          </div>
-                        )}
-
-                        {isCustomQuestionComposerOpen ? (
-                          <div className="space-y-[10px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[14px]">
-                            <FxInput
-                              ref={customQuestionInputRef}
-                              label="Question Text"
-                              value={customQuestionDraft}
-                              onChange={handleCustomQuestionChange}
-                              placeholder="Enter a screening question"
-                            />
-                            {customQuestionSuggestion ? (
-                              <button
-                                type="button"
-                                onClick={acceptCustomQuestionSuggestion}
-                                className="text-[13px] leading-[20px] text-[var(--fx-primary)] hover:text-[var(--fx-primary)]"
-                              >
-                                Suggested: {customQuestionSuggestion}
-                              </button>
-                            ) : null}
-                            <div className="flex items-center justify-end gap-[8px]">
-                              <FxButton type="button" variant="ghost" size="sm" onClick={() => setIsCustomQuestionComposerOpen(false)}>
-                                Cancel
-                              </FxButton>
-                              <FxButton type="button" variant="secondary" size="sm" onClick={() => commitCustomQuestion()}>
-                                Add Question
-                              </FxButton>
-                            </div>
-                          </div>
+                    {isCustomQuestionComposerOpen ? (
+                      <div className="space-y-[10px] rounded-[10px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[14px]">
+                        <FxInput
+                          ref={customQuestionInputRef}
+                          label="Question Text"
+                          value={customQuestionDraft}
+                          onChange={handleCustomQuestionChange}
+                          placeholder="Enter a screening question"
+                        />
+                        {customQuestionSuggestion ? (
+                          <button
+                            type="button"
+                            onClick={acceptCustomQuestionSuggestion}
+                            className="text-[13px] leading-[20px] text-[var(--fx-primary)] hover:text-[var(--fx-primary)]"
+                          >
+                            Suggested: {customQuestionSuggestion}
+                          </button>
                         ) : null}
+                        <div className="flex items-center justify-end gap-[8px]">
+                          <FxButton type="button" variant="ghost" size="sm" onClick={() => setIsCustomQuestionComposerOpen(false)}>
+                            Cancel
+                          </FxButton>
+                          <FxButton type="button" variant="secondary" size="sm" onClick={() => commitCustomQuestion()}>
+                            Add Question
+                          </FxButton>
+                        </div>
                       </div>
-                    </>
-                  ) : null}
+                    ) : null}
+                  </div>
 
                 </section>
               ) : null}

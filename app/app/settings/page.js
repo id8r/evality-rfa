@@ -26,7 +26,7 @@ import { FxProtectedAppPage } from "@/components/FxProtectedAppPage";
 import { FxSelect } from "@/components/FxSelect";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { DEMO_USER, SCREENING_METHOD_OPTIONS, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
+import { DEMO_USER, PRESCREEN_OPTIONS, SCREENING_METHOD_OPTIONS, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
 import { FX_COLORS, FX_LAYOUT, FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn, readStoredJSON, readStoredValue, writeStoredJSON, writeStoredValue } from "@/lib/FxUtils";
 
@@ -66,18 +66,6 @@ const RECRUITING_STATUS_OPTIONS = [
   { value: WORKSPACE_TYPES.MY_COMPANY, title: "Hiring for My Company", description: "Use Evality primarily for internal recruiting." },
   { value: WORKSPACE_TYPES.CLIENTS, title: "Hiring for Clients", description: "Default workflows for agency or client-facing recruiting." },
   { value: WORKSPACE_TYPES.BOTH, title: "Hiring for Both", description: "Support both internal and client hiring from the same workspace." },
-];
-const PRESCREEN_OPTIONS = [
-  {
-    value: "prescreen_only",
-    title: "Standard Questions Only",
-    description: "Keep the flow shorter when the goal is quick qualification.",
-  },
-  {
-    value: "cv_and_prescreen",
-    title: "Standard Questions and AI led Email",
-    description: "Use CV context first, then ask focused qualification questions.",
-  },
 ];
 const TIMEZONE_OPTIONS = [
   "(UTC+05:30) Asia/Kolkata",
