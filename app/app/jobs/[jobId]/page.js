@@ -10,11 +10,14 @@ import {
   ArrowUpDown,
   ArrowRight,
   Ban,
+  CalendarDays,
   Check,
   Circle,
   CheckCheck,
   Eye,
   Copy,
+  ChevronRight,
+  ChevronUp,
   ChevronDown,
   Minus,
   MoreHorizontal,
@@ -67,6 +70,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/sheet";
 import { ROUTES, STORAGE_KEYS, WORKSPACE_TYPES } from "@/lib/FxConstants";
@@ -1023,6 +1027,472 @@ function CvMatchBreakdownSheet({ open, onOpenChange, candidate }) {
             </div>
           ) : null}
         </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }) {
+  const [showResumePane, setShowResumePane] = useState(true);
+  const [includedInviteExpanded, setIncludedInviteExpanded] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [activePopoverDateKey, setActivePopoverDateKey] = useState(null);
+  const [draftFromTime, setDraftFromTime] = useState("14:00");
+  const [draftToTime, setDraftToTime] = useState("15:00");
+  const [draftNotes, setDraftNotes] = useState("");
+  const [appliedSlot, setAppliedSlot] = useState(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const resumePreview = useMemo(() => (candidate ? buildResumePreview(candidate, job, { includeFooter: false }) : ""), [candidate, job]);
+  const screeningQuestions = useMemo(() => getJobScreeningQuestions(job), [job]);
+  const screeningAnswers = Array.isArray(candidate?.screeningAnswers) ? candidate.screeningAnswers : [];
+  const answerMap = useMemo(() => new Map(screeningAnswers.map((item) => [item.id, item.answer || "Not answered"])), [screeningAnswers]);
+  const screeningResponseCount = Math.max(
+    screeningAnswers.filter((item) => String(item?.answer ?? "").trim()).length,
+    screeningQuestions.length,
+  );
+  const timeOptions = [
+    "09:00",
+    "09:30",
+    "10:00",
+    "10:30",
+    "11:00",
+    "11:30",
+    "12:00",
+    "12:30",
+    "13:00",
+    "13:30",
+    "14:00",
+    "14:30",
+    "15:00",
+    "15:30",
+    "16:00",
+    "16:30",
+    "17:00",
+    "17:30",
+  ];
+  const timeToMinutes = useCallback((time24) => {
+    const [hours, minutes] = String(time24 ?? "").split(":").map((value) => Number.parseInt(value, 10));
+    return ((hours || 0) * 60) + (minutes || 0);
+  }, []);
+  const isDraftTimeRangeValid = timeToMinutes(draftToTime) > timeToMinutes(draftFromTime);
+  const draftSlot = useMemo(() => {
+    if (!selectedDate || !isDraftTimeRangeValid) {
+      return null;
+    }
+
+    return {
+      date: selectedDate,
+      fromTime: draftFromTime,
+      toTime: draftToTime,
+      notes: draftNotes,
+      timezone: "Asia/Kolkata",
+    };
+  }, [draftFromTime, draftNotes, draftToTime, isDraftTimeRangeValid, selectedDate]);
+  const resolvedSlot = activePopoverDateKey ? draftSlot : appliedSlot;
+  const canSchedule = Boolean(candidate && resolvedSlot);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setShowResumePane(true);
+    setIncludedInviteExpanded(false);
+    setSelectedDate(null);
+    setActivePopoverDateKey(null);
+    setDraftFromTime("14:00");
+    setDraftToTime("15:00");
+    setDraftNotes("");
+    setAppliedSlot(null);
+    setWeekOffset(0);
+  }, [candidate?.id, open]);
+
+  const formatDateLabel = (date) => {
+    if (!date) {
+      return "—";
+    }
+
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const formatDisplayTime = (time24, timezone = "Asia/Kolkata") => {
+    if (!time24) {
+      return "—";
+    }
+
+    const [hours, minutes] = String(time24).split(":").map((value) => Number.parseInt(value, 10));
+    const date = new Date();
+    date.setHours(hours || 0, minutes || 0, 0, 0);
+    return date.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: timezone,
+    });
+  };
+
+  const today = useMemo(() => {
+    const value = new Date();
+    value.setHours(0, 0, 0, 0);
+    return value;
+  }, []);
+
+  const getStartOfWeek = useCallback((date) => {
+    const nextDate = new Date(date);
+    const day = nextDate.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    nextDate.setDate(nextDate.getDate() + diff);
+    nextDate.setHours(0, 0, 0, 0);
+    return nextDate;
+  }, []);
+
+  const weekStart = useMemo(() => {
+    const baseStart = getStartOfWeek(today);
+    const nextStart = new Date(baseStart);
+    nextStart.setDate(baseStart.getDate() + (weekOffset * 7));
+    return nextStart;
+  }, [getStartOfWeek, today, weekOffset]);
+
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => {
+      const nextDate = new Date(weekStart);
+      nextDate.setDate(weekStart.getDate() + index);
+      return nextDate;
+    }),
+    [weekStart],
+  );
+
+  const formatWeekLabel = useCallback((days) => {
+    if (!days.length) {
+      return "This Week";
+    }
+
+    const first = days[0];
+    const last = days[days.length - 1];
+    return `${first.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} - ${last.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`;
+  }, []);
+
+  const getSlotDateKey = useCallback((date) => {
+    if (!(date instanceof Date)) {
+      return "";
+    }
+
+    return date.toISOString().slice(0, 10);
+  }, []);
+
+  const handleApplySchedule = useCallback(() => {
+    if (!selectedDate) {
+      return;
+    }
+
+    setAppliedSlot({
+      date: selectedDate,
+      fromTime: draftFromTime,
+      toTime: draftToTime,
+      notes: draftNotes,
+      timezone: "Asia/Kolkata",
+    });
+    setActivePopoverDateKey(null);
+  }, [draftFromTime, draftNotes, draftToTime, selectedDate]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="xl" widthPx={showResumePane ? 1180 : 780}>
+        <SheetHeader
+          title="Schedule Interview"
+          actions={(
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setShowResumePane((current) => !current)}
+                  className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                  aria-label={showResumePane ? "Collapse" : "Expand"}
+                >
+                  {showResumePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={8}>{showResumePane ? "Collapse" : "Expand"}</TooltipContent>
+            </Tooltip>
+          )}
+        />
+        <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
+          {candidate ? (
+            <div className={cn("grid h-full min-h-0", showResumePane ? "grid-cols-[minmax(0,1.15fr)_24px_minmax(0,1fr)]" : "grid-cols-1")}>
+              {showResumePane ? (
+                <>
+                  <div className="grid min-h-0 gap-[12px] xl:grid-rows-[minmax(0,1fr)_auto]">
+                    <div className={`min-h-0 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                      <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                        {resumePreview}
+                      </pre>
+                    </div>
+                    <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                      <button
+                        type="button"
+                        onClick={() => setIncludedInviteExpanded((current) => !current)}
+                        className="flex w-full items-center justify-between gap-[12px] px-[14px] py-[10px] text-left"
+                      >
+                        <p className="min-w-0 truncate text-[14px] leading-[20px] text-[var(--fx-text)]">
+                          Resume &amp; {screeningResponseCount} Screening Responses Included with Invite
+                        </p>
+                        {includedInviteExpanded ? (
+                          <ChevronUp className="size-[16px] shrink-0 text-[var(--fx-primary)]" />
+                        ) : (
+                          <ChevronDown className="size-[16px] shrink-0 text-[var(--fx-primary)]" />
+                        )}
+                      </button>
+                      {includedInviteExpanded ? (
+                        <div className={`border-t ${FX_COLORS.border} px-[14px] py-[12px]`}>
+                          <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[12px] py-[10px]`}>
+                            <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">💬 Screening Responses ({screeningResponseCount})</p>
+                            <div className="mt-[8px] max-h-[220px] space-y-[8px] overflow-y-auto pr-[4px]">
+                              {screeningQuestions.map((item, index) => (
+                                <div key={item.id} className="space-y-[2px]">
+                                  <p className="text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">Q{index + 1}. {item.question}</p>
+                                  <p className="text-[13px] leading-[18px] text-[var(--fx-text-muted)]">
+                                    Ans. {answerMap.get(item.id) || answerMap.get(item.label?.toLowerCase?.()) || "Not answered"}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="relative flex items-stretch justify-center pt-[32px]">
+                    <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
+                  </div>
+                </>
+              ) : null}
+
+              <div className="flex min-h-0 flex-col gap-[16px]">
+                  <div className={`shrink-0 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <div className="flex items-start justify-between gap-[16px]">
+                      <div className="space-y-[4px]">
+                        <p className={FX_TYPOGRAPHY.cardTitle}>Candidate Summary</p>
+                        <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
+                          Candidate and interviewer will receive calendar notifications once scheduled.
+                        </p>
+                      </div>
+                      <span className={cn("shrink-0 rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[13px] leading-[18px] font-medium", getMatchScoreToneClass(candidate.matchScore))}>
+                        {candidate.matchScore != null ? `${candidate.matchScore}% Fit Score` : "Fit Score —"}
+                      </span>
+                    </div>
+                    <div className="mt-[14px] grid gap-[16px] md:grid-cols-2">
+                      <MetaField label="Name" value={candidate.name || "—"} />
+                      <MetaField label="Email" value={candidate.email || "—"} />
+                      <MetaField label="Phone" value={candidate.phone || "—"} />
+                      <MetaField label="Experience" value={candidate.experience != null ? `${candidate.experience}y` : "—"} />
+                    </div>
+                  </div>
+
+                  <div className={`flex min-h-0 flex-1 flex-col rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <div className="shrink-0">
+                      <div className="flex items-center justify-between gap-[12px]">
+                        <div>
+                          <p className={FX_TYPOGRAPHY.cardTitle}>Select Interview Date</p>
+                          <p className="mt-[2px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Choose a day tile and save the interview slot from its popover.</p>
+                        </div>
+                        <div className="flex items-center gap-[8px]">
+                          <button
+                            type="button"
+                            className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                            onClick={() => setWeekOffset((current) => current - 1)}
+                            aria-label="Previous week"
+                          >
+                            <ArrowLeft className="size-[16px]" />
+                          </button>
+                          <span className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{formatWeekLabel(weekDays)}</span>
+                          <button
+                            type="button"
+                            className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                            onClick={() => setWeekOffset((current) => current + 1)}
+                            aria-label="Next week"
+                          >
+                            <ArrowRight className="size-[16px]" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-[14px] flex min-h-0 flex-1 flex-col">
+                      <div className="grid grid-cols-7 gap-[10px] content-start">
+                        {weekDays.map((day) => {
+                          const dayKey = getSlotDateKey(day);
+                          const isSelected = Boolean(selectedDate && day.toDateString() === selectedDate.toDateString());
+                          const slotMatches = Boolean(appliedSlot && getSlotDateKey(appliedSlot.date) === dayKey);
+                          const slotStripLabel = slotMatches
+                            ? (job?.title || candidate?.jobTitle || "Interview")
+                            : "";
+
+                          return (
+                            <Popover
+                              key={dayKey}
+                              open={activePopoverDateKey === dayKey}
+                              onOpenChange={(nextOpen) => {
+                                setActivePopoverDateKey(nextOpen ? dayKey : null);
+                                if (!nextOpen && selectedDate && day.toDateString() === selectedDate.toDateString()) {
+                                  setSelectedDate(null);
+                                }
+                              }}
+                            >
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDate(day);
+                                    if (slotMatches) {
+                                      setDraftFromTime(appliedSlot.fromTime);
+                                      setDraftToTime(appliedSlot.toTime);
+                                      setDraftNotes(appliedSlot.notes || "");
+                                    } else {
+                                      setDraftFromTime("14:00");
+                                      setDraftToTime("15:00");
+                                      setDraftNotes("");
+                                    }
+                                    setActivePopoverDateKey(dayKey);
+                                  }}
+                                  className={cn(
+                                    "flex aspect-square w-full min-h-0 flex-col justify-between rounded-[10px] border p-[10px] text-left transition-colors",
+                                    isSelected
+                                      ? "border-[color:color-mix(in_srgb,var(--fx-primary)_42%,var(--fx-border)_58%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface)_90%)]"
+                                      : `border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]`,
+                                  )}
+                                >
+                                  <div className="space-y-[2px]">
+                                    <p className="text-[12px] leading-[16px] font-medium text-[var(--fx-text-muted)]">
+                                      {day.toLocaleDateString("en-GB", { weekday: "short" })}
+                                    </p>
+                                    <p className="text-[24px] leading-[28px] font-semibold text-[var(--fx-text)]">
+                                      {day.toLocaleDateString("en-GB", { day: "2-digit" })}
+                                    </p>
+                                  </div>
+                                  <div className="min-h-[36px] space-y-[4px]">
+                                    {slotMatches ? (
+                                      <>
+                                        <div className="truncate rounded-[6px] bg-[var(--fx-primary)] px-[8px] py-[4px] text-[11px] leading-[14px] font-medium text-[var(--fx-primary-foreground)]">
+                                          {slotStripLabel}
+                                        </div>
+                                        <p className="truncate text-[11px] leading-[14px] text-[var(--fx-text-muted)]">
+                                          {formatDisplayTime(appliedSlot.fromTime)} - {formatDisplayTime(appliedSlot.toTime)}
+                                        </p>
+                                      </>
+                                    ) : (
+                                      <span className="text-[11px] leading-[14px] text-[var(--fx-text-disabled)]">No interviews</span>
+                                    )}
+                                  </div>
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent align="start" className="w-[280px] p-[16px]">
+                                <div className="space-y-[14px]">
+                                  <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">Schedule Interview</p>
+
+                                  <div className="space-y-[6px]">
+                                    <p className="text-[13px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Date</p>
+                                    <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[12px] py-[10px] text-[14px] leading-[20px] text-[var(--fx-text)]`}>
+                                      {formatDateLabel(day)}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-[6px]">
+                                    <p className="text-[13px] leading-[18px] font-medium text-[var(--fx-text-muted)]">From</p>
+                                    <select
+                                      value={draftFromTime}
+                                      onChange={(event) => {
+                                        const nextFrom = event.target.value;
+                                        setDraftFromTime(nextFrom);
+                                        if (timeToMinutes(draftToTime) <= timeToMinutes(nextFrom)) {
+                                          const nextIndex = Math.min(timeOptions.indexOf(nextFrom) + 2, timeOptions.length - 1);
+                                          setDraftToTime(timeOptions[nextIndex]);
+                                        }
+                                      }}
+                                      className={`h-[40px] w-full rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px] text-[14px] leading-[20px] text-[var(--fx-text)] outline-none`}
+                                    >
+                                      {timeOptions.map((time) => (
+                                        <option key={time} value={time}>{formatDisplayTime(time)}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  <div className="space-y-[6px]">
+                                    <p className="text-[13px] leading-[18px] font-medium text-[var(--fx-text-muted)]">To</p>
+                                    <select
+                                      value={draftToTime}
+                                      onChange={(event) => setDraftToTime(event.target.value)}
+                                      className={`h-[40px] w-full rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px] text-[14px] leading-[20px] text-[var(--fx-text)] outline-none`}
+                                    >
+                                      {timeOptions.map((time) => (
+                                        <option key={time} value={time}>{formatDisplayTime(time)}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  <div className="space-y-[6px]">
+                                    <p className="text-[13px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Notes</p>
+                                    <textarea
+                                      value={draftNotes}
+                                      onChange={(event) => setDraftNotes(event.target.value)}
+                                      placeholder="Optional"
+                                      className={`min-h-[96px] w-full resize-none rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[12px] py-[10px] text-[14px] leading-[20px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)]`}
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center justify-end gap-[8px]">
+                                    <FxButton
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setActivePopoverDateKey(null);
+                                        setSelectedDate(null);
+                                      }}
+                                    >
+                                      Cancel
+                                    </FxButton>
+                                    <FxButton size="sm" disabled={!isDraftTimeRangeValid} onClick={handleApplySchedule}>
+                                      Save &amp; Send
+                                    </FxButton>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+              </div>
+            </div>
+          ) : null}
+        </SheetBody>
+        <SheetFooter
+          left={(
+            <FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Cancel
+            </FxButton>
+          )}
+          right={(
+            <FxButton
+              size="sm"
+              disabled={!canSchedule}
+              onClick={() => {
+                if (!candidate || !resolvedSlot) {
+                  return;
+                }
+
+                onSubmit?.(candidate, resolvedSlot);
+              }}
+            >
+              Schedule Interview
+            </FxButton>
+          )}
+        />
       </SheetContent>
     </Sheet>
   );
@@ -3922,6 +4392,7 @@ export default function JobDetailsPage({ params }) {
   const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
   const [cvMatchSheetOpen, setCvMatchSheetOpen] = useState(false);
   const [preScreenResultOpen, setPreScreenResultOpen] = useState(false);
+  const [scheduleInterviewOpen, setScheduleInterviewOpen] = useState(false);
   const [preScreenResultInitialStep, setPreScreenResultInitialStep] = useState("details");
   const [shareForReviewOpen, setShareForReviewOpen] = useState(false);
   const [shareForReviewCandidateIds, setShareForReviewCandidateIds] = useState([]);
@@ -4978,6 +5449,50 @@ export default function JobDetailsPage({ params }) {
       showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} rejected.`);
       clearSelectedCandidates();
     },
+    dropCandidate: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({
+            ...current,
+            status: "rejected",
+            clientStatus: "Candidate Dropped Off",
+            rejectionReason: current.rejectionReason || "Candidate dropped off",
+            jobContexts: {
+              ...(current.jobContexts ?? {}),
+              [job.id]: {
+                ...(current.jobContexts?.[job.id] ?? {}),
+                clientStatus: "Candidate Dropped Off",
+              },
+            },
+          }),
+          { fromStatus: candidate.status, toStatus: "rejected" },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} dropped.`);
+      clearSelectedCandidates();
+    },
+    onHold: () => {
+      bulkSelectedVisibleCandidates.forEach((candidate) => {
+        updateSelectedCandidateStatus(
+          candidate,
+          (current) => ({
+            ...current,
+            clientStatus: "On Hold",
+            jobContexts: {
+              ...(current.jobContexts ?? {}),
+              [job.id]: {
+                ...(current.jobContexts?.[job.id] ?? {}),
+                clientStatus: "On Hold",
+              },
+            },
+          }),
+          { fromStatus: null, toStatus: null },
+        );
+      });
+      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} moved to On Hold.`);
+      clearSelectedCandidates();
+    },
     moveToShortlisted: () => {
       bulkSelectedVisibleCandidates.forEach((candidate) => {
         if (candidate.status !== "screened") {
@@ -5280,6 +5795,83 @@ export default function JobDetailsPage({ params }) {
     clearSelectedCandidates();
     showSuccess("Candidates sent to client", `${nextCandidates.length} candidate${nextCandidates.length === 1 ? "" : "s"} moved to Sent to Client.`);
   }, [clearSelectedCandidates, updateWorkspaceCandidate]);
+/* - - - - - - - - - - - - - - - - */
+
+  const handleScheduleCandidate = useCallback(
+    (candidate, slot = null) => {
+      if (!candidate || !job?.id) {
+        return;
+      }
+
+      if (!slot) {
+        setSelectedCandidateId(candidate.id);
+        setScheduleInterviewOpen(true);
+        markCandidateViewed(candidate.id);
+        return;
+      }
+
+      updateWorkspaceCandidate(
+        candidate.id,
+        (current) => ({
+          ...current,
+          status: "shared",
+          clientStatus: "Interviewing",
+          updatedAt: new Date().toISOString(),
+          jobContexts: {
+            ...(current.jobContexts ?? {}),
+            [job.id]: {
+              ...(current.jobContexts?.[job.id] ?? {}),
+              clientStatus: "Interviewing",
+              interviewSchedule: {
+                date: slot.date instanceof Date ? slot.date.toISOString() : slot.date,
+                fromTime: slot.fromTime,
+                toTime: slot.toTime,
+                notes: slot.notes || "",
+                timezone: slot.timezone,
+                scheduledAt: new Date().toISOString(),
+              },
+            },
+          },
+        }),
+        { fromStatus: candidate.status, toStatus: "shared" },
+      );
+
+      setScheduleInterviewOpen(false);
+      showSuccess("Interview scheduled", `${candidate.name} moved to Interviewing.`);
+    },
+    [job?.id, markCandidateViewed, updateWorkspaceCandidate],
+  );
+/* - - - - - - - - - - - - - - - - */
+
+  const handleDropCandidate = useCallback(
+    (candidate) => {
+      if (!candidate || !job?.id) {
+        return;
+      }
+
+      updateWorkspaceCandidate(
+        candidate.id,
+        (current) => ({
+          ...current,
+          status: "rejected",
+          clientStatus: "Candidate Dropped Off",
+          rejectionReason: current.rejectionReason || "Candidate dropped off",
+          updatedAt: new Date().toISOString(),
+          jobContexts: {
+            ...(current.jobContexts ?? {}),
+            [job.id]: {
+              ...(current.jobContexts?.[job.id] ?? {}),
+              clientStatus: "Candidate Dropped Off",
+            },
+          },
+        }),
+        { fromStatus: candidate.status, toStatus: "rejected" },
+      );
+
+      showSuccess("Candidate dropped", `${candidate.name} moved to Dropped.`);
+    },
+    [job?.id, updateWorkspaceCandidate],
+  );
 /* - - - - - - - - - - - - - - - - */
 
   const handleDownloadZipForCandidates = useCallback((candidates) => {
@@ -5657,12 +6249,12 @@ export default function JobDetailsPage({ params }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="inline-flex">
-              <button type="button" className={className} aria-label={`Send ${candidate.name} to client`} onClick={() => handleOpenSendToClientConfirm(candidate)}>
-                <Share2 className="size-[14px]" />
+              <button type="button" className={className} aria-label={`Schedule ${candidate.name}`} onClick={() => handleScheduleCandidate(candidate)}>
+                <CalendarDays className="size-[14px]" />
               </button>
             </span>
           </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8}>Send to Client</TooltipContent>
+          <TooltipContent side="bottom" sideOffset={8}>Schedule</TooltipContent>
         </Tooltip>
       );
     }
@@ -5827,13 +6419,18 @@ export default function JobDetailsPage({ params }) {
             </DropdownMenuItem>
           ) : null}
           {activeStage === "shortlisted" ? (
-            <DropdownMenuItem onClick={() => handleOpenSendToClientConfirm(candidate)}>
-              Send to Client
+            <DropdownMenuItem onClick={() => handleScheduleCandidate(candidate)}>
+              Schedule
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem onClick={() => handleDownloadCandidateResume(candidate)}>
             Download Resume
           </DropdownMenuItem>
+          {activeStage === "screened" || activeStage === "shortlisted" ? (
+            <DropdownMenuItem className="text-[var(--fx-danger)] focus:text-[var(--fx-danger)]" onClick={() => handleDropCandidate(candidate)}>
+              Drop Candidate
+            </DropdownMenuItem>
+          ) : null}
           {activeStage === "shortlisted" ? (
             <DropdownMenuItem onClick={() => handleMoveCandidateToStage(candidate, "screened", "Pre-Screened")}>
               Move back to Pre-Screened
@@ -5899,9 +6496,9 @@ export default function JobDetailsPage({ params }) {
       matchScore: { key: "matchScore", label: sortLabel("matchScore", stageHeaderLabels.matchScore), width: 160, minWidth: 148, maxWidth: 168, align: "center", defaultVisible: true },
       experience: { key: "experience", label: sortLabel("experience", stageHeaderLabels.experience), width: 104, minWidth: 92, maxWidth: 120, align: "center", defaultVisible: true },
       phone: { key: "phone", label: stageHeaderLabels.phone, width: 176, minWidth: 156, maxWidth: 184, grow: 1, defaultVisible: true },
-      email: { key: "email", label: stageHeaderLabels.email, width: 240, minWidth: 220, maxWidth: 260, grow: 2, defaultVisible: false },
-      availability: { key: "availability", label: sortLabel("availabilityDays", stageHeaderLabels.availability), width: 132, minWidth: 120, maxWidth: 148, align: "center", defaultVisible: false },
-      noticePeriod: { key: "noticePeriod", label: sortLabel("noticePeriodSortValue", stageHeaderLabels.noticePeriod), width: 126, minWidth: 118, maxWidth: 146, align: "center", defaultVisible: true },
+      email: { key: "email", label: stageHeaderLabels.email, width: 240, minWidth: 220, maxWidth: 260, grow: 2, defaultVisible: activeStage === "shortlisted" },
+      availability: { key: "availability", label: sortLabel("availabilityDays", stageHeaderLabels.availability), width: 132, minWidth: 120, maxWidth: 148, align: "center", defaultVisible: activeStage === "shortlisted" },
+      noticePeriod: { key: "noticePeriod", label: sortLabel("noticePeriodSortValue", stageHeaderLabels.noticePeriod), width: 126, minWidth: 118, maxWidth: 146, align: "center", defaultVisible: activeStage !== "shortlisted" },
       currentSalary: { key: "currentSalary", label: sortLabel("currentSalary", stageHeaderLabels.currentSalary), width: 144, minWidth: 132, maxWidth: 160, align: "right", defaultVisible: true },
       expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", stageHeaderLabels.expectedSalary), width: 150, minWidth: 136, maxWidth: 168, align: "right", defaultVisible: true },
       screeningOutcome: { key: "screeningOutcome", label: stageHeaderLabels.screeningOutcome, width: 168, minWidth: 152, maxWidth: 196, align: "center", defaultVisible: true },
@@ -5918,7 +6515,6 @@ export default function JobDetailsPage({ params }) {
       columnsByKey.phone,
       columnsByKey.matchScore,
       columnsByKey.experience,
-      columnsByKey.noticePeriod,
       columnsByKey.currentSalary,
       columnsByKey.expectedSalary,
       columnsByKey.email,
@@ -5926,8 +6522,11 @@ export default function JobDetailsPage({ params }) {
       columnsByKey.actions,
       columnsByKey.menuActions,
     ];
+    if (activeStage !== "shortlisted") {
+      orderedColumns.splice(4, 0, columnsByKey.noticePeriod);
+    }
     if (activeStage !== "unscreened") {
-      orderedColumns.splice(7, 0, columnsByKey.screeningOutcome);
+      orderedColumns.splice(activeStage === "shortlisted" ? 6 : 7, 0, columnsByKey.screeningOutcome);
     }
 
     return orderedColumns;
@@ -6172,13 +6771,15 @@ export default function JobDetailsPage({ params }) {
       return [
         renderBulkButton("share-for-review", Share2, "Share for Review", bulkActionHandlers.shareForReview, "accent"),
         renderBulkButton("shortlisted", Check, "Shortlist", bulkActionHandlers.moveToShortlisted, "accent"),
+        renderBulkButton("drop-candidate", UserRoundX, "Drop Candidate", bulkActionHandlers.dropCandidate, "danger"),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
       ];
     }
 
     if (bulkStage === "shortlisted") {
       return [
-        renderBulkButton("sent-to-client", Share2, "Send to Client", () => handleOpenSendToClientConfirm(bulkSelectedVisibleCandidates), "accent"),
+        renderBulkButton("on-hold", Minus, "On Hold", bulkActionHandlers.onHold),
+        renderBulkButton("drop-candidate", UserRoundX, "Drop Candidate", bulkActionHandlers.dropCandidate, "danger"),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
       ];
     }
@@ -6510,6 +7111,13 @@ export default function JobDetailsPage({ params }) {
           onRemoveCandidate={handleRemoveShareForReviewCandidate}
           onOpenCandidatePool={handleOpenCandidatePool}
           onSubmitShare={handleSubmitShareForReview}
+        />
+        <ScheduleInterviewSheet
+          open={scheduleInterviewOpen}
+          onOpenChange={setScheduleInterviewOpen}
+          candidate={selectedCandidate}
+          job={job}
+          onSubmit={handleScheduleCandidate}
         />
         <CvMatchBreakdownSheet
           open={cvMatchSheetOpen}
