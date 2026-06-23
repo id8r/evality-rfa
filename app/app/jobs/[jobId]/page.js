@@ -3268,55 +3268,8 @@ function CandidateWorkspaceSheet({
   );
 }
 
-function RecommendedCandidatesDrawer({ open, onOpenChange, candidates }) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="xl">
-        <SheetHeader
-          title="Recommend Candidates"
-          description="Candidates who are not yet attached to this job, surfaced from the current demo pool."
-          actions={
-            <span className="rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
-              {candidates.length} ready
-            </span>
-          }
-        />
-        <SheetBody>
-          <div className="space-y-[12px]">
-            {candidates.length ? (
-              candidates.map((candidate) => (
-                <div key={`${candidate.id}-recommendation`} className={`rounded-[14px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <div className="flex items-start justify-between gap-[12px]">
-                    <div className="min-w-0 space-y-[4px]">
-                      <p className={`${FX_TYPOGRAPHY.button} truncate text-[var(--fx-text)]`}>{candidate.name}</p>
-                      <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
-                        {candidate.email} {candidate.phone !== "—" ? `· ${candidate.phone}` : ""}
-                      </p>
-                      <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                        From {candidate.jobTitle || "another job"} · {candidate.status}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
-                      {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <WorkspaceEmptyState
-                title="No recommendations yet"
-                body="Add more demo candidates or keep seeding jobs to populate this panel."
-              />
-            )}
-          </div>
-        </SheetBody>
-        <SheetFooter
-          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>AI recommendations will become attachable later.</span>}
-          right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
-        />
-      </SheetContent>
-    </Sheet>
-  );
+function RecommendedCandidatesDrawer({ candidates, ...props }) {
+  return <AddCandidatesDrawer {...props} candidatePool={candidates} mode="recommend" />;
 }
 
 function AddCandidatesDrawer({
@@ -3327,23 +3280,29 @@ function AddCandidatesDrawer({
   onPickExistingCandidate,
   onUploadFiles,
   onOpenCandidatePool,
+  mode = "add",
 }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [activeMode, setActiveMode] = useState("upload");
+  const allowUpload = mode === "add";
+  const drawerTitle = mode === "recommend" ? "Recommend Candidates" : "Add Candidates";
+  const candidateTabLabel = mode === "recommend" ? "Recommended Candidates" : "Candidates";
+  const [activeMode, setActiveMode] = useState(allowUpload ? "pick" : "pick");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [showResumePane, setShowResumePane] = useState(true);
   const [hiddenCandidateIds, setHiddenCandidateIds] = useState([]);
+  const [activePreviewTab, setActivePreviewTab] = useState("resume");
 
   useEffect(() => {
     if (!open) {
       setIsDragging(false);
-      setActiveMode("upload");
+      setActiveMode("pick");
       setSearchTerm("");
       setSelectedCandidateId(null);
       setShowResumePane(true);
       setHiddenCandidateIds([]);
+      setActivePreviewTab("resume");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -3381,6 +3340,52 @@ function AddCandidatesDrawer({
   const hasPreviousCandidate = visibleCandidates.length > 1 && selectedCandidateIndex > 0;
   const hasNextCandidate = visibleCandidates.length > 1 && selectedCandidateIndex >= 0 && selectedCandidateIndex < visibleCandidates.length - 1;
   const selectedCandidateResumePreview = selectedCandidate?.resumeText || selectedCandidate?.jobContext?.resumeText || selectedCandidate?.resume || buildResumePreview(selectedCandidate, job, { includeFooter: true });
+  const selectedCandidateBackground = useMemo(() => {
+    if (!selectedCandidate) {
+      return [];
+    }
+
+    const currentJobId = job?.id;
+    const linkedJobIds = Object.keys(selectedCandidate.jobContexts ?? {}).filter((jobId) => jobId !== currentJobId);
+    const notes = [
+      selectedCandidate.notes,
+      selectedCandidate.jobContext?.manualScreeningNotes,
+      selectedCandidate.jobContext?.notes,
+    ]
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean);
+
+    const items = [
+      {
+        label: "Current",
+        value: [selectedCandidate.currentRole, selectedCandidate.currentCompany].filter(Boolean).join(" at ") || "No current role captured yet.",
+      },
+      {
+        label: "Experience",
+        value: selectedCandidate.experience ? `${selectedCandidate.experience} years` : "Experience not captured.",
+      },
+      {
+        label: "Source",
+        value: selectedCandidate.source || selectedCandidate.jobTitle || "Existing candidate pool",
+      },
+    ];
+
+    if (linkedJobIds.length) {
+      items.push({
+        label: "Prior Job Links",
+        value: linkedJobIds.join(", "),
+      });
+    }
+
+    if (notes.length) {
+      items.push({
+        label: "Notes",
+        value: notes[0],
+      });
+    }
+
+    return items;
+  }, [job?.id, selectedCandidate]);
 
   useEffect(() => {
     if (!visibleCandidates.length) {
@@ -3392,6 +3397,10 @@ function AddCandidatesDrawer({
       setSelectedCandidateId(visibleCandidates[0].id);
     }
   }, [selectedCandidateId, visibleCandidates]);
+
+  useEffect(() => {
+    setActivePreviewTab("resume");
+  }, [selectedCandidate?.id]);
 
   const handleHideCandidate = useCallback((candidateId) => {
     setHiddenCandidateIds((current) => {
@@ -3420,8 +3429,8 @@ function AddCandidatesDrawer({
     }}>
       <SheetContent size="xl" widthPx={showResumePane ? 1160 : 780}>
         <SheetHeader
-          title="Add Candidates"
-          actions={activeMode === "pick" ? (
+          title={drawerTitle}
+          actions={selectedCandidate ? (
             <>
               {visibleCandidates.length > 1 ? (
                 <>
@@ -3490,15 +3499,17 @@ function AddCandidatesDrawer({
         />
         <SheetBody>
           <div className="space-y-[16px]">
-            <FxTabs
-              tabs={[
-                { value: "upload", label: "Upload" },
-                { value: "pick", label: "Recommend Candidates" },
-              ]}
-              active={activeMode}
-              onChange={setActiveMode}
-              className="justify-start"
-            />
+            {allowUpload ? (
+              <FxTabs
+                tabs={[
+                  { value: "pick", label: candidateTabLabel },
+                  { value: "upload", label: "Upload" },
+                ]}
+                active={activeMode}
+                onChange={setActiveMode}
+                className="justify-start"
+              />
+            ) : null}
 
             {activeMode === "upload" ? (
               <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
@@ -3559,9 +3570,9 @@ function AddCandidatesDrawer({
             {activeMode === "pick" ? (
               <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
                 <div className="flex items-center justify-between gap-[16px]">
-                  <FxAiButton type="button" onClick={() => {}}>
-                    Recommend Candidates
-                  </FxAiButton>
+                  <div className="rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
+                    {visibleCandidates.length} ready
+                  </div>
                   <div className="w-full max-w-[280px]">
                     <FxInput
                       placeholder="Search candidates"
@@ -3594,17 +3605,9 @@ function AddCandidatesDrawer({
                                   className="flex min-w-0 flex-1 flex-col items-start text-left"
                                 >
                                   <span className="w-full truncate text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">{candidate.name}</span>
-                                  <span className="truncate text-[12px] leading-[16px] text-[var(--fx-text-muted)]">
-                                    {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
-                                  </span>
-                                  <span className="truncate text-[12px] leading-[16px] text-[var(--fx-text-muted)]">
-                                    {candidate.email || "—"}{candidate.phone && candidate.phone !== "—" ? ` · ${candidate.phone}` : ""}
-                                  </span>
+                                  <span className="truncate text-[12px] leading-[16px] text-[var(--fx-text-muted)]">{candidate.experience ? `${candidate.experience} years` : "Experience not captured"}</span>
                                 </button>
                                 <div className="flex items-center gap-[6px]">
-                                  <span className="rounded-full bg-[var(--fx-surface-selected)] px-[8px] py-[3px] text-[12px] font-medium text-[var(--fx-primary)]">
-                                    {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
-                                  </span>
                                   <button
                                     type="button"
                                     onClick={() => handleHideCandidate(candidate.id)}
@@ -3623,8 +3626,8 @@ function AddCandidatesDrawer({
                     ) : null}
 
                     {showResumePane ? (
-                      <div className="relative flex items-stretch justify-center">
-                        <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
+                      <div className="flex min-h-0 items-stretch justify-center">
+                        <div className={`h-full w-px ${FX_COLORS.border}`} />
                       </div>
                     ) : null}
 
@@ -3632,16 +3635,52 @@ function AddCandidatesDrawer({
                       {selectedCandidate ? (
                         <>
                           <div className={`border-b ${FX_COLORS.border} px-[16px] py-[14px]`}>
-                            <div className="flex items-center justify-end">
-                              <FxButton type="button" variant="outline" size="sm" onClick={() => onPickExistingCandidate(selectedCandidate)}>
-                                Add to Job
-                              </FxButton>
+                            <div className="flex items-center justify-between gap-[16px]">
+                              <FxTabs
+                                tabs={[
+                                  { value: "resume", label: "Resume" },
+                                  { value: "background", label: "Background" },
+                                ]}
+                                active={activePreviewTab}
+                                onChange={setActivePreviewTab}
+                                variant="compact"
+                                showBorder={false}
+                              />
+                              <div className="flex items-center gap-[8px]">
+                                <FxButton type="button" variant="outline" size="sm" onClick={() => handleHideCandidate(selectedCandidate.id)}>
+                                  Ignore
+                                </FxButton>
+                                <FxButton type="button" size="sm" className="min-w-[116px]" onClick={() => onPickExistingCandidate(selectedCandidate)}>
+                                  Add to Job
+                                </FxButton>
+                              </div>
                             </div>
                           </div>
                           <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
-                            <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                              {selectedCandidateResumePreview}
-                            </pre>
+                            {activePreviewTab === "resume" ? (
+                              <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                                <div className="p-[16px]">
+                                  <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                                    {selectedCandidateResumePreview}
+                                  </pre>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                                <div className="space-y-[10px] p-[16px]">
+                                  {selectedCandidateBackground.length ? (
+                                    selectedCandidateBackground.map((item) => (
+                                      <div key={`${selectedCandidate.id}-${item.label}`} className="space-y-[2px]">
+                                        <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-[var(--fx-text-muted)]">{item.label}</p>
+                                        <p className="text-[13px] leading-[20px] text-[var(--fx-text)]">{item.value}</p>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">No prior background captured for this candidate yet.</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </>
                       ) : null}
@@ -6157,6 +6196,10 @@ export default function JobDetailsPage({ params }) {
           open={recommendedOpen}
           onOpenChange={setRecommendedOpen}
           candidates={recommendedCandidates}
+          job={job}
+          onPickExistingCandidate={handleAttachExistingCandidate}
+          onUploadFiles={handleUploadCandidateFiles}
+          onOpenCandidatePool={handleOpenCandidatePool}
         />
       <AddCandidatesDrawer
         open={addCandidatesOpen}

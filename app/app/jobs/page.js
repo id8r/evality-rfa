@@ -129,7 +129,7 @@ const CURRENCY_FORMAT_LOCALES = {
 const JOB_SHEET_STEPS = [
   { value: "basic", label: "Basic Details" },
   { value: "description", label: "Job Description" },
-  { value: "questionnaire", label: "Screening Mode" },
+  { value: "questionnaire", label: "Screening Method" },
   { value: "benefits", label: "Benefits" },
   { value: "evaluation", label: "Evaluation" },
   { value: "review", label: "Review" },
@@ -2950,7 +2950,7 @@ function formatDisplayLabel(value) {
                 <section className="space-y-[24px]">
                   <div className="space-y-[4px]">
                     {renderSectionHeader(
-                      "Setup Screening Method",
+                      "Setup Screening Mode",
                       null,
                       null,
                     )}
@@ -2972,9 +2972,17 @@ function formatDisplayLabel(value) {
 
                     <div className={`rounded-[12px] border ${jobForm.preScreeningMode === "form" ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]" : "border-[var(--fx-border)] bg-[var(--fx-surface)]"}`}>
                       <div className="grid gap-[12px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                        <label htmlFor="job-screening-mode-form" className="flex cursor-pointer items-start gap-[12px] px-[16px] py-[16px] text-left">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setJobForm((current) => ({
+                              ...current,
+                              preScreeningMode: "form",
+                            }))
+                          }
+                          className="flex items-start gap-[12px] px-[16px] py-[16px] text-left"
+                        >
                           <Checkbox
-                            id="job-screening-mode-form"
                             checked={jobForm.preScreeningMode === "form"}
                             onCheckedChange={(checked) =>
                               setJobForm((current) => ({
@@ -2988,7 +2996,7 @@ function formatDisplayLabel(value) {
                             <span className="block text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">Automated Email</span>
                             <span className="block text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Candidates answer a questionnaire by email.</span>
                           </span>
-                        </label>
+                        </button>
 
                         {jobForm.preScreeningMode === "form" ? (
                           <div className="border-l border-[var(--fx-border)] px-[16px] py-[16px]">
@@ -3175,7 +3183,7 @@ function formatDisplayLabel(value) {
                     })}
 
                     {renderReviewSummaryRow({
-                      title: "Screening Mode",
+                      title: "Screening Method",
                       step: "questionnaire",
                       complete: reviewQuestionnaireComplete,
                       lines: reviewQuestionnaireComplete ? [] : ["Set at least 1 pre-screen question."],

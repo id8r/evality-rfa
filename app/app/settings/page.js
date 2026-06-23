@@ -1200,7 +1200,7 @@ function SectionContent({
         action={<FxButton variant="secondary" size="md" disabled={!screeningSettingsDirty} onClick={onSaveScreeningSettings}>Save</FxButton>}
       >
         <div className="space-y-[8px]">
-          <h3 className={FX_TYPOGRAPHY.button}>Setup Screening Method</h3>
+          <h3 className={FX_TYPOGRAPHY.button}>Setup Screening Mode</h3>
         </div>
         <CheckboxOptionGrid
           options={SCREENING_METHOD_OPTIONS}
