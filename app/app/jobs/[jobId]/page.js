@@ -21,7 +21,6 @@ import {
   Mail,
   PencilLine,
   MessageSquareMore,
-  Phone,
   PhoneCall,
   PanelLeftClose,
   PanelLeftOpen,
@@ -34,7 +33,6 @@ import {
   Sparkles,
   Trash2,
   UserRoundX,
-  UserX,
   Upload,
   Users,
   ArrowUpRight,
@@ -170,14 +168,12 @@ const CLIENT_STATUS_OPTIONS = [
   "Candidate Dropped Off",
 ];
 
-const UNSCREENED_FILTERS = [
-  { key: "all", label: "All" },
-  { key: "failed", label: "No Email Response" },
-];
 const PRE_SCREENED_FILTERS = [
-  { key: "ready", label: "Ready for Review" },
-  { key: "interested", label: "Interested" },
-  { key: "not_interested", label: "Not Interested" },
+  { key: "all", label: "All" },
+  { key: "ai_call", label: "AI Call Screened" },
+  { key: "manual", label: "Manual Screen" },
+  { key: "email", label: "Email Screened" },
+  { key: "no_fit_score", label: "No Fit Score" },
 ];
 const SHARED_FILTERS = [
   { key: "all", label: "All" },
@@ -199,7 +195,6 @@ const JOB_WORKSPACE_TABLE_HEADERS = {
     experience: "Experience",
     phone: "Phone",
     email: "Email",
-    interested: "Interested",
     availability: "Availability",
     noticePeriod: "Notice Period",
     currentSalary: "Current CTC",
@@ -212,7 +207,7 @@ const JOB_WORKSPACE_TABLE_HEADERS = {
     actions: "Actions",
   },
   unscreened: {
-    matchScore: "CV Match Score",
+    matchScore: "Fit Score",
   },
   screened: {
     matchScore: "Fit Score",
@@ -249,7 +244,7 @@ function getClientOutcomeStage(status) {
 function normalizeUnscreenedFilterStatus(candidate, jobContext) {
   const explicitStatus = String(candidate.unscreenedFilterStatus ?? jobContext?.unscreenedFilterStatus ?? "").trim().toLowerCase();
 
-  if (UNSCREENED_FILTERS.some((item) => item.key === explicitStatus)) {
+  if (explicitStatus) {
     return explicitStatus;
   }
 
@@ -549,18 +544,54 @@ function getMatchScoreToneClass(score) {
 }
 /* - - - - - - - - - - - - - - - - */
 
-function getPreScreeningSourceLabel(candidate) {
+function getPreScreeningType(candidate) {
   const mode = String(candidate?.jobContext?.screeningModeOverride ?? "").trim().toLowerCase();
+  const hasEmailScreening = Boolean(candidate?.jobContext?.emailScreeningStartedAt || candidate?.jobContext?.emailScreeningMessage);
 
   if (mode === "manual") {
-    return "Manual Screening";
+    return {
+      key: "manual",
+      detailLabel: "Manual Screen",
+      icon: Users,
+    };
+  }
+
+  if (hasEmailScreening) {
+    return {
+      key: "email",
+      detailLabel: "AI Screening",
+      icon: Sparkles,
+    };
   }
 
   if (mode === "ai") {
-    return "AI Voice Screening";
+    return {
+      key: "ai_call",
+      detailLabel: "AI Screening",
+      icon: Sparkles,
+    };
   }
 
-  return "Manual Screening";
+  return {
+    key: "manual",
+    detailLabel: "Manual Screen",
+    icon: Users,
+  };
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getPreScreeningSourceLabel(candidate) {
+  return getPreScreeningType(candidate).detailLabel;
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getPreScreeningDetailLabel(candidate) {
+  return getPreScreeningType(candidate).detailLabel;
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getPreScreeningFilterKey(candidate) {
+  return getPreScreeningType(candidate).key;
 }
 /* - - - - - - - - - - - - - - - - */
 
@@ -634,7 +665,7 @@ function getStrengthGapSummary(candidate, job) {
 /* - - - - - - - - - - - - - - - - */
 
 function getPreScreenResultSummary(candidate) {
-  const source = getPreScreeningSourceLabel(candidate);
+  const source = getPreScreeningDetailLabel(candidate);
   const outcome = String(candidate?.screeningOutcome ?? "").trim();
 
   if (!outcome || outcome.toLowerCase() === "passed") {
@@ -646,7 +677,42 @@ function getPreScreenResultSummary(candidate) {
 /* - - - - - - - - - - - - - - - - */
 
 function getPreScreeningIcon(candidate) {
-  return getPreScreeningSourceLabel(candidate) === "AI Voice Screening" ? PhoneCall : Users;
+  return getPreScreeningType(candidate).icon;
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getPreScreeningTableLabel(candidate, stage) {
+  const type = getPreScreeningType(candidate);
+
+  if (stage === "screened") {
+    if (type.key === "manual") {
+      return "Manual Call";
+    }
+
+    if (type.key === "ai_call") {
+      return "AI Call";
+    }
+
+    return "Email Screened";
+  }
+
+  if (type.key === "ai_call") {
+    return "AI Call";
+  }
+
+  return "Manual Screen";
+}
+/* - - - - - - - - - - - - - - - - */
+
+function getDialablePhoneHref(value) {
+  const formattedValue = formatContactValue(value);
+  const normalizedValue = formattedValue.replace(/[^\d+]/g, "");
+
+  if (!normalizedValue || normalizedValue === "+") {
+    return null;
+  }
+
+  return `tel:${normalizedValue}`;
 }
 
 function getStoredPipelineCounts(candidateRows) {
@@ -1153,7 +1219,7 @@ function EmailScreeningSheet({
                 );
               }}
             >
-              {isBulkMode ? "Send Emails" : "Send & Start"}
+              Send
             </FxButton>
           )}
         />
@@ -1469,8 +1535,8 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
   const [activeStep, setActiveStep] = useState("details");
   const [activeRecordingMarker, setActiveRecordingMarker] = useState("Q1");
   const salaryCurrency = job?.currency || candidate?.jobCurrency || "INR";
-  const screeningMethod = getPreScreeningSourceLabel(candidate);
-  const isManualScreening = screeningMethod === "Manual Screening";
+  const screeningMethod = getPreScreeningType(candidate);
+  const isManualScreening = screeningMethod.key === "manual";
   const RESULT_STEPS = isManualScreening
     ? [
         { key: "details", label: "Details Retrieved" },
@@ -1495,8 +1561,8 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
   const activeIndex = RESULT_STEPS.findIndex((step) => step.key === activeStep);
   const screeningTimestamp = candidate?.jobContext?.manualScreeningCompletedAt || candidate?.updatedAt || candidate?.createdAt;
   const screeningScore = candidate?.matchScore != null ? `${candidate.matchScore}%` : "—";
-  const screeningMethodLabel = isManualScreening ? "Manual Recruiter Screening" : "AI Voice Screening";
-  const ScreeningMethodIcon = isManualScreening ? Users : PhoneCall;
+  const screeningMethodLabel = screeningMethod.detailLabel;
+  const ScreeningMethodIcon = screeningMethod.icon;
   const screeningStatus = (() => {
     const outcome = String(candidate?.screeningOutcome ?? "").trim().toLowerCase();
 
@@ -1746,7 +1812,7 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
                             <Play className="size-[14px] fill-current" />
                           </button>
                           <div className="space-y-[2px]">
-                            <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">AI Voice Screening Call</p>
+                            <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">AI Screening Call</p>
                             <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">Recorded screening conversation</p>
                           </div>
                         </div>
@@ -1817,38 +1883,223 @@ function PreScreenResultSheet({ open, onOpenChange, candidate, job, onShortlist,
 }
 /* - - - - - - - - - - - - - - - - */
 
-function ShareForReviewSheet({ open, onOpenChange, candidate }) {
+function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCandidate }) {
   const [emailValue, setEmailValue] = useState("");
   const [messageValue, setMessageValue] = useState("");
+  const [shareMode, setShareMode] = useState("cv_only");
+  const [includePhone, setIncludePhone] = useState(false);
+  const [includeEmail, setIncludeEmail] = useState(false);
+  const [includeCompensation, setIncludeCompensation] = useState(false);
+  const [includeScreening, setIncludeScreening] = useState(true);
+  const [showCandidatePane, setShowCandidatePane] = useState(true);
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const [candidatePendingRemoval, setCandidatePendingRemoval] = useState(null);
+  const candidateList = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
+  const salaryCurrency = job?.currency || "INR";
+  const isBulkMode = candidateList.length > 1;
+  const activeCandidate = useMemo(
+    () => candidateList.find((candidate) => candidate.id === selectedCandidateId) ?? candidateList[0] ?? null,
+    [candidateList, selectedCandidateId],
+  );
+  const handleRemoveCandidate = useCallback(() => {
+    if (!candidatePendingRemoval) {
+      return;
+    }
 
-  useEffect(() => {
-    if (!open) {
+    onRemoveCandidate?.(candidatePendingRemoval);
+    setSelectedCandidateId((currentId) => {
+      if (currentId === candidatePendingRemoval.id) {
+        const nextCandidate = candidateList.find((candidate) => candidate.id !== candidatePendingRemoval.id) ?? null;
+        return nextCandidate?.id ?? null;
+      }
+
+      return currentId;
+    });
+    setCandidatePendingRemoval(null);
+  }, [candidateList, candidatePendingRemoval, onRemoveCandidate]);
+  const handleSheetOpenChange = (nextOpen) => {
+    if (!nextOpen) {
       setEmailValue("");
       setMessageValue("");
+      setShareMode("cv_only");
+      setIncludePhone(false);
+      setIncludeEmail(false);
+      setIncludeCompensation(false);
+      setIncludeScreening(true);
+      setShowCandidatePane(true);
+      setSelectedCandidateId(null);
+      setCandidatePendingRemoval(null);
     }
-  }, [open]);
+
+    onOpenChange(nextOpen);
+  };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="sm">
-        <SheetHeader title="Share Candidate for Review" />
-        <SheetBody>
-          <div className="space-y-[16px]">
-            <FxInput
-              label="Email Address(es)"
-              value={emailValue}
-              onChange={(event) => setEmailValue(event.target.value)}
-              placeholder="reviewer@company.com, hiring.manager@company.com"
-            />
-            <FxInput
-              textarea
-              label="Optional Message"
-              value={messageValue}
-              onChange={(event) => setMessageValue(event.target.value)}
-              placeholder={`Sharing ${candidate?.name || "this candidate"} for review.`}
-              className="min-h-[160px]"
-            />
-          </div>
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
+      <SheetContent size="xl" widthPx={showCandidatePane ? 1160 : 780}>
+        <SheetHeader
+          title="Share Candidate for Review"
+          actions={(
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setShowCandidatePane((current) => !current)}
+                  className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
+                  aria-label={showCandidatePane ? "Collapse candidate pane" : "Expand candidate pane"}
+                >
+                  {showCandidatePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={8}>{showCandidatePane ? "Collapse" : "Expand"}</TooltipContent>
+            </Tooltip>
+          )}
+        />
+        <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
+          {activeCandidate ? (
+            <div className={cn("grid h-full min-h-0", showCandidatePane ? "grid-cols-[minmax(0,1.3fr)_24px_minmax(0,1fr)]" : "grid-cols-1")}>
+              {showCandidatePane ? (
+                <>
+                  <div className={cn("grid min-h-0 gap-[16px]", isBulkMode ? "grid-cols-[196px_minmax(0,1fr)]" : "grid-cols-1")}>
+                    {isBulkMode ? (
+                      <div className="min-h-0 overflow-auto rounded-[8px] bg-[var(--fx-bg-soft)] p-[6px]">
+                        <div className="space-y-[8px]">
+                          {candidateList.map((candidate) => (
+                            <div
+                              key={candidate.id}
+                              className={cn(
+                                "flex w-full items-start justify-between gap-[8px] rounded-[8px] px-[10px] py-[8px] text-left transition-colors",
+                                candidate.id === activeCandidate.id
+                                  ? "bg-[var(--fx-surface)] text-[var(--fx-text)] shadow-sm"
+                                  : "bg-transparent text-[var(--fx-text)] hover:bg-[var(--fx-surface-hover)]",
+                              )}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCandidateId(candidate.id)}
+                                className="flex min-w-0 flex-1 flex-col items-start text-left"
+                              >
+                                <span className="w-full truncate text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">{candidate.name}</span>
+                                <span className={cn("text-[12px] leading-[16px] font-medium", getMatchScoreToneClass(candidate.matchScore))}>
+                                  {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setCandidatePendingRemoval(candidate);
+                                }}
+                                className="inline-flex size-[20px] shrink-0 items-center justify-center rounded-[4px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                                aria-label={`Remove ${candidate.name}`}
+                              >
+                                <X className="size-[14px]" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className={`min-h-0 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                      <div className="space-y-[14px]">
+                        <div className="space-y-[8px]">
+                          <p className="text-[16px] leading-[24px] font-semibold text-[var(--fx-text)]">{activeCandidate.name || "—"}</p>
+                          <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
+                            {getPreScreeningSourceLabel(activeCandidate)} · {formatNoticePeriod(activeCandidate)}
+                          </p>
+                        </div>
+                        <div className="grid gap-[16px] md:grid-cols-2">
+                          <MetaField label="Fit Score" value={activeCandidate.matchScore != null ? `${activeCandidate.matchScore}%` : "—"} />
+                          <MetaField label="Experience" value={activeCandidate.experience != null ? `${activeCandidate.experience}y` : "—"} />
+                          <MetaField label="Phone" value={activeCandidate.phone || "—"} />
+                          <MetaField label="Expected CTC" value={formatCurrency(activeCandidate.expectedSalary, salaryCurrency)} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="relative flex items-stretch justify-center pt-[32px]">
+                    <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
+                  </div>
+                </>
+              ) : null}
+
+              <div className="flex min-h-0 flex-col">
+                {!showCandidatePane ? (
+                  <div className="mb-[16px] flex items-center justify-between gap-[16px]">
+                    <p className="truncate text-[15px] leading-[24px] font-medium text-[var(--fx-text)]">{activeCandidate.name}</p>
+                    <p className={cn("shrink-0 text-[16px] leading-[24px] font-medium", getMatchScoreToneClass(activeCandidate.matchScore))}>
+                      {activeCandidate.matchScore != null ? `Fit Score ${activeCandidate.matchScore}%` : "Fit Score unavailable"}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className={cn("flex min-h-0 w-full flex-1", showCandidatePane ? "justify-center" : "justify-start")}>
+                  <div className={cn("flex min-h-0 w-full flex-1 flex-col", showCandidatePane ? "max-w-[560px]" : "")}>
+                    <div className="space-y-[14px]">
+                      <FxInput
+                        label="To"
+                        value={emailValue}
+                        onChange={(event) => setEmailValue(event.target.value)}
+                        placeholder="reviewer@company.com, hiring.manager@company.com"
+                      />
+                      <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                        <div className="flex items-center justify-between gap-[12px]">
+                          <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>What should be shared?</p>
+                        </div>
+                        <div className="mt-[12px] space-y-[12px]">
+                          <RadioGroup value={shareMode} onValueChange={setShareMode} className="grid gap-[10px]">
+                            <label className={`flex cursor-pointer items-start gap-[10px] rounded-[8px] border ${FX_COLORS.border} px-[12px] py-[10px]`}>
+                              <RadioGroupItem value="cv_only" className="mt-[2px]" />
+                              <div className="space-y-[2px]">
+                                <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">CV only</p>
+                                <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Share candidate resumes and names only.</p>
+                              </div>
+                            </label>
+                            <label className={`flex cursor-pointer items-start gap-[10px] rounded-[8px] border ${FX_COLORS.border} px-[12px] py-[10px]`}>
+                              <RadioGroupItem value="custom" className="mt-[2px]" />
+                              <div className="space-y-[2px]">
+                                <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">CV + selected details</p>
+                                <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Choose which contact and screening details the hiring manager can see.</p>
+                              </div>
+                            </label>
+                          </RadioGroup>
+
+                          {shareMode === "custom" ? (
+                            <div className="grid gap-[10px] sm:grid-cols-2">
+                              {[
+                                { checked: includePhone, onChange: setIncludePhone, label: "Include phone number" },
+                                { checked: includeEmail, onChange: setIncludeEmail, label: "Include email address" },
+                                { checked: includeCompensation, onChange: setIncludeCompensation, label: "Include CTC details" },
+                                { checked: includeScreening, onChange: setIncludeScreening, label: "Include screening summary" },
+                              ].map((item) => (
+                                <label key={item.label} className="flex items-center gap-[10px] rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-border)_70%,transparent)] px-[12px] py-[10px]">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.checked}
+                                    onChange={(event) => item.onChange(event.target.checked)}
+                                    className="size-[16px] rounded border-[var(--fx-border)]"
+                                  />
+                                  <span className="text-[14px] leading-[20px] text-[var(--fx-text)]">{item.label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                      <FxInput
+                        textarea
+                        label="Optional Message"
+                        value={messageValue}
+                        onChange={(event) => setMessageValue(event.target.value)}
+                        placeholder={`Sharing ${candidateList.length === 1 ? candidateList[0]?.name || "this candidate" : `${candidateList.length} candidates`} for review.`}
+                        className="min-h-[160px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </SheetBody>
         <SheetFooter
           left={(
@@ -1860,8 +2111,13 @@ function ShareForReviewSheet({ open, onOpenChange, candidate }) {
             <FxButton
               size="sm"
               onClick={() => {
-                showSuccess("Review shared", `${candidate?.name || "Candidate"} was shared for review.`);
-                onOpenChange(false);
+                showSuccess(
+                  "Review shared",
+                  candidateList.length === 1
+                    ? `${candidateList[0]?.name || "Candidate"} was shared for review.`
+                    : `${candidateList.length} candidates were shared for review.`,
+                );
+                handleSheetOpenChange(false);
               }}
             >
               Send
@@ -1869,6 +2125,24 @@ function ShareForReviewSheet({ open, onOpenChange, candidate }) {
           )}
         />
       </SheetContent>
+      <AlertDialog open={Boolean(candidatePendingRemoval)} onOpenChange={(open) => !open && setCandidatePendingRemoval(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove candidate?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {candidatePendingRemoval ? `Remove ${candidatePendingRemoval.name} from this review batch?` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveCandidate}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
@@ -2437,10 +2711,15 @@ function CandidateWorkspaceSheet({
   const salaryCurrency = job?.currency || candidate?.jobCurrency || "INR";
   const isRejected = candidate?.status === "rejected";
   const activeFlowStage = isRejected ? null : (candidate?.status ?? "unscreened");
-  const currentStageLabel = isRejected
-    ? "Rejected"
-    : PIPELINE_STAGES.find((stage) => stage.value === (candidate?.status ?? "unscreened"))?.label ?? "Unscreened";
   const currentStageIndex = isRejected ? -1 : PIPELINE_STAGE_SEQUENCE.indexOf(candidate?.status ?? "unscreened");
+  const workflowStages = [
+    { value: "unscreened", label: "Unscreened" },
+    { value: "screened", label: "Pre-Screened" },
+    { value: "shortlisted", label: "Shortlisted" },
+    { value: "shared", label: "Interviewing" },
+    { value: "offered", label: "Offered" },
+    { value: "joined", label: "Joined" },
+  ];
   const screeningResult = candidate?.screeningOutcome || candidate?.jobContext?.screeningResult || "—";
   const resumeText = candidate?.resumeText || candidate?.jobContext?.resumeText || candidate?.resume || "";
   const effectiveResumePreview = resumeText || [
@@ -2517,14 +2796,123 @@ function CandidateWorkspaceSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="xl" widthPx={800}>
         <SheetHeader
-          title={<span className="text-[var(--fx-text-muted)]">Candidate Details</span>}
-          description={`${candidate?.jobTitle || job?.title || "Job"} • ${currentStageLabel}`}
+          title="Candidate Details"
         />
         <SheetBody>
           {candidate ? (
             <div className="space-y-[20px]">
               <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="flex items-start justify-between gap-[16px]">
+                <div className="space-y-[12px]">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-[12px]">
+                    <p className="truncate text-[20px] leading-[28px] font-semibold text-[var(--fx-text)]">{candidate.name || "—"}</p>
+                    <p className={cn("text-[15px] leading-[22px] font-semibold", scoreToneClassName)}>
+                      {candidate.matchScore != null ? `Fit Score ${candidate.matchScore}%` : "Fit Score —"}
+                    </p>
+                    <div className="justify-self-end">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Open in Candidate Pool"
+                            className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                            onClick={() => onOpenCandidatePool?.(candidate)}
+                          >
+                            <ArrowUpRight className="size-[16px]" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={6}>
+                          Open in Candidate Pool
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-[16px] md:grid-cols-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-[6px]">
+                        <button
+                          type="button"
+                          aria-label="Edit email"
+                          className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                          onClick={() => setIsEditingEmail(true)}
+                        >
+                          <PencilLine className="size-[14px]" />
+                        </button>
+                        <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Email</p>
+                      </div>
+                      <div className="mt-[2px] flex min-h-[28px] items-center gap-[6px]">
+                        {isEditingEmail ? (
+                          <input
+                            value={emailDraft}
+                            onChange={(event) => setEmailDraft(event.target.value)}
+                            onBlur={() => {
+                              persistContactField("email", emailDraft);
+                              if (emailDraft.trim()) {
+                                setIsEditingEmail(false);
+                              }
+                            }}
+                            placeholder="candidate@company.com"
+                            className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
+                          />
+                        ) : candidate.email && candidate.email !== "—" ? (
+                          <a className="min-w-0 flex-1 break-all text-[14px] leading-[22px] text-[var(--fx-primary)] hover:underline" href={`mailto:${candidate.email}`}>
+                            {candidate.email}
+                          </a>
+                        ) : (
+                          <input
+                            value={emailDraft}
+                            onChange={(event) => setEmailDraft(event.target.value)}
+                            onBlur={() => persistContactField("email", emailDraft)}
+                            placeholder="candidate@company.com"
+                            className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-end gap-[6px]">
+                        <p className="text-[12px] leading-[18px] font-medium text-[var(--fx-text-muted)] text-right">Phone</p>
+                        <button
+                          type="button"
+                          aria-label="Edit phone"
+                          className="inline-flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+                          onClick={() => setIsEditingPhone(true)}
+                        >
+                          <PencilLine className="size-[14px]" />
+                        </button>
+                      </div>
+                      <div className="mt-[2px] flex min-h-[28px] items-center justify-end gap-[6px]">
+                        {isEditingPhone ? (
+                          <input
+                            value={phoneDraft}
+                            onChange={(event) => setPhoneDraft(event.target.value)}
+                            onBlur={() => {
+                              persistContactField("phone", phoneDraft);
+                              if (phoneDraft.trim()) {
+                                setIsEditingPhone(false);
+                              }
+                            }}
+                            placeholder="+91 98765 43210"
+                            className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-right text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
+                          />
+                        ) : candidate.phone && candidate.phone !== "—" ? (
+                          <a className="min-w-0 flex-1 text-right text-[14px] leading-[22px] text-[var(--fx-primary)] hover:underline" href={`tel:${candidate.phone}`}>
+                            {candidate.phone}
+                          </a>
+                        ) : (
+                          <input
+                            value={phoneDraft}
+                            onChange={(event) => setPhoneDraft(event.target.value)}
+                            onBlur={() => persistContactField("phone", phoneDraft)}
+                            placeholder="+91 98765 43210"
+                            className="h-[28px] min-w-0 flex-1 border-0 border-b border-[var(--fx-border)] bg-transparent px-0 text-right text-[14px] leading-[22px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden items-start justify-between gap-[16px]">
                   <div className="min-w-0 space-y-[8px]">
                     <p className={FX_TYPOGRAPHY.cardTitle}>{candidate.name || "—"}</p>
                     <div className="grid gap-[12px] md:grid-cols-3">
@@ -2634,74 +3022,41 @@ function CandidateWorkspaceSheet({
 
               <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] px-[24px] py-[18px]`}>
                 <div className="flex justify-center overflow-x-auto overflow-y-hidden">
-                  <div className="inline-flex items-center">
-                  {PIPELINE_STAGE_SEQUENCE.filter((stage) => stage !== "rejected").map((stage, index) => {
-                    const stageLabel = PIPELINE_STAGES.find((item) => item.value === stage)?.label ?? stage;
-                    const isActive = activeFlowStage === stage;
-                    const isComplete = currentStageIndex > index;
-                    const StageIcon =
-                      stage === "unscreened"
-                        ? Eye
-                        : stage === "screened"
-                          ? ScanSearch
-                          : stage === "shortlisted"
-                            ? Check
-                            : Send;
+                  <div className="inline-flex items-center gap-[6px]">
+                    {workflowStages.map((stage, index) => {
+                      const isPast = currentStageIndex > index;
+                      const isCurrent = activeFlowStage === stage.value;
+                      const isFuture = currentStageIndex < index || isRejected;
 
-                    return (
-                      <div key={stage} className="flex shrink-0 flex-col items-center">
-                        <div className="flex items-start">
-                          <div className="flex w-auto min-w-[30px] flex-col items-center">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span
-                                className={cn(
-                                  "inline-flex size-[30px] shrink-0 items-center justify-center rounded-full border",
-                                  isActive
-                                    ? "border-[var(--fx-text-muted)] bg-[var(--fx-surface)] text-[var(--fx-text)]"
-                                    : isComplete
-                                      ? "border-[var(--fx-success)] bg-[color:color-mix(in_srgb,var(--fx-success)_8%,var(--fx-surface)_92%)] text-[var(--fx-success)]"
-                                      : "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)]",
-                                )}
-                              >
-                                {isComplete ? <CheckCheck className="size-[15px]" /> : <StageIcon className="size-[15px]" />}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={6}>
-                              {stageLabel}
-                            </TooltipContent>
-                          </Tooltip>
-                          <span
+                      return (
+                        <React.Fragment key={stage.value}>
+                          <div
                             className={cn(
-                              "mt-[8px] whitespace-nowrap text-center font-mono text-[11px] leading-[16px]",
-                              isActive
-                                ? "font-semibold text-[var(--fx-text)]"
-                                : isComplete
-                                  ? "font-medium text-[var(--fx-text)]"
-                                  : "font-medium text-[var(--fx-text-muted)]",
+                              "inline-flex min-h-[28px] min-w-[96px] items-center justify-center rounded-[8px] border px-[6px] py-[3px] text-center text-[11px] leading-[16px] font-medium transition-colors",
+                              isCurrent
+                                ? "border-[color:color-mix(in_srgb,var(--fx-primary)_28%,var(--fx-border)_72%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface)_84%)] text-[var(--fx-primary)]"
+                                : isPast
+                                  ? "border-[color:color-mix(in_srgb,var(--fx-primary)_20%,var(--fx-border)_80%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface)_90%)] text-[var(--fx-text)]"
+                                  : isFuture
+                                    ? "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]"
+                                    : "border-[color:color-mix(in_srgb,var(--fx-border)_88%,var(--fx-text)_12%)] bg-[var(--fx-bg-soft)] text-[var(--fx-text-muted)]",
                             )}
                           >
-                            {stageLabel}
-                          </span>
+                            <span className="whitespace-nowrap">{stage.label}</span>
                           </div>
-                          {index < 3 ? (
-                            <div className="mt-[14px] ml-[10px] h-[2px] w-[112px] bg-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)]">
-                              <div
-                                className={cn(
-                                  "h-full w-full",
-                                  isComplete
-                                    ? "bg-[color:color-mix(in_srgb,var(--fx-success)_72%,transparent)]"
-                                    : isActive
-                                      ? "bg-[color:color-mix(in_srgb,var(--fx-text-muted)_72%,transparent)]"
-                                    : "bg-transparent",
-                                )}
-                              />
-                            </div>
+                          {index < workflowStages.length - 1 ? (
+                            <div
+                              className={cn(
+                                "h-[2px] w-[22px] shrink-0 rounded-full",
+                                isPast || isCurrent
+                                  ? "bg-[color:color-mix(in_srgb,var(--fx-primary)_36%,var(--fx-border)_64%)]"
+                                  : "bg-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)]",
+                              )}
+                            />
                           ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 </div>
                 {isRejected ? (
@@ -2883,6 +3238,8 @@ function AddCandidatesDrawer({
   const [activeMode, setActiveMode] = useState("upload");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const [showResumePane, setShowResumePane] = useState(true);
+  const [hiddenCandidateIds, setHiddenCandidateIds] = useState([]);
 
   useEffect(() => {
     if (!open) {
@@ -2890,6 +3247,8 @@ function AddCandidatesDrawer({
       setActiveMode("upload");
       setSearchTerm("");
       setSelectedCandidateId(null);
+      setShowResumePane(true);
+      setHiddenCandidateIds([]);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -2921,7 +3280,11 @@ function AddCandidatesDrawer({
       .toLowerCase()
       .includes(query);
   });
-  const selectedCandidate = filteredCandidates.find((candidate) => candidate.id === selectedCandidateId) ?? filteredCandidates[0] ?? null;
+  const visibleCandidates = filteredCandidates.filter((candidate) => !hiddenCandidateIds.includes(candidate.id));
+  const selectedCandidate = visibleCandidates.find((candidate) => candidate.id === selectedCandidateId) ?? visibleCandidates[0] ?? null;
+  const selectedCandidateIndex = visibleCandidates.findIndex((candidate) => candidate.id === selectedCandidate?.id);
+  const hasPreviousCandidate = visibleCandidates.length > 1 && selectedCandidateIndex > 0;
+  const hasNextCandidate = visibleCandidates.length > 1 && selectedCandidateIndex >= 0 && selectedCandidateIndex < visibleCandidates.length - 1;
   const selectedCandidateResumePreview = selectedCandidate?.resumeText || selectedCandidate?.jobContext?.resumeText || selectedCandidate?.resume || [
     `${selectedCandidate?.name || "Candidate"}`,
     `${selectedCandidate?.currentRole || selectedCandidate?.jobTitle || "Current Role"}${selectedCandidate?.currentCompany ? ` · ${selectedCandidate.currentCompany}` : ""}`,
@@ -2938,22 +3301,93 @@ function AddCandidatesDrawer({
   ].join("\n");
 
   useEffect(() => {
-    if (!filteredCandidates.length) {
+    if (!visibleCandidates.length) {
       setSelectedCandidateId(null);
       return;
     }
 
-    if (!filteredCandidates.some((candidate) => candidate.id === selectedCandidateId)) {
-      setSelectedCandidateId(filteredCandidates[0].id);
+    if (!visibleCandidates.some((candidate) => candidate.id === selectedCandidateId)) {
+      setSelectedCandidateId(visibleCandidates[0].id);
     }
-  }, [filteredCandidates, selectedCandidateId]);
+  }, [selectedCandidateId, visibleCandidates]);
+
+  const handleHideCandidate = useCallback((candidateId) => {
+    setHiddenCandidateIds((current) => {
+      if (current.includes(candidateId)) {
+        return current;
+      }
+
+      if (selectedCandidateId === candidateId) {
+        const nextCandidate = visibleCandidates.find((candidate) => candidate.id !== candidateId) ?? null;
+        setSelectedCandidateId(nextCandidate?.id ?? null);
+      }
+
+      return [...current, candidateId];
+    });
+  }, [selectedCandidateId, visibleCandidates]);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="xl">
+    <Sheet open={open} onOpenChange={(nextOpen) => {
+      if (!nextOpen) {
+        setShowResumePane(true);
+        setHiddenCandidateIds([]);
+        setSelectedCandidateId(null);
+      }
+
+      onOpenChange(nextOpen);
+    }}>
+      <SheetContent size="xl" widthPx={showResumePane ? 1160 : 780}>
         <SheetHeader
           title="Add Candidates"
-          description={`Add candidates to ${job?.title || "this job"}.`}
+          actions={activeMode === "pick" ? (
+            <>
+              {visibleCandidates.length > 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!hasPreviousCandidate) {
+                        return;
+                      }
+
+                      setSelectedCandidateId(visibleCandidates[selectedCandidateIndex - 1]?.id);
+                    }}
+                    disabled={!hasPreviousCandidate}
+                    className="flex h-[32px] items-center justify-center rounded-[6px] px-[8px] text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!hasNextCandidate) {
+                        return;
+                      }
+
+                      setSelectedCandidateId(visibleCandidates[selectedCandidateIndex + 1]?.id);
+                    }}
+                    disabled={!hasNextCandidate}
+                    className="flex h-[32px] items-center justify-center rounded-[6px] px-[8px] text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </>
+              ) : null}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setShowResumePane((current) => !current)}
+                    className="flex h-[32px] w-[32px] cursor-pointer items-center justify-center rounded-[6px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                    aria-label={showResumePane ? "Collapse" : "Expand"}
+                  >
+                    {showResumePane ? <PanelLeftClose className="size-[16px]" /> : <PanelLeftOpen className="size-[16px]" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={8}>{showResumePane ? "Collapse" : "Expand"}</TooltipContent>
+              </Tooltip>
+            </>
+          ) : null}
         />
         <SheetBody>
           <div className="space-y-[16px]">
@@ -3025,15 +3459,10 @@ function AddCandidatesDrawer({
 
             {activeMode === "pick" ? (
               <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
-                <div className="flex items-start justify-between gap-[16px]">
-                  <div className="space-y-[4px]">
-                    <FxAiButton type="button" onClick={() => {}}>
-                      Recommend Candidates
-                    </FxAiButton>
-                    <p className={`${FX_TYPOGRAPHY.body} text-[var(--fx-text-muted)]`}>
-                      Add an existing candidate to this job without re-entering details.
-                    </p>
-                  </div>
+                <div className="flex items-center justify-between gap-[16px]">
+                  <FxAiButton type="button" onClick={() => {}}>
+                    Recommend Candidates
+                  </FxAiButton>
                   <div className="w-full max-w-[280px]">
                     <FxInput
                       placeholder="Search candidates"
@@ -3043,44 +3472,62 @@ function AddCandidatesDrawer({
                   </div>
                 </div>
 
-                {filteredCandidates.length ? (
-                  <div className="mt-[16px] grid min-h-[420px] gap-[16px] lg:grid-cols-[320px_minmax(0,1fr)]">
-                    <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)]`}>
+                {visibleCandidates.length ? (
+                  <div className={cn("mt-[16px] grid min-h-[420px] gap-[16px]", showResumePane ? "lg:grid-cols-[320px_24px_minmax(0,1fr)]" : "lg:grid-cols-1")}>
+                    {showResumePane ? (
+                      <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)]`}>
                       <div className="max-h-[520px] overflow-y-auto p-[8px]">
                         <div className="space-y-[8px]">
-                          {filteredCandidates.map((candidate) => {
+                          {visibleCandidates.map((candidate) => {
                             const isSelected = selectedCandidate?.id === candidate.id;
 
                             return (
-                              <button
+                              <div
                                 key={candidate.id}
-                                type="button"
-                                onClick={() => setSelectedCandidateId(candidate.id)}
                                 className={cn(
-                                  `flex w-full items-start justify-between gap-[12px] rounded-[10px] border px-[12px] py-[12px] text-left transition-colors`,
-                                  isSelected
-                                    ? "border-[var(--fx-primary)] bg-[var(--fx-surface)]"
-                                    : `border-transparent bg-transparent hover:border-[var(--fx-border)] hover:bg-[var(--fx-surface)]`,
+                                  "flex w-full items-start justify-between gap-[8px] rounded-[10px] px-[12px] py-[12px] text-left transition-colors",
+                                  isSelected ? "bg-[var(--fx-surface)] shadow-sm" : "bg-transparent hover:bg-[var(--fx-surface)]",
                                 )}
                               >
-                                <div className="min-w-0 space-y-[4px]">
-                                  <p className={`${FX_TYPOGRAPHY.button} truncate text-[var(--fx-text)]`}>{candidate.name}</p>
-                                  <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedCandidateId(candidate.id)}
+                                  className="flex min-w-0 flex-1 flex-col items-start text-left"
+                                >
+                                  <span className="w-full truncate text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">{candidate.name}</span>
+                                  <span className="truncate text-[12px] leading-[16px] text-[var(--fx-text-muted)]">
                                     {candidate.currentRole || candidate.jobTitle || "Candidate"}{candidate.currentCompany ? ` · ${candidate.currentCompany}` : ""}
-                                  </p>
-                                  <p className={`${FX_TYPOGRAPHY.fieldHint} truncate text-[var(--fx-text-muted)]`}>
-                                    {candidate.email || "—"} {candidate.phone && candidate.phone !== "—" ? `· ${candidate.phone}` : ""}
-                                  </p>
+                                  </span>
+                                  <span className="truncate text-[12px] leading-[16px] text-[var(--fx-text-muted)]">
+                                    {candidate.email || "—"}{candidate.phone && candidate.phone !== "—" ? ` · ${candidate.phone}` : ""}
+                                  </span>
+                                </button>
+                                <div className="flex items-center gap-[6px]">
+                                  <span className="rounded-full bg-[var(--fx-surface-selected)] px-[8px] py-[3px] text-[12px] font-medium text-[var(--fx-primary)]">
+                                    {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleHideCandidate(candidate.id)}
+                                    className="inline-flex size-[20px] shrink-0 items-center justify-center rounded-[4px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                                    aria-label={`Remove ${candidate.name}`}
+                                  >
+                                    <X className="size-[14px]" />
+                                  </button>
                                 </div>
-                                <span className="rounded-full bg-[var(--fx-surface-selected)] px-[8px] py-[3px] text-[12px] font-medium text-[var(--fx-primary)]">
-                                  {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
-                                </span>
-                              </button>
+                              </div>
                             );
                           })}
                         </div>
                       </div>
-                    </div>
+                      </div>
+                    ) : null}
+
+                    {showResumePane ? (
+                      <div className="relative flex items-stretch justify-center">
+                        <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
+                      </div>
+                    ) : null}
 
                     <div className={`flex min-h-0 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
                       {selectedCandidate ? (
@@ -3120,7 +3567,7 @@ function AddCandidatesDrawer({
           </div>
         </SheetBody>
         <SheetFooter
-          left={<span className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>Upload and candidate selection update the current job immediately.</span>}
+          left={null}
           right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
         />
       </SheetContent>
@@ -3221,6 +3668,7 @@ export default function JobDetailsPage({ params }) {
   const [cvMatchSheetOpen, setCvMatchSheetOpen] = useState(false);
   const [preScreenResultOpen, setPreScreenResultOpen] = useState(false);
   const [shareForReviewOpen, setShareForReviewOpen] = useState(false);
+  const [shareForReviewCandidateIds, setShareForReviewCandidateIds] = useState([]);
   const [shareJobOpen, setShareJobOpen] = useState(false);
   const [sendToClientConfirmOpen, setSendToClientConfirmOpen] = useState(false);
   const [sendToClientDraftOpen, setSendToClientDraftOpen] = useState(false);
@@ -3236,8 +3684,7 @@ export default function JobDetailsPage({ params }) {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [candidateToReject, setCandidateToReject] = useState(null);
   const [rejectReasonDraft, setRejectReasonDraft] = useState("");
-  const [unscreenedFilter, setUnscreenedFilter] = useState("all");
-  const [preScreenedFilter, setPreScreenedFilter] = useState("ready");
+  const [preScreenedFilter, setPreScreenedFilter] = useState("all");
   const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [sortConfig, setSortConfig] = useState(null);
@@ -3267,30 +3714,15 @@ export default function JobDetailsPage({ params }) {
     () => candidateRows.filter((candidate) => matchesPipelineStage(candidate, activeStage)),
     [candidateRows, activeStage],
   );
-  const unscreenedFilterCounts = useMemo(() => {
-    const counts = UNSCREENED_FILTERS.reduce((accumulator, filter) => ({ ...accumulator, [filter.key]: 0 }), {});
-    const unscreenedCandidates = candidateRows.filter((candidate) => candidate.status === "unscreened");
-
-    counts.all = unscreenedCandidates.length;
-
-    unscreenedCandidates.forEach((candidate) => {
-      const nextKey = candidate.unscreenedFilterStatus || "pending";
-      counts[nextKey] = (counts[nextKey] || 0) + 1;
-    });
-
-    return counts;
-  }, [candidateRows]);
-/* - - - - - - - - - - - - - - - - */
-
   const preScreenedFilterCounts = useMemo(() => {
     const stageCandidates = candidateRows.filter((candidate) => candidate.status === "screened");
-    const interestedCount = stageCandidates.filter((candidate) => String(candidate.interested ?? "").trim().toLowerCase() === "yes").length;
-    const notInterestedCount = stageCandidates.filter((candidate) => String(candidate.interested ?? "").trim().toLowerCase() === "no").length;
 
     return {
-      ready: stageCandidates.length,
-      interested: interestedCount,
-      not_interested: notInterestedCount,
+      all: stageCandidates.length,
+      ai_call: stageCandidates.filter((candidate) => getPreScreeningFilterKey(candidate) === "ai_call").length,
+      manual: stageCandidates.filter((candidate) => getPreScreeningFilterKey(candidate) === "manual").length,
+      email: stageCandidates.filter((candidate) => getPreScreeningFilterKey(candidate) === "email").length,
+      no_fit_score: stageCandidates.filter((candidate) => candidate.matchScore == null || candidate.matchScore === "").length,
     };
   }, [candidateRows]);
 /* - - - - - - - - - - - - - - - - */
@@ -3298,12 +3730,13 @@ export default function JobDetailsPage({ params }) {
   const filteredCandidates = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     const stageFilteredCandidates =
-      activeStage === "unscreened" && unscreenedFilter !== "all"
-        ? pipelineCandidates.filter((candidate) => candidate.unscreenedFilterStatus === unscreenedFilter)
-        : activeStage === "screened" && preScreenedFilter !== "ready"
+      activeStage === "screened" && preScreenedFilter !== "all"
           ? pipelineCandidates.filter((candidate) => {
-              const interestedValue = String(candidate.interested ?? "").trim().toLowerCase();
-              return preScreenedFilter === "interested" ? interestedValue === "yes" : interestedValue === "no";
+              if (preScreenedFilter === "no_fit_score") {
+                return candidate.matchScore == null || candidate.matchScore === "";
+              }
+
+              return getPreScreeningFilterKey(candidate) === preScreenedFilter;
             })
         : pipelineCandidates;
 
@@ -3315,7 +3748,7 @@ export default function JobDetailsPage({ params }) {
       const haystack = [candidate.name, candidate.email, candidate.phone].join(" ").toLowerCase();
       return haystack.includes(query);
     });
-  }, [activeStage, pipelineCandidates, preScreenedFilter, searchTerm, unscreenedFilter]);
+  }, [activeStage, pipelineCandidates, preScreenedFilter, searchTerm]);
 
   const sortedCandidates = useMemo(() => {
     if (!sortConfig) {
@@ -3390,6 +3823,10 @@ export default function JobDetailsPage({ params }) {
     () => candidateRows.filter((candidate) => emailScreeningCandidateIds.includes(candidate.id)),
     [candidateRows, emailScreeningCandidateIds],
   );
+  const shareForReviewCandidates = useMemo(
+    () => candidateRows.filter((candidate) => shareForReviewCandidateIds.includes(candidate.id)),
+    [candidateRows, shareForReviewCandidateIds],
+  );
   const manualScreeningCandidates = useMemo(
     () => sortedCandidates.filter((candidate) => candidate.status === "unscreened"),
     [sortedCandidates],
@@ -3402,23 +3839,10 @@ export default function JobDetailsPage({ params }) {
   const selectedCountLabel = selectedCount === 1 ? "1 candidate selected" : `${selectedCount} candidates selected`;
   const bulkStage = activeStage;
   const activeFilterItems =
-    activeStage === "unscreened"
-      ? UNSCREENED_FILTERS
-      : activeStage === "screened"
-        ? PRE_SCREENED_FILTERS
-        : null;
+    activeStage === "screened" ? PRE_SCREENED_FILTERS : null;
   const activeFilterCounts =
-    activeStage === "unscreened"
-      ? unscreenedFilterCounts
-      : activeStage === "screened"
-        ? preScreenedFilterCounts
-        : null;
-  const activeFilterValue =
-    activeStage === "unscreened"
-      ? unscreenedFilter
-      : activeStage === "screened"
-        ? preScreenedFilter
-        : null;
+    activeStage === "screened" ? preScreenedFilterCounts : null;
+  const activeFilterValue = activeStage === "screened" ? preScreenedFilter : null;
   const activeFilterLabel = activeFilterItems?.find((item) => item.key === activeFilterValue)?.label ?? "Filter";
   const tableSortedColumnKey =
     sortConfig?.key === "name"
@@ -3635,17 +4059,36 @@ export default function JobDetailsPage({ params }) {
 /* - - - - - - - - - - - - - - - - */
 
   const handleOpenShareForReview = useCallback(
-    (candidate) => {
-      if (!candidate) {
+    (candidates) => {
+      const nextCandidates = Array.isArray(candidates) ? candidates.filter(Boolean) : [candidates].filter(Boolean);
+
+      if (!nextCandidates.length) {
         return;
       }
 
-      setSelectedCandidateId(candidate.id);
+      setSelectedCandidateId(nextCandidates[0].id);
+      setShareForReviewCandidateIds(nextCandidates.map((candidate) => candidate.id));
       setShareForReviewOpen(true);
-      markCandidateViewed(candidate.id);
+      nextCandidates.forEach((candidate) => markCandidateViewed(candidate.id));
     },
     [markCandidateViewed],
   );
+
+  const handleRemoveShareForReviewCandidate = useCallback((candidate) => {
+    if (!candidate?.id) {
+      return;
+    }
+
+    setShareForReviewCandidateIds((currentIds) => {
+      const nextIds = currentIds.filter((candidateId) => candidateId !== candidate.id);
+
+      if (!nextIds.length) {
+        setShareForReviewOpen(false);
+      }
+
+      return nextIds;
+    });
+  }, []);
 
   const handleMoveCandidateToNextStage = useCallback(
     (candidate) => {
@@ -3669,17 +4112,6 @@ export default function JobDetailsPage({ params }) {
     [updateWorkspaceCandidate],
   );
 
-  const handleMarkCandidateNotInterested = useCallback(
-    (candidate) => {
-      if (!candidate) {
-        return;
-      }
-
-      updateWorkspaceCandidate(candidate.id, (current) => ({ ...current, interested: "No" }));
-      showSuccess("Candidate updated", `${candidate.name} was marked as not interested.`);
-    },
-    [updateWorkspaceCandidate],
-  );
   const handleOpenRejectDialog = useCallback((candidate) => {
     if (!candidate) {
       return;
@@ -3752,26 +4184,6 @@ export default function JobDetailsPage({ params }) {
       }
     },
     [handleRejectCandidate, manualScreeningCandidates, markCandidateViewed, selectedManualScreeningCandidateIndex],
-  );
-
-  const handleRemoveCandidateFromJob = useCallback(
-    (candidate) => {
-      if (!candidate) {
-        return;
-      }
-
-      updateWorkspaceCandidate(
-        candidate.id,
-        (current) => ({
-          ...current,
-          jobId: null,
-          jobTitle: current.jobTitle ?? job?.title ?? "",
-        }),
-        { fromStatus: candidate.status, removeFromJob: true },
-      );
-      showSuccess("Candidate removed", `${candidate.name} was detached from ${jobTitleText}.`);
-    },
-    [job?.title, jobTitleText, updateWorkspaceCandidate],
   );
 
   const handleSetCandidateScreeningMode = useCallback(
@@ -4245,27 +4657,8 @@ export default function JobDetailsPage({ params }) {
     startAiPreScreening: () => {
       handleOpenEmailScreening(bulkSelectedVisibleCandidates.filter((candidate) => candidate.status === "unscreened"));
     },
-    removeFromJob: () => {
-      bulkSelectedVisibleCandidates.forEach((candidate) => {
-        updateSelectedCandidateStatus(
-          candidate,
-          (current) => ({
-            ...current,
-            jobId: null,
-            jobTitle: current.jobTitle ?? job?.title ?? "",
-          }),
-          { fromStatus: candidate.status, removeFromJob: true },
-        );
-      });
-      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} removed from ${jobTitleText}.`);
-      clearSelectedCandidates();
-    },
-    markNotInterested: () => {
-      bulkSelectedVisibleCandidates.forEach((candidate) => {
-        updateSelectedCandidateStatus(candidate, (current) => ({ ...current, interested: "No" }));
-      });
-      showSuccess("Bulk action applied", `${bulkSelectedVisibleCandidates.length} candidate${bulkSelectedVisibleCandidates.length === 1 ? "" : "s"} marked as not interested.`);
-      clearSelectedCandidates();
+    shareForReview: () => {
+      handleOpenShareForReview(bulkSelectedVisibleCandidates);
     },
     reject: () => {
       bulkSelectedVisibleCandidates.forEach((candidate) => {
@@ -4892,11 +5285,11 @@ export default function JobDetailsPage({ params }) {
                     handleOpenManualScreening(candidate);
                   }}
                 >
-                  <Phone className="size-[14px]" />
+                  <Users className="size-[14px]" />
                 </button>
               </span>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={8}>Manual Screening</TooltipContent>
+            <TooltipContent side="bottom" sideOffset={8}>Manual Screen</TooltipContent>
           </Tooltip>
         </>
       );
@@ -4904,16 +5297,28 @@ export default function JobDetailsPage({ params }) {
 
     if (activeStage === "screened") {
       return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex">
-              <button type="button" className={className} aria-label={`Shortlist ${candidate.name}`} onClick={() => handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted")}>
-                <Check className="size-[14px]" />
-              </button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8}>Shortlist</TooltipContent>
-        </Tooltip>
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <button type="button" className={className} aria-label={`Share ${candidate.name} for review`} onClick={() => handleOpenShareForReview(candidate)}>
+                  <Share2 className="size-[14px]" />
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>Share for Review</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <button type="button" className={className} aria-label={`Shortlist ${candidate.name}`} onClick={() => handleMoveCandidateToStage(candidate, "shortlisted", "Shortlisted")}>
+                  <Check className="size-[14px]" />
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>Shortlist</TooltipContent>
+          </Tooltip>
+        </>
       );
     }
 
@@ -5120,11 +5525,6 @@ export default function JobDetailsPage({ params }) {
             </>
           ) : null}
           <DropdownMenuSeparator />
-          {isClientProgressStage(activeStage) ? null : activeStage !== "rejected" ? (
-            <DropdownMenuItem onClick={() => handleRemoveCandidateFromJob(candidate)}>
-              Remove from Job
-            </DropdownMenuItem>
-          ) : null}
           {isClientProgressStage(activeStage) ? (
             <DropdownMenuItem className="text-[var(--fx-danger)] focus:text-[var(--fx-danger)]" onClick={() => handleOpenRejectDialog(candidate)}>
               Reject Candidate
@@ -5147,7 +5547,6 @@ export default function JobDetailsPage({ params }) {
       </button>
     );
 
-    const isUnscreenedStage = activeStage === "unscreened";
     const stageHeaderLabels = {
       ...JOB_WORKSPACE_TABLE_HEADERS.base,
       ...(JOB_WORKSPACE_TABLE_HEADERS[activeStage] ?? {}),
@@ -5157,47 +5556,47 @@ export default function JobDetailsPage({ params }) {
       name: {
         key: "name",
         label: sortLabel("name", stageHeaderLabels.name),
-        width: isUnscreenedStage ? 240 : 220,
-        minWidth: isUnscreenedStage ? 220 : 200,
-        maxWidth: isUnscreenedStage ? undefined : 260,
+        width: 220,
+        minWidth: 200,
+        maxWidth: 260,
         grow: 1,
-        flexible: isUnscreenedStage,
+        defaultVisible: true,
         cellClassName: "text-[14px] leading-[22px] font-medium",
         required: true,
         locked: true,
         hideable: false,
       },
-      matchScore: { key: "matchScore", label: sortLabel("matchScore", stageHeaderLabels.matchScore), width: isUnscreenedStage ? 148 : 160, minWidth: isUnscreenedStage ? 136 : 148, maxWidth: isUnscreenedStage ? 156 : 168, align: "center" },
-      experience: { key: "experience", label: sortLabel("experience", stageHeaderLabels.experience), width: 104, minWidth: 92, maxWidth: 120, align: "center" },
-      phone: { key: "phone", label: stageHeaderLabels.phone, width: 176, minWidth: 156, maxWidth: isUnscreenedStage ? undefined : 184, grow: isUnscreenedStage ? 1 : undefined, flexible: isUnscreenedStage },
-      email: { key: "email", label: stageHeaderLabels.email, width: 240, minWidth: 220, maxWidth: isUnscreenedStage ? undefined : 260, grow: isUnscreenedStage ? 2 : undefined, flexible: isUnscreenedStage },
-      interested: { key: "interested", label: sortLabel("interested", stageHeaderLabels.interested), width: 112, minWidth: 104, maxWidth: 124, align: "center" },
-      availability: { key: "availability", label: sortLabel("availabilityDays", stageHeaderLabels.availability), width: 132, minWidth: 120, maxWidth: 148, align: "center" },
-      noticePeriod: { key: "noticePeriod", label: sortLabel("noticePeriodSortValue", stageHeaderLabels.noticePeriod), width: 126, minWidth: 118, maxWidth: 146, align: "center" },
-      currentSalary: { key: "currentSalary", label: sortLabel("currentSalary", stageHeaderLabels.currentSalary), width: 144, minWidth: 132, maxWidth: 160, align: "right" },
-      expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", stageHeaderLabels.expectedSalary), width: 150, minWidth: 136, maxWidth: 168, align: "right" },
-      screeningOutcome: { key: "screeningOutcome", label: stageHeaderLabels.screeningOutcome, width: 168, minWidth: 152, maxWidth: 196, align: "center" },
-      strengthsGaps: { key: "strengthsGaps", label: stageHeaderLabels.strengthsGaps, width: 280, minWidth: 248, maxWidth: 320, grow: 1, flexible: true },
-      clientStatus: { key: "clientStatus", label: stageHeaderLabels.clientStatus, width: 248, minWidth: 236, maxWidth: 272, align: "left" },
-      updatedAt: { key: "updatedAt", label: sortLabel("updatedAt", stageHeaderLabels.updatedAt), width: 146, minWidth: 136, maxWidth: 160, align: "center" },
-      rejectionReason: { key: "rejectionReason", label: stageHeaderLabels.rejectionReason, width: 188, minWidth: 172, maxWidth: 220 },
+      matchScore: { key: "matchScore", label: sortLabel("matchScore", stageHeaderLabels.matchScore), width: 160, minWidth: 148, maxWidth: 168, align: "center", defaultVisible: true },
+      experience: { key: "experience", label: sortLabel("experience", stageHeaderLabels.experience), width: 104, minWidth: 92, maxWidth: 120, align: "center", defaultVisible: true },
+      phone: { key: "phone", label: stageHeaderLabels.phone, width: 176, minWidth: 156, maxWidth: 184, grow: 1, defaultVisible: true },
+      email: { key: "email", label: stageHeaderLabels.email, width: 240, minWidth: 220, maxWidth: 260, grow: 2, defaultVisible: false },
+      availability: { key: "availability", label: sortLabel("availabilityDays", stageHeaderLabels.availability), width: 132, minWidth: 120, maxWidth: 148, align: "center", defaultVisible: false },
+      noticePeriod: { key: "noticePeriod", label: sortLabel("noticePeriodSortValue", stageHeaderLabels.noticePeriod), width: 126, minWidth: 118, maxWidth: 146, align: "center", defaultVisible: true },
+      currentSalary: { key: "currentSalary", label: sortLabel("currentSalary", stageHeaderLabels.currentSalary), width: 144, minWidth: 132, maxWidth: 160, align: "right", defaultVisible: true },
+      expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", stageHeaderLabels.expectedSalary), width: 150, minWidth: 136, maxWidth: 168, align: "right", defaultVisible: true },
+      screeningOutcome: { key: "screeningOutcome", label: stageHeaderLabels.screeningOutcome, width: 168, minWidth: 152, maxWidth: 196, align: "center", defaultVisible: true },
+      strengthsGaps: { key: "strengthsGaps", label: stageHeaderLabels.strengthsGaps, width: 280, minWidth: 248, maxWidth: 320, grow: 1, defaultVisible: false },
+      clientStatus: { key: "clientStatus", label: stageHeaderLabels.clientStatus, width: 248, minWidth: 236, maxWidth: 272, align: "left", defaultVisible: false },
+      updatedAt: { key: "updatedAt", label: sortLabel("updatedAt", stageHeaderLabels.updatedAt), width: 146, minWidth: 136, maxWidth: 160, align: "center", defaultVisible: false },
+      rejectionReason: { key: "rejectionReason", label: stageHeaderLabels.rejectionReason, width: 188, minWidth: 172, maxWidth: 220, defaultVisible: false },
       actions: { key: "actions", label: stageHeaderLabels.actions, width: 104, minWidth: 104, maxWidth: 104, align: "left", sticky: "right", required: true, locked: true, hideable: false },
       menuActions: { key: "menuActions", label: null, width: 56, minWidth: 56, maxWidth: 56, align: "center", sticky: "right", cellClassName: "px-0 pr-0", required: true, locked: true, hideable: false },
     };
 
-    const commonKeys = ["name", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome"];
-    const keysByStage = {
-      unscreened: ["name", "matchScore", "experience", "phone", "email", "actions", "menuActions"],
-      screened: ["name", "phone", "email", "strengthsGaps", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome", "actions", "menuActions"],
-      shortlisted: ["name", "phone", "email", "matchScore", "interested", "experience", "noticePeriod", "currentSalary", "expectedSalary", "screeningOutcome", "actions", "menuActions"],
-      shared: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "menuActions"],
-      offered: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "menuActions"],
-      joined: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "menuActions"],
-      dropped: ["name", "matchScore", "interested", "availability", "currentSalary", "expectedSalary", "screeningOutcome", "clientStatus", "updatedAt", "menuActions"],
-      rejected: [...commonKeys, "rejectionReason", "actions", "menuActions"],
-    };
-
-    return (keysByStage[activeStage] ?? keysByStage.unscreened).map((key) => columnsByKey[key]);
+    return [
+      columnsByKey.name,
+      columnsByKey.phone,
+      columnsByKey.matchScore,
+      columnsByKey.experience,
+      columnsByKey.noticePeriod,
+      columnsByKey.currentSalary,
+      columnsByKey.expectedSalary,
+      columnsByKey.screeningOutcome,
+      columnsByKey.email,
+      columnsByKey.availability,
+      columnsByKey.actions,
+      columnsByKey.menuActions,
+    ];
   }, [activeStage, sortConfig]);
 
   const rows = sortedCandidates.map((candidate) => ({
@@ -5237,7 +5636,18 @@ export default function JobDetailsPage({ params }) {
         {candidate.experience != null && candidate.experience !== "" ? `${candidate.experience}y` : "—"}
       </span>
     ),
-    phone: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{formatContactValue(candidate.phone)}</span>,
+    phone: (
+      getDialablePhoneHref(candidate.phone) ? (
+        <a
+          href={getDialablePhoneHref(candidate.phone)}
+          className="truncate text-[14px] leading-[22px] text-[var(--fx-primary)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
+        >
+          {formatContactValue(candidate.phone)}
+        </a>
+      ) : (
+        <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{formatContactValue(candidate.phone)}</span>
+      )
+    ),
     email: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{formatContactValue(candidate.email)}</span>,
     uploadedBy: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.uploadedBy || "—"}</span>,
     source: <span className="truncate text-[14px] leading-[22px] text-[var(--fx-text)]">{candidate.source || "—"}</span>,
@@ -5266,20 +5676,25 @@ export default function JobDetailsPage({ params }) {
         {formatNoticePeriod(candidate)}
       </span>
     ),
-    screeningOutcome: (
+    screeningOutcome: activeStage === "unscreened" ? (
+      <span className="inline-flex min-w-[132px] items-center justify-center gap-[8px] rounded-[6px] px-[8px] py-[2px] text-center text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">
+        {React.createElement(getPreScreeningIcon(candidate), { className: "size-[14px] text-[var(--fx-primary)]" })}
+        <span>{getPreScreeningTableLabel(candidate, activeStage)}</span>
+      </span>
+    ) : (
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
             onClick={() => handleOpenPreScreenResult(candidate)}
-            className="inline-flex min-w-[120px] items-center justify-center gap-[8px] rounded-[6px] px-[8px] py-[2px] text-center text-[13px] leading-[20px] font-medium text-[var(--fx-primary)] hover:bg-[var(--fx-surface-hover)]"
+            className="inline-flex min-w-[132px] items-center justify-center gap-[8px] rounded-[6px] px-[8px] py-[2px] text-center text-[13px] leading-[20px] font-medium text-[var(--fx-primary)] hover:bg-[var(--fx-surface-hover)]"
           >
             {React.createElement(getPreScreeningIcon(candidate), { className: "size-[14px]" })}
-            <span>Result</span>
+            <span>{getPreScreeningTableLabel(candidate, activeStage)}</span>
           </button>
         </TooltipTrigger>
         <TooltipContent side="bottom" sideOffset={8}>
-          {getPreScreeningSourceLabel(candidate)}
+          {getPreScreeningDetailLabel(candidate)}
         </TooltipContent>
       </Tooltip>
     ),
@@ -5402,7 +5817,6 @@ export default function JobDetailsPage({ params }) {
     if (bulkStage === "unscreened") {
       return [
         renderBulkButton("ai-pre-screen", Mail, "Start Pre-Screening", bulkActionHandlers.startAiPreScreening, "accent"),
-        renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
         renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
@@ -5410,8 +5824,8 @@ export default function JobDetailsPage({ params }) {
 
     if (bulkStage === "screened") {
       return [
+        renderBulkButton("share-for-review", Share2, "Share for Review", bulkActionHandlers.shareForReview, "accent"),
         renderBulkButton("shortlisted", Check, "Shortlist", bulkActionHandlers.moveToShortlisted, "accent"),
-        renderBulkButton("mark-not-interested", UserX, "Mark Not Interested", bulkActionHandlers.markNotInterested),
         renderBulkButton("reject", Ban, "Reject", bulkActionHandlers.reject, "danger"),
         renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
@@ -5433,7 +5847,6 @@ export default function JobDetailsPage({ params }) {
       return [
         renderBulkButton("move-to-screened", RotateCcw, "Move to Pre-Screened", bulkActionHandlers.restoreToScreened, "accent"),
         renderBulkButton("move-to-shortlisted", ArrowRight, "Move to Shortlisted", bulkActionHandlers.restoreToShortlisted),
-        renderBulkButton("remove-from-job", Trash2, "Remove from Job", bulkActionHandlers.removeFromJob, "danger"),
         renderBulkButton("download-resumes", Download, "Download Resume", handleBulkDownloadResumes, "accent"),
       ];
     }
@@ -5542,16 +5955,7 @@ export default function JobDetailsPage({ params }) {
                             {activeFilterItems.map((filter) => (
                               <DropdownMenuItem
                                 key={filter.key}
-                                onClick={() => {
-                                  if (activeStage === "unscreened") {
-                                    setUnscreenedFilter(filter.key);
-                                    return;
-                                  }
-
-                                  if (activeStage === "screened") {
-                                    setPreScreenedFilter(filter.key);
-                                  }
-                                }}
+                                onClick={() => setPreScreenedFilter(filter.key)}
                               >
                                 <span className="flex min-w-0 flex-1 items-center justify-between gap-[12px]">
                                   <span>{filter.label}</span>
@@ -5592,9 +5996,11 @@ export default function JobDetailsPage({ params }) {
                           </kbd>
                         </div>
                       </div>
-                      <FxButton type="button" onClick={handleAddCandidates} className="shrink-0">
-                        Add Candidates
-                      </FxButton>
+                      {activeStage === "unscreened" ? (
+                        <FxButton type="button" onClick={handleAddCandidates} className="shrink-0">
+                          Add Candidates
+                        </FxButton>
+                      ) : null}
                     </div>
                   </div>
 
@@ -5623,7 +6029,7 @@ export default function JobDetailsPage({ params }) {
                         scrollX
                         emptyMessage="No candidates in this stage yet."
                         enableColumnPicker
-                        storageKey={`${STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}:${activeStage}`}
+                        storageKey={`${STORAGE_KEYS.JOB_WORKSPACE_COLUMNS}:v2:${activeStage}`}
                         enableRowSelection={!isClientProgressStage(activeStage)}
                         selectedRowKeys={!isClientProgressStage(activeStage) ? selectedCandidateIds : []}
                         onSelectedRowKeysChange={!isClientProgressStage(activeStage) ? setSelectedCandidateIds : undefined}
@@ -5633,7 +6039,7 @@ export default function JobDetailsPage({ params }) {
                     <WorkspaceEmptyState
                       title={getStageCopy(activeStage, searchTerm).title}
                       body={getStageCopy(activeStage, searchTerm).body}
-                      action={searchTerm.trim() || !["unscreened", "screened", "shortlisted"].includes(activeStage) ? null : (
+                      action={searchTerm.trim() || activeStage !== "unscreened" ? null : (
                         <FxButton type="button" onClick={handleAddCandidates}>
                           Add Candidates
                         </FxButton>
@@ -5744,8 +6150,15 @@ export default function JobDetailsPage({ params }) {
         />
         <ShareForReviewSheet
           open={shareForReviewOpen}
-          onOpenChange={setShareForReviewOpen}
-          candidate={selectedCandidate}
+          onOpenChange={(nextOpen) => {
+            setShareForReviewOpen(nextOpen);
+            if (!nextOpen) {
+              setShareForReviewCandidateIds([]);
+            }
+          }}
+          candidates={shareForReviewCandidates}
+          job={job}
+          onRemoveCandidate={handleRemoveShareForReviewCandidate}
         />
         <CvMatchBreakdownSheet
           open={cvMatchSheetOpen}
