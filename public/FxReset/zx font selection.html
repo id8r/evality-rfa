@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#F8F8F8]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Font & Sizing Comparison - Evality</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          boxShadow: {
+            'stripe-modal': '0 30px 60px -12px rgba(50,50,93,0.15), 0 18px 36px -18px rgba(0,0,0,0.2)'
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Google Fonts Loading Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .stripe-border { border: 1px solid rgba(66, 82, 110, 0.12); }
+  </style>
+</head>
+<body class="min-h-full bg-[#F4F5F7] p-8 flex flex-col items-center justify-center gap-8">
+
+  <!-- TOP LEGEND / NAV -->
+  <div class="text-center max-w-xl mb-4">
+    <h1 class="text-lg font-bold text-[#101010] tracking-tight">Typography Comparison Matrix</h1>
+    <p class="text-xs text-[#42526E] mt-1">Comparing geometric hierarchy configurations using Inter at exact pixel boundaries.</p>
+  </div>
+
+  <!-- COMPARISON WRAPPER GRID -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full max-w-6xl">
+
+    <!-- OPTION A: THE COMPACT 14PX VARIANT -->
+    <div class="bg-white rounded-xl p-6 shadow-stripe-modal stripe-border relative flex flex-col justify-between">
+      <div class="absolute -top-3 left-4 bg-[#0C66E4] text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Option A: 14px Base</div>
+
+      <div>
+        <div class="mb-5 text-center">
+          <h2 class="text-lg font-bold tracking-tight text-[#101010]">Access Evality</h2>
+          <p class="text-[13px] text-[#42526E] mt-0.5">Enter credentials to mount node.</p>
+        </div>
+
+        <form class="space-y-3" onsubmit="event.preventDefault();">
+          <div>
+            <label class="block text-[10px] font-bold text-[#8C8F97] uppercase tracking-wider mb-1">Identity Token</label>
+            <!-- Strict 14px Input Text -->
+            <input type="text" placeholder="name@company.com" class="w-full text-[14px] rounded-md border border-[#C1C7D0] px-3 py-1.5 text-[#101010] focus:outline-none focus:ring-2 focus:ring-[#0C66E4]/10 focus:border-[#0C66E4]" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-[#8C8F97] uppercase tracking-wider mb-1">Passphrase</label>
+            <input type="password" placeholder="••••••••••••" class="w-full text-[14px] rounded-md border border-[#C1C7D0] px-3 py-1.5 text-[#101010] focus:outline-none focus:ring-2 focus:ring-[#0C66E4]/10 focus:border-[#0C66E4]" />
+          </div>
+          <button type="submit" class="w-full mt-2 rounded-md bg-[#0C66E4] py-2 text-[13px] font-semibold text-white hover:bg-[#1868DB] transition-all">
+            Sign In
+          </button>
+        </form>
+      </div>
+
+      <div class="mt-5 pt-4 border-t border-gray-100 flex gap-2">
+        <button class="w-1/2 flex items-center justify-center gap-2 rounded-md border border-[#C1C7D0] py-1.5 text-[12px] font-medium text-[#42526E] hover:bg-[#F8F8F8]">Google</button>
+        <button class="w-1/2 flex items-center justify-center gap-2 rounded-md bg-[#F0F1F2] py-1.5 text-[12px] font-medium text-[#101010] hover:bg-[#CCCCCC]">SSO</button>
+      </div>
+    </div>
+
+
+    <!-- OPTION B: THE BALANCED 15PX VARIANT -->
+    <div class="bg-white rounded-xl p-6 shadow-stripe-modal stripe-border relative flex flex-col justify-between">
+      <div class="absolute -top-3 left-4 bg-[#82B536] text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Option B: 15px Base</div>
+
+      <div>
+        <div class="mb-5 text-center">
+          <h2 class="text-xl font-bold tracking-tight text-[#101010]">Access Evality</h2>
+          <p class="text-[14px] text-[#42526E] mt-0.5">Enter credentials to mount node.</p>
+        </div>
+
+        <form class="space-y-4" onsubmit="event.preventDefault();">
+          <div>
+            <label class="block text-[11px] font-bold text-[#42526E] uppercase tracking-wider mb-1.5">Identity Token</label>
+            <!-- Strict 15px Input Text (Using custom style overrides for strict precision) -->
+            <input type="text" placeholder="name@company.com" style="font-size: 15px;" class="w-full rounded-lg border border-[#C1C7D0] px-3.5 py-2 text-[#101010] focus:outline-none focus:ring-2 focus:ring-[#0C66E4]/10 focus:border-[#0C66E4]" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-[#42526E] uppercase tracking-wider mb-1.5">Passphrase</label>
+            <input type="password" placeholder="••••••••••••" style="font-size: 15px;" class="w-full rounded-lg border border-[#C1C7D0] px-3.5 py-2 text-[#101010] focus:outline-none focus:ring-2 focus:ring-[#0C66E4]/10 focus:border-[#0C66E4]" />
+          </div>
+          <button type="submit" style="font-size: 14px;" class="w-full mt-2 rounded-lg bg-[#0C66E4] py-2.5 font-semibold text-white hover:bg-[#1868DB] transition-all">
+            Sign In
+          </button>
+        </form>
+      </div>
+
+      <div class="mt-5 pt-4 border-t border-gray-100 flex gap-2">
+        <button style="font-size: 13px;" class="w-1/2 flex items-center justify-center gap-2 rounded-lg border border-[#C1C7D0] py-2 font-medium text-[#42526E] hover:bg-[#F8F8F8]">Google</button>
+        <button style="font-size: 13px;" class="w-1/2 flex items-center justify-center gap-2 rounded-lg bg-[#F0F1F2] py-2 font-medium text-[#101010] hover:bg-[#CCCCCC]">SSO</button>
+      </div>
+    </div>
+
+
+    <!-- OPTION C: THE HIGH-TRACKING PREMIUM HYBRID (14px + Letter Spacing) -->
+    <div class="bg-white rounded-xl p-6 shadow-stripe-modal stripe-border relative flex flex-col justify-between">
+      <div class="absolute -top-3 left-4 bg-[#BF63F3] text-white font-mono text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Option C: Elegant Hybrid</div>
+
+      <div>
+        <div class="mb-5 text-center">
+          <h2 class="text-lg font-semibold tracking-tight text-[#101010]">Access Evality</h2>
+          <p class="text-[13px] text-[#8C8F97] tracking-tight mt-0.5">Enter credentials to mount node.</p>
+        </div>
+
+        <form class="space-y-3.5" onsubmit="event.preventDefault();">
+          <div>
+            <label class="block text-[10px] font-semibold text-[#8C8F97] uppercase tracking-widest mb-1">Identity Token</label>
+            <!-- 14px input but with high horizontal padding and loose layout mapping -->
+            <input type="text" placeholder="name@company.com" class="w-full text-[14px] tracking-tight rounded-md border border-[#CCCCCC] px-4 py-2 text-[#101010] focus:outline-none focus:ring-1 focus:ring-[#101010] focus:border-[#101010]" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-[#8C8F97] uppercase tracking-widest mb-1">Passphrase</label>
+            <input type="password" placeholder="••••••••••••" class="w-full text-[14px] tracking-widest rounded-md border border-[#CCCCCC] px-4 py-2 text-[#101010] focus:outline-none focus:ring-1 focus:ring-[#101010] focus:border-[#101010]" />
+          </div>
+          <button type="submit" class="w-full mt-2 rounded-md bg-[#101010] py-2 text-[13px] font-medium text-white hover:bg-[#242528] transition-all">
+            Sign In
+          </button>
+        </form>
+      </div>
+
+      <div class="mt-5 pt-4 border-t border-gray-100 flex gap-2">
+        <button class="w-1/2 flex items-center justify-center gap-2 rounded-md border border-[#CCCCCC] py-2 text-[12px] font-medium text-[#101010] hover:bg-[#F8F8F8]">Google</button>
+        <button class="w-1/2 flex items-center justify-center gap-2 rounded-md border border-[#CCCCCC] py-2 text-[12px] font-medium text-[#101010] hover:bg-[#F8F8F8]">SSO</button>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

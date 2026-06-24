@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#F8F9FA]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evality - Modern Authorization</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Your custom, upscaled Stripe/Atlassian hybrid tokens
+            stripe: {
+              indigo: '#635BFF',
+              indigoHover: '#564DF5',
+              slate: '#0A2540',
+              steel: '#4F5B66',
+              border: '#E6E8EB',
+              amber: '#FFA200',
+              canvas: '#F8F9FA',
+              white: '#FFFFFF'
+            }
+          },
+          boxShadow: {
+            // Stripe's actual high-end card elevation matrix
+            'premium-modal': '0 50px 100px -20px rgba(50, 50, 93, 0.12), 0 30px 60px -30px rgba(0, 0, 0, 0.15), 0 -18px 60px -10px rgba(0, 0, 0, 0.015)'
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Load Inter with complete font-weight variations -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="h-full flex flex-col items-center justify-center bg-stripe-canvas p-6 antialiased">
+
+  <!-- MAIN REAL-SCALE POPUP CARD -->
+  <div class="w-full max-w-[440px] bg-stripe-white rounded-2xl p-9 shadow-premium-modal border border-stripe-border relative">
+
+    <!-- BRAND ICON & HEADER -->
+    <div class="mb-8">
+      <div class="h-10 w-10 rounded-xl bg-stripe-indigo flex items-center justify-center font-bold text-white text-lg shadow-sm mb-4">
+        E
+      </div>
+      <!-- Spacious, readable headline -->
+      <h1 class="text-2xl font-bold tracking-tight text-stripe-slate">Sign in to your workspace</h1>
+      <p class="text-[15px] text-stripe-steel mt-1.5 leading-relaxed">Enter your authorization parameters below to access your development nodes.</p>
+    </div>
+
+    <!-- NOTIFICATION SYSTEM -->
+    <div class="mb-6 flex items-start gap-3 rounded-xl bg-[#FFA200]/8 p-4 border border-stripe-amber/20">
+      <div class="h-2 w-2 rounded-full bg-stripe-amber mt-1.5 flex-shrink-0"></div>
+      <p class="text-[14px] text-stripe-steel leading-normal">
+        <span class="font-semibold text-stripe-slate">Sandbox Notice:</span> You are currently routing access through isolated testing vectors.
+      </p>
+    </div>
+
+    <!-- CREDENTIALS FORM -->
+    <form class="space-y-5" onsubmit="event.preventDefault();">
+      <div>
+        <!-- Comfortable 14px uppercase tag tracker -->
+        <label class="block text-[13px] font-semibold text-stripe-slate uppercase tracking-wider mb-2">Identity Token</label>
+        <!-- Highly visible 15px user inputs with ample tap targets -->
+        <input type="email" placeholder="name@company.com" style="font-size: 15px;" class="w-full rounded-lg border border-stripe-border px-4 py-2.5 text-stripe-slate placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-stripe-indigo/15 focus:border-stripe-indigo transition-all" />
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-[13px] font-semibold text-stripe-slate uppercase tracking-wider">Secret Keyphrase</label>
+          <a href="#" style="font-size: 14px;" class="font-medium text-stripe-indigo hover:text-stripe-indigoHover transition-colors">Forgot keyphrase?</a>
+        </div>
+        <input type="password" placeholder="••••••••••••" style="font-size: 15px;" class="w-full rounded-lg border border-stripe-border px-4 py-2.5 text-stripe-slate placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-stripe-indigo/15 focus:border-stripe-indigo transition-all" />
+      </div>
+
+      <!-- PRIMARY CONSOLE BUTTON -->
+      <button type="submit" style="font-size: 15px;" class="w-full mt-2 rounded-lg bg-stripe-indigo py-3 font-semibold text-white shadow-sm hover:bg-stripe-indigoHover active:scale-[0.99] transition-all">
+        Authenticate Session
+      </button>
+    </form>
+
+    <!-- HORIZONTAL SPLIT -->
+    <div class="relative my-7">
+      <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-stripe-border"></div></div>
+      <div class="relative flex justify-center text-[11px] uppercase font-bold tracking-widest"><span class="bg-stripe-white px-3 text-stripe-steel">Or connect via core identity</span></div>
+    </div>
+
+    <!-- FEDERATED SSO BUTTONS -->
+    <div class="grid grid-cols-2 gap-3">
+      <button style="font-size: 14px;" class="flex items-center justify-center gap-2 rounded-lg border border-stripe-border bg-stripe-white py-2.5 font-medium text-stripe-slate hover:bg-gray-50 active:scale-[0.98] transition-all">
+        Google
+      </button>
+      <button style="font-size: 14px;" class="flex items-center justify-center gap-2 rounded-lg border border-stripe-border bg-stripe-white py-2.5 font-medium text-stripe-slate hover:bg-gray-50 active:scale-[0.98] transition-all">
+        Atlassian
+      </button>
+    </div>
+
+    <!-- FOOTER PROVISION LINK -->
+    <div class="mt-8 pt-2 text-center border-t border-stripe-border/60">
+      <p style="font-size: 14px;" class="text-stripe-steel">New to Evality? <a href="#" class="font-semibold text-stripe-indigo hover:text-stripe-indigoHover transition-colors">Request a node provision</a></p>
+    </div>
+
+  </div>
+
+</body>
+</html>

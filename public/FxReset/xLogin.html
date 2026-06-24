@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#F8F8F8]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evality - Authentication Portal</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Picked intentionally from your Atlassian design variables
+            att: {
+              bgLight: '#F8F8F8',
+              white: '#FFFFFF',
+              textDark: '#101010',
+              textMuted: '#42526E',
+              textSubtle: '#8C8F97',
+              borderLight: '#C1C7D0',
+              bluePrimary: '#0C66E4',
+              blueHover: '#1868DB',
+              blueSoft: '#ADD8E6',
+              amber: '#FFAB00',
+              amberDark: '#FCA700',
+            }
+          },
+          boxShadow: {
+            // Stripe-style signature modal elevation
+            'stripe-modal': '0 50px 100px -20px rgba(50,50,93,0.25), 0 30px 60px -30px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)'
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .stripe-border { border: 1px solid rgba(66, 82, 110, 0.12); }
+  </style>
+</head>
+<body class="h-full flex items-center justify-center p-4 bg-gradient-to-tr from-[#F0F1F2] to-[#F8F8F8]">
+
+  <!-- BACKGROUND BACKDROP WRAPPER (Simulating a popup overlaying an app view) -->
+  <div class="fixed inset-0 bg-[#101214]/20 backdrop-blur-sm z-0"></div>
+
+  <!-- POPUP CONTAINER -->
+  <div class="relative w-full max-w-[420px] bg-white rounded-2xl p-8 shadow-stripe-modal stripe-border z-10 transition-all duration-200 transform scale-100">
+
+    <!-- CLOSE BUTTON -->
+    <button class="absolute top-5 right-5 text-[#8C8F97] hover:text-[#101010] p-1.5 rounded-lg hover:bg-[#F0F1F2] transition-colors">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+
+    <!-- HEADER / BRANDING -->
+    <div class="text-center mb-7">
+      <div class="inline-flex h-9 w-9 rounded-xl bg-[#0C66E4] items-center justify-center font-bold text-white text-base shadow-sm mb-3">
+        E
+      </div>
+      <h2 class="text-xl font-bold tracking-tight text-[#101010]">Welcome back to Evality</h2>
+      <p class="text-xs text-[#42526E] mt-1">Enter your parameters to access your workspace node</p>
+    </div>
+
+    <!-- NOTIFICATION BADGE / WARNING (Used selectively for visual balance) -->
+    <div class="mb-5 flex items-start gap-2.5 rounded-lg bg-[#FFAB00]/10 p-3 stripe-border border-[#FFAB00]/20">
+      <svg class="h-4 w-4 text-[#FCA700] mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      <p class="text-[11px] text-[#42526E] leading-snug">
+        <span class="font-semibold text-[#101010]">System maintenance scheduled</span> in 4 hours. All auth pipes will remain stable.
+      </p>
+    </div>
+
+    <!-- FORM INPUTS -->
+    <form class="space-y-4" onsubmit="event.preventDefault();">
+      <div>
+        <label class="block text-[11px] font-semibold text-[#42526E] uppercase tracking-wider mb-1.5">Workspace Token / Email</label>
+        <input type="email" placeholder="name@company.com" class="w-full text-sm rounded-lg border border-[#C1C7D0] px-3.5 py-2 text-[#101010] placeholder-[#8C8F97] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0C66E4]/20 focus:border-[#0C66E4] transition-all" />
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-[11px] font-semibold text-[#42526E] uppercase tracking-wider">Secret Keyphrase</label>
+          <a href="#" class="text-[11px] font-medium text-[#0C66E4] hover:underline">Forgot?</a>
+        </div>
+        <input type="password" placeholder="••••••••••••" class="w-full text-sm rounded-lg border border-[#C1C7D0] px-3.5 py-2 text-[#101010] placeholder-[#8C8F97] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0C66E4]/20 focus:border-[#0C66E4] transition-all" />
+      </div>
+
+      <!-- PRIMARY ACTION BUTTON -->
+      <button type="submit" class="w-full mt-2 rounded-lg bg-[#0C66E4] py-2.5 text-xs font-semibold text-white shadow-md hover:bg-[#1868DB] active:scale-[0.99] transition-all">
+        Authenticate Session
+      </button>
+    </form>
+
+    <!-- ALTERNATIVE BUTTONS SPLIT -->
+    <div class="relative my-6">
+      <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-100"></div></div>
+      <div class="relative flex justify-center text-[10px] uppercase font-bold tracking-wider"><span class="bg-white px-3 text-[#8C8F97]">Or federated access</span></div>
+    </div>
+
+    <!-- SSO BUTTONS -->
+    <div class="grid grid-cols-2 gap-3">
+      <button class="flex items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-[#42526E] stripe-border hover:bg-[#F8F8F8] active:scale-[0.98] shadow-sm transition-all">
+        <!-- Minimalist Single-color Icon Representation -->
+        <svg class="h-4 w-4 text-[#101010]" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.478 0 10.793-4.537 10.793-10.986 0-.746-.08-1.32-.176-1.714H12.24z"/>
+        </svg>
+        Google
+      </button>
+
+      <button class="flex items-center justify-center gap-2 rounded-lg bg-[#F0F1F2] px-3 py-2 text-xs font-medium text-[#101010] hover:bg-[#CCCCCC] active:scale-[0.98] shadow-sm transition-all">
+        <svg class="h-4 w-4 text-[#0C66E4]" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M11.603 2.15a.966.966 0 00-.776.007L2.735 6.111a.92.92 0 00-.51.815v9.882c0 .333.181.638.477.79l8.136 4.16a1.03 1.03 0 00.898 0l8.093-4.137a.92.92 0 00.494-.813V6.953a.92.92 0 00-.495-.815l-8.093-4.11a.972.972 0 00-.332-.128V2.15zM12 4.15l6.5 3.3-6.5 3.3-6.5-3.3 6.5-3.3zm-7.5 5.5l6.5 3.3v6.9l-6.5-3.3v-6.9zm8.5 10.2v-6.9l6.5-3.3v6.9l-6.5 3.3z"/>
+        </svg>
+        Atlassian ID
+      </button>
+    </div>
+
+    <!-- FOOTER LINK -->
+    <div class="mt-6 text-center">
+      <p class="text-xs text-[#8C8F97]">New to the platform? <a href="#" class="font-medium text-[#0C66E4] hover:underline">Provision account</a></p>
+    </div>
+
+  </div>
+
+</body>
+</html>

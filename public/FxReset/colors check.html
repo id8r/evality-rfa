@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#F8F8F8]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evality - Project Workspace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Mapping your exact Atlassian JSON colors
+            att: {
+              bgLight: '#F8F8F8',
+              bgRow: '#F0F1F2',
+              white: '#FFFFFF',
+              black: '#000000',
+              textDark: '#101010',
+              textNav: '#101214',
+              textMuted: '#42526E',
+              textLight: '#63666B',
+              textSubtle: '#8C8F97',
+              borderLight: '#C1C7D0',
+              borderMuted: '#CCCCCC',
+              bluePrimary: '#0C66E4',
+              blueHover: '#1868DB',
+              blueActive: '#1558BC',
+              blueLight: '#CFE1FD',
+              blueSoft: '#ADD8E6',
+              green: '#82B536',
+              amber: '#FFAB00',
+              amberDark: '#FCA700',
+              purple: '#BF63F3',
+              darkBg: '#242528',
+              darkCard: '#292A2E',
+              darkNav: '#1C2B42'
+            }
+          },
+          boxShadow: {
+            // Stripe's signature multi-layered, smooth elevation shadows
+            'stripe-sm': '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            'stripe-md': '0 4px 6px -1px rgba(50,50,93,0.08), 0 1px 3px -1px rgba(0,0,0,0.05)',
+            'stripe-lg': '0 15px 35px rgba(50,50,93,0.05), 0 5px 15px rgba(0,0,0,0.04)',
+            'stripe-sheet': '-10px 0 30px rgba(0,0,0,0.03), -2px 0 8px rgba(0,0,0,0.02)'
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    /* Custom thin border line to match Stripe's 0.5px / transparent inset feel */
+    .stripe-border { border: 1px solid rgba(66, 82, 110, 0.08); }
+    .stripe-border-b { border-bottom: 1px solid rgba(66, 82, 110, 0.08); }
+    .stripe-border-r { border-right: 1px solid rgba(66, 82, 110, 0.08); }
+  </style>
+</head>
+<body class="h-full overflow-hidden text-[#101010] antialiased">
+
+  <div class="flex h-full flex-col">
+
+    <header class="z-20 flex h-14 w-full items-center justify-between bg-white px-6 shadow-stripe-sm stripe-border-b">
+      <div class="flex items-center gap-8">
+        <div class="flex items-center gap-2">
+          <div class="h-6 w-6 rounded bg-[#0C66E4] flex items-center justify-center font-bold text-white text-xs tracking-wider">E</div>
+          <span class="font-semibold text-lg tracking-tight text-[#101214]">Evality</span>
+        </div>
+        <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-[#42526E]">
+          <a href="#" class="text-[#0C66E4] border-b-2 border-[#0C66E4] py-4 px-1">Dashboard</a>
+          <a href="#" class="hover:text-[#101214] py-4 px-1 transition-colors">Evaluations</a>
+          <a href="#" class="hover:text-[#101214] py-4 px-1 transition-colors">Analytics</a>
+          <a href="#" class="hover:text-[#101214] py-4 px-1 transition-colors">Settings</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <input type="text" placeholder="Search..." class="hidden sm:block w-48 rounded-md bg-[#F0F1F2] px-3 py-1.5 text-xs text-[#101010] placeholder-[#8C8F97] focus:outline-none focus:ring-1 focus:ring-[#0C66E4]" />
+        <div class="h-8 w-8 rounded-full bg-[#BF63F3] text-white flex items-center justify-center text-xs font-semibold shadow-stripe-sm">
+          JD
+        </div>
+      </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+
+      <aside class="w-64 bg-white flex flex-col justify-between p-6 stripe-border-r hidden lg:flex">
+        <div class="space-y-7">
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-wider text-[#8C8F97]">Workspace</label>
+            <div class="mt-1.5 flex items-center justify-between rounded-lg bg-[#F0F1F2] p-2.5 cursor-pointer hover:bg-[#CCCCCC] transition-colors">
+              <div class="flex items-center gap-2.5">
+                <div class="h-5 w-5 rounded bg-[#82B536]"></div>
+                <span class="text-xs font-medium text-[#101010]">Core Engine Dev</span>
+              </div>
+              <svg class="h-4 w-4 text-[#42526E]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold uppercase tracking-wider text-[#8C8F97] block mb-2">Execution</label>
+            <a href="#" class="flex items-center gap-3 rounded-md bg-[#CFE1FD] px-3 py-2 text-xs font-medium text-[#1558BC]">
+              <span>Active Runs</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium text-[#42526E] hover:bg-[#F0F1F2] hover:text-[#101010] transition-colors">
+              <span>Performance Logs</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 rounded-md px-3 py-2 text-xs font-medium text-[#42526E] hover:bg-[#F0F1F2] hover:text-[#101010] transition-colors">
+              <span>Environment Models</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="rounded-lg bg-[#F8F8F8] p-3 text-center stripe-border">
+          <p class="text-[11px] text-[#63666B]">All nodes operating at optimal baseline capacity.</p>
+        </div>
+      </aside>
+
+      <main class="flex-1 overflow-y-auto p-8 relative">
+
+        <div class="max-w-6xl mx-auto space-y-8">
+
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 class="text-xl font-semibold tracking-tight text-[#101010]">Model Evaluation Pipeline</h1>
+              <p class="text-xs text-[#63666B] mt-0.5">Track, configure, and execute testing vectors against active environments.</p>
+            </div>
+
+            <div class="flex items-center gap-3

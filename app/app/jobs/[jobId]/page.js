@@ -200,7 +200,6 @@ const JOB_WORKSPACE_TABLE_HEADERS = {
     phone: "Phone",
     email: "Email",
     availability: "Availability",
-    noticePeriod: "Notice Period",
     currentSalary: "Current CTC",
     expectedSalary: "Expected CTC",
     screeningOutcome: "Screening",
@@ -3327,7 +3326,7 @@ function ClientStatusUpdateSheet({
                       View Resume
                     </button>
                   )} />
-                  <MetaField label="Availability / Joining" value={formatAvailability(candidate.availabilityDays)} />
+                  <MetaField label="Availability" value={formatAvailability(candidate.availabilityDays)} />
                   <MetaField label="Current CTC" value={formatCurrency(candidate.currentSalary, salaryCurrency)} />
                   <MetaField label="Expected CTC" value={formatCurrency(candidate.expectedSalary, salaryCurrency)} />
                   <MetaField label="Current Stage" value={candidate.clientStatus || "Feedback Awaited"} />
@@ -3846,7 +3845,7 @@ function CandidateWorkspaceSheet({
 }
 
 function RecommendedCandidatesDrawer({ candidates, ...props }) {
-  return <AddCandidatesDrawer {...props} candidatePool={candidates} mode="recommend" />;
+  return <AddCandidatesDrawer {...props} candidatePool={candidates} mode="recommend" initialMode="pick" />;
 }
 
 function AddCandidatesDrawer({
@@ -3858,34 +3857,39 @@ function AddCandidatesDrawer({
   onUploadFiles,
   onOpenCandidatePool,
   mode = "add",
+  initialMode = "upload",
 }) {
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const allowUpload = mode === "add";
   const drawerTitle = mode === "recommend" ? "Recommend Candidates" : "Add Candidates";
   const candidateTabLabel = mode === "recommend" ? "Recommended Candidates" : "Candidates";
-  const [activeMode, setActiveMode] = useState(allowUpload ? "pick" : "pick");
+  const resolvedInitialMode = initialMode === "upload" && allowUpload ? "upload" : "pick";
+  const [activeMode, setActiveMode] = useState(resolvedInitialMode);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [showResumePane, setShowResumePane] = useState(true);
   const [hiddenCandidateIds, setHiddenCandidateIds] = useState([]);
-  const [activePreviewTab, setActivePreviewTab] = useState("resume");
+  const [activePreviewTab, setActivePreviewTab] = useState("background");
 
   useEffect(() => {
     if (!open) {
       setIsDragging(false);
-      setActiveMode("pick");
+      setActiveMode(resolvedInitialMode);
       setSearchTerm("");
       setSelectedCandidateId(null);
       setShowResumePane(true);
       setHiddenCandidateIds([]);
-      setActivePreviewTab("resume");
+      setActivePreviewTab("background");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+      return;
     }
-  }, [open]);
+
+    setActiveMode(resolvedInitialMode);
+  }, [open, resolvedInitialMode]);
 
   function handleFileSelection(event) {
     onUploadFiles(event.target.files);
@@ -3976,7 +3980,7 @@ function AddCandidatesDrawer({
   }, [selectedCandidateId, visibleCandidates]);
 
   useEffect(() => {
-    setActivePreviewTab("resume");
+    setActivePreviewTab("background");
   }, [selectedCandidate?.id]);
 
   const handleHideCandidate = useCallback((candidateId) => {
@@ -4215,8 +4219,8 @@ function AddCandidatesDrawer({
                             <div className="flex items-center justify-between gap-[16px]">
                               <FxTabs
                                 tabs={[
-                                  { value: "resume", label: "Resume" },
                                   { value: "background", label: "Background" },
+                                  { value: "resume", label: "Resume" },
                                 ]}
                                 active={activePreviewTab}
                                 onChange={setActivePreviewTab}
@@ -4242,15 +4246,7 @@ function AddCandidatesDrawer({
                             </div>
                           </div>
                           <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
-                            {activePreviewTab === "resume" ? (
-                              <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                                <div className="p-[16px]">
-                                  <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                                    {selectedCandidateResumePreview}
-                                  </pre>
-                                </div>
-                              </div>
-                            ) : (
+                            {activePreviewTab === "background" ? (
                               <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
                                 <div className="space-y-[10px] p-[16px]">
                                   {selectedCandidateBackground.length ? (
@@ -4263,6 +4259,14 @@ function AddCandidatesDrawer({
                                   ) : (
                                     <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">No prior background captured for this candidate yet.</p>
                                   )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                                <div className="p-[16px]">
+                                  <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                                    {selectedCandidateResumePreview}
+                                  </pre>
                                 </div>
                               </div>
                             )}
@@ -4380,6 +4384,7 @@ export default function JobDetailsPage({ params }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [recommendedOpen, setRecommendedOpen] = useState(false);
   const [addCandidatesOpen, setAddCandidatesOpen] = useState(false);
+  const [addCandidatesInitialMode, setAddCandidatesInitialMode] = useState("upload");
   const [candidateSheetOpen, setCandidateSheetOpen] = useState(false);
   const [cvMatchSheetOpen, setCvMatchSheetOpen] = useState(false);
   const [preScreenResultOpen, setPreScreenResultOpen] = useState(false);
@@ -4575,11 +4580,9 @@ export default function JobDetailsPage({ params }) {
             ? "currentSalary"
             : sortConfig?.key === "expectedSalary"
               ? "expectedSalary"
-              : sortConfig?.key === "noticePeriodSortValue"
-                ? "noticePeriod"
-                : sortConfig?.key === "updatedAt"
-                  ? "updatedAt"
-                  : null;
+              : sortConfig?.key === "updatedAt"
+                ? "updatedAt"
+                : null;
   const tableSortedColumnDirection = sortConfig?.direction ?? "asc";
 
   const updateWorkspaceCandidate = useCallback(
@@ -5903,6 +5906,7 @@ export default function JobDetailsPage({ params }) {
   }, [candidateRows, candidateSnapshot, job?.id]);
 
   const handleAddCandidates = useCallback(() => {
+    setAddCandidatesInitialMode("upload");
     setAddCandidatesOpen(true);
   }, []);
 
@@ -6489,7 +6493,6 @@ export default function JobDetailsPage({ params }) {
       phone: { key: "phone", label: stageHeaderLabels.phone, width: 176, minWidth: 156, maxWidth: 184, grow: 1, defaultVisible: true },
       email: { key: "email", label: stageHeaderLabels.email, width: 240, minWidth: 220, maxWidth: 260, grow: 2, defaultVisible: activeStage === "shortlisted" },
       availability: { key: "availability", label: sortLabel("availabilityDays", stageHeaderLabels.availability), width: 132, minWidth: 120, maxWidth: 148, align: "center", defaultVisible: activeStage === "shortlisted" },
-      noticePeriod: { key: "noticePeriod", label: sortLabel("noticePeriodSortValue", stageHeaderLabels.noticePeriod), width: 126, minWidth: 118, maxWidth: 146, align: "center", defaultVisible: activeStage !== "shortlisted" },
       currentSalary: { key: "currentSalary", label: sortLabel("currentSalary", stageHeaderLabels.currentSalary), width: 144, minWidth: 132, maxWidth: 160, align: "right", defaultVisible: true },
       expectedSalary: { key: "expectedSalary", label: sortLabel("expectedSalary", stageHeaderLabels.expectedSalary), width: 150, minWidth: 136, maxWidth: 168, align: "right", defaultVisible: true },
       screeningOutcome: { key: "screeningOutcome", label: stageHeaderLabels.screeningOutcome, width: 168, minWidth: 152, maxWidth: 196, align: "center", defaultVisible: true },
@@ -6513,9 +6516,6 @@ export default function JobDetailsPage({ params }) {
       columnsByKey.actions,
       columnsByKey.menuActions,
     ];
-    if (activeStage !== "shortlisted") {
-      orderedColumns.splice(4, 0, columnsByKey.noticePeriod);
-    }
     if (activeStage !== "unscreened") {
       orderedColumns.splice(activeStage === "shortlisted" ? 6 : 7, 0, columnsByKey.screeningOutcome);
     }
@@ -6605,11 +6605,6 @@ export default function JobDetailsPage({ params }) {
     expectedSalary: (
       <span className="tabular-nums text-[14px] leading-[22px] font-medium text-[var(--fx-text)]">
         {formatCurrency(candidate.expectedSalary, salaryCurrency)}
-      </span>
-    ),
-    noticePeriod: (
-      <span className="inline-flex min-w-[64px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-normal text-[var(--fx-text)]">
-        {formatNoticePeriod(candidate)}
       </span>
     ),
     screeningOutcome: activeStage === "unscreened" ? (
@@ -7017,6 +7012,7 @@ export default function JobDetailsPage({ params }) {
         onPickExistingCandidate={handleAttachExistingCandidate}
         onUploadFiles={handleUploadCandidateFiles}
         onOpenCandidatePool={handleOpenCandidatePool}
+        initialMode={addCandidatesInitialMode}
         onViewResume={(candidate) => {
           setAddCandidatesOpen(false);
           handleOpenCandidateSheet(candidate);
