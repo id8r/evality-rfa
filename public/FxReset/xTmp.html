@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FxCandidateCard Component Review Deck — V1.0</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            fx: {
+              primary: '#1068E0',       /* Brand Core Action */
+              'primary-hover': '#1254B8',
+              accent: '#4F35FD',        /* Premium Accent Pop */
+              bg: '#F3F6F9',            /* Global Canvas Backdrop */
+              surface: '#FFFFFF',       /* High-contrast Cards & Sheets */
+              'surface-subtle': '#F8FAFC', /* Block Subheaders & Lists */
+              'surface-muted': '#ECECEF',  /* Layout Dividers */
+              'border-light': '#E3E8EC',   /* Soft structural bounds */
+              border: '#BDC3CC',           /* Inputs & Card Borders */
+              'border-strong': '#888B93',  /* Focal lines */
+              text: '#1A293E',             /* High contrast copy */
+              'text-muted': '#5A6880',     /* Label metadata */
+              'text-subtle': '#3E4E6A',    /* Secondary copy link elements */
+              success: '#78B030',
+              warning: '#F09C00',
+              danger: '#D84040',
+              'info-surface': '#CADDF9'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .fx-font-h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+    .fx-font-h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+    .fx-font-card { font-size: 16px; font-weight: 600; letter-spacing: -0.005em; }
+    .fx-font-body { font-size: 14px; font-weight: 400; letter-spacing: normal; }
+    .fx-font-clickable { font-size: 14px; font-weight: 500; letter-spacing: normal; }
+    .fx-font-meta { font-size: 13px; font-weight: 400; letter-spacing: normal; }
+    .fx-font-label { font-size: 12px; font-weight: 500; letter-spacing: 0.02em; }
+  </style>
+</head>
+<body class="bg-fx-bg text-fx-text fx-font-body min-h-screen p-8 flex flex-col gap-8">
+
+  <header class="border-b border-fx-border-light pb-4">
+    <h1 class="fx-font-h1 text-fx-text">FxCandidateCard Component Review</h1>
+    <p class="text-fx-text-muted fx-font-meta mt-1">Component Spec Verification Deck — Locked to 8px System Grids & V1.0 Color Architecture.</p>
+  </header>
+
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
+
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-col">
+        <span class="fx-font-label text-fx-primary uppercase tracking-wider font-semibold">Variant 1: Compact</span>
+        <span class="text-fx-text-muted fx-font-meta mb-2">Left candidate selector lists inside Book Sheets (w-[480px] context simulation).</span>
+      </div>
+
+      <div class="w-full max-w-[480px] bg-fx-surface-subtle border border-fx-border-light p-3 rounded-lg flex flex-col gap-2">
+
+        <div class="w-full bg-fx-surface border-2 border-fx-primary p-3 rounded-md shadow-sm flex justify-between items-center cursor-pointer transition-all">
+          <div class="flex flex-col gap-0.5">
+            <span class="fx-font-body font-semibold text-fx-text">Devon Lane</span>
+            <span class="text-fx-text-muted text-xs">Active Workspace Target</span>
+          </div>
+          <div class="bg-[#EAF5D6] text-fx-success text-xs font-bold px-2 py-1 rounded">
+            94%
+          </div>
+        </div>
+
+        <div class="w-full bg-fx-surface border border-fx-border-light p-3 rounded-md hover:border-fx-border transition-all flex justify-between items-center cursor-pointer">
+          <div class="flex flex-col gap-0.5">
+            <span class="fx-font-body font-medium text-fx-text">Kathryn Murphy</span>
+            <span class="text-fx-text-muted text-xs">Applied 2 days ago</span>
+          </div>
+          <div class="bg-[#EAF5D6] text-fx-success text-xs font-bold px-2 py-1 rounded">
+            88%
+          </div>
+        </div>
+
+        <div class="w-full bg-fx-surface border border-fx-border-light p-3 rounded-md hover:border-fx-border transition-all flex justify-between items-center cursor-pointer">
+          <div class="flex flex-col gap-0.5">
+            <span class="fx-font-body font-medium text-fx-text">Arlene McCoy</span>
+            <span class="text-fx-text-muted text-xs">Screening Stage</span>
+          </div>
+          <span class="text-fx-text-muted text-xs font-medium">No score</span>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-col">
+        <span class="fx-font-label text-fx-accent uppercase tracking-wider font-semibold">Variant 2: Basic</span>
+        <span class="text-fx-text-muted fx-font-meta mb-2">Small candidate quick summary view blocks / Floating sheet fragments.</span>
+      </div>
+
+      <div class="w-full max-w-[560px] bg-fx-surface border border-fx-border-light p-4 rounded-lg shadow-sm flex flex-col gap-3">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="fx-font-card text-fx-text">Jane Cooper</h3>
+            <p class="text-fx-text-muted fx-font-meta">Senior Infrastructure Architect</p>
+          </div>
+          <div class="bg-[#EAF5D6] text-fx-success text-xs font-bold px-2 py-1 rounded">
+            91% Fit
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-fx-border-light text-xs">
+          <div>
+            <span class="text-fx-text-muted block font-medium">Email Address</span>
+            <span class="text-fx-text font-medium">jane.cooper@evality.in</span>
+          </div>
+          <div>
+            <span class="text-fx-text-muted block font-medium">Phone Number</span>
+            <span class="text-fx-text font-medium">+91 98450 12345</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="w-full max-w-[560px] bg-fx-surface border border-fx-border-light p-4 rounded-lg shadow-sm flex flex-col gap-3">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="fx-font-card text-fx-text">Robert Fox</h3>
+            <p class="text-fx-text-muted fx-font-meta">Staff Site Reliability Lead</p>
+          </div>
+          <div class="bg-[#FFF4D6] text-fx-warning text-xs font-bold px-2 py-1 rounded">
+            76% Fit
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-fx-border-light text-xs">
+          <div>
+            <span class="text-fx-text-muted block font-medium">Email Address</span>
+            <span class="text-fx-text-muted italic">N/A</span>
+          </div>
+          <div>
+            <span class="text-fx-text-muted block font-medium">Phone Number</span>
+            <span class="text-fx-text-muted italic">N/A</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-col">
+        <span class="fx-font-label text-fx-text uppercase tracking-wider font-semibold">Variant 3: Detailed</span>
+        <span class="text-fx-text-muted fx-font-meta mb-2">Candidate Evaluation / Share Panel Workspace (w-[1200px] Book Sheet execution context).</span>
+      </div>
+
+      <div class="w-full bg-fx-surface border border-fx-border rounded-xl shadow-md p-6 flex flex-col gap-5">
+
+        <div class="flex justify-between items-start pb-4 border-b border-fx-border-light">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-semibold text-fx-primary uppercase tracking-wider">Identity Profile</span>
+            <h2 class="fx-font-h2 text-fx-text">Cody Fisher</h2>
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2 text-sm text-fx-text-subtle">
+              <div><span class="text-fx-text-muted fx-font-label font-medium mr-1">Email:</span> cody.f@workspace.com</div>
+              <div><span class="text-fx-text-muted fx-font-label font-medium mr-1">Phone:</span> +91 99001 98765</div>
+            </div>
+          </div>
+          <div class="text-center">
+            <div class="bg-fx-info-surface text-fx-primary text-lg font-bold px-3 py-1 rounded-md">
+              96%
+            </div>
+            <span class="text-[10px] text-fx-text-muted font-bold uppercase tracking-wider block mt-1">Fit Score</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <span class="text-[11px] font-bold text-fx-text-muted uppercase tracking-wider">Role History</span>
+          <div class="bg-fx-surface-subtle border border-fx-border-light rounded-md p-3 grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <span class="text-fx-text-muted block font-medium mb-0.5">Core Experience</span>
+              <span class="text-fx-text font-semibold fx-font-body">6.5 Years Operational</span>
+            </div>
+            <div>
+              <span class="text-fx-text-muted block font-medium mb-0.5">CV File Added</span>
+              <span class="text-fx-text font-medium">April 14, 2026</span>
+            </div>
+            <div class="col-span-2">
+              <span class="text-fx-text-muted block font-medium mb-0.5">Current Applied Position</span>
+              <span class="text-fx-primary font-semibold">Lead Next.js Infrastructure Engineer</span>
+            </div>
+            <div class="col-span-2 border-t border-fx-border-light pt-2">
+              <span class="text-fx-text-muted block font-medium mb-1">Historic App Registrations</span>
+              <ul class="list-disc list-inside space-y-0.5 text-fx-text-subtle font-medium">
+                <li>Senior Frontend Developer (Dec 2025)</li>
+                <li>Fullstack Data Swaps Track Operator (Refused)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <span class="text-[11px] font-bold text-fx-text-muted uppercase tracking-wider">Compensation Engine</span>
+          <div class="grid grid-cols-3 gap-2 bg-fx-surface-subtle border border-fx-border-light rounded-md p-3 text-xs">
+            <div>
+              <span class="text-fx-text-muted block font-medium mb-0.5">Current CTC</span>
+              <span class="text-fx-text font-semibold">₹24,00,000</span>
+            </div>
+            <div>
+              <span class="text-fx-text-muted block font-medium mb-0.5">Expected CTC</span>
+              <span class="text-fx-text font-semibold">₹32,00,000</span>
+            </div>
+            <div>
+              <span class="text-fx-text-muted block font-medium mb-0.5">Notice Horizon</span>
+              <span class="text-fx-danger font-semibold bg-red-50 px-1.5 py-0.5 rounded inline-block">Immediate</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

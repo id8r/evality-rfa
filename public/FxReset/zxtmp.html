@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evality Specialized Book Sheet — V1.3</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Inter Font Framework -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            fx: {
+              primary: '#1068E0',
+              'primary-hover': '#1254B8',
+              accent: '#4F35FD',
+              bg: '#F3F6F9',
+              surface: '#FFFFFF',
+              'surface-subtle': '#F8FAFC',
+              'surface-muted': '#ECECEF',
+              'border-light': '#E3E8EC',
+              border: '#BDC3CC',
+              'border-strong': '#888B93',
+              text: '#1A293E',
+              'text-muted': '#5A6880',
+              'text-subtle': '#3E4E6A',
+              success: '#78B030'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .fx-font-h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+    .fx-font-h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+    .fx-font-card { font-size: 16px; font-weight: 600; letter-spacing: -0.005em; }
+    .fx-font-body { font-size: 14px; font-weight: 400; letter-spacing: normal; }
+    .fx-font-meta { font-size: 13px; font-weight: 400; letter-spacing: normal; }
+    .fx-font-label { font-size: 12px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; }
+  </style>
+</head>
+<body class="bg-fx-bg text-fx-text fx-font-body min-h-screen p-6 flex items-center justify-center">
+
+  <!-- THE MASTER SPECIALIZED BOOK SHEET WRAPPER (w-[1200px] Pattern) -->
+  <div class="w-[1200px] h-[780px] bg-fx-surface border border-fx-border-light rounded-xl shadow-xl flex flex-col overflow-hidden">
+
+    <!-- SYSTEM WORKSPACE BAR -->
+    <header class="h-[56px] border-b border-fx-border-light px-6 flex items-center justify-between flex-shrink-0 bg-fx-surface">
+      <div class="flex items-center gap-3">
+        <a href="#" class="text-fx-text-muted hover:text-fx-text fx-font-meta flex items-center gap-1 transition-colors">← All Jobs</a>
+        <span class="text-fx-border-light">/</span>
+        <div class="font-semibold text-fx-text text-sm">SRE Application Review Workspace</div>
+      </div>
+      <div class="flex items-center gap-2 text-fx-text-muted text-sm">
+        <button class="p-1.5 hover:bg-fx-surface-subtle rounded">↗</button>
+        <button class="p-1.5 hover:bg-fx-surface-subtle rounded">🗖</button>
+        <button class="p-1.5 hover:bg-fx-surface-subtle rounded">✕</button>
+      </div>
+    </header>
+
+    <!-- FULL-WIDTH SPECIFIED PIPELINE TIMELINE TRACKER (Spans across L and R planes) -->
+    <div class="px-8 py-4 bg-fx-surface-subtle border-b border-fx-border-light flex flex-col gap-2.5 flex-shrink-0">
+      <div class="flex justify-between items-center">
+        <span class="text-[11px] font-bold text-fx-text-muted uppercase tracking-wider">Application Pipeline Stage</span>
+      </div>
+
+      <!-- Word-Node Tracker Component Array -->
+      <div class="flex items-start justify-between w-full relative pt-1">
+        <!-- Connecting Pipeline Line Track Vector -->
+        <div class="absolute top-[10px] left-4 right-4 h-[2px] bg-fx-surface-muted z-0"></div>
+
+        <!-- Step 1: Complete state with past date timestamp -->
+        <div class="flex flex-col items-center gap-1 z-10 relative text-center">
+          <div class="w-5 h-5 rounded-full bg-fx-surface border-2 border-fx-primary text-fx-primary flex items-center justify-center text-[10px] font-bold">✓</div>
+          <span class="text-xs font-medium text-fx-text mt-1">Applied</span>
+          <span class="text-[10px] font-medium text-fx-text-muted mt-0.5">Jun 18</span>
+        </div>
+
+        <!-- Step 2: The Active State Highlight Node (No number, clean text center focus) -->
+        <div class="flex flex-col items-center gap-1 z-10 relative text-center">
+          <div class="w-5 h-5 rounded-full bg-fx-primary border-2 border-fx-primary ring-4 ring-fx-primary/10 flex items-center justify-center"></div>
+          <span class="text-xs font-bold text-fx-primary mt-1">Unscreened</span>
+          <span class="text-[10px] font-bold text-fx-primary tracking-wide uppercase px-1.5 py-0.5 bg-blue-50 rounded mt-0.5">Active</span>
+        </div>
+
+        <!-- Step 3: Imminent/Future State Node -->
+        <div class="flex flex-col items-center gap-1 z-10 relative text-center">
+          <div class="w-5 h-5 rounded-full bg-fx-surface border-2 border-fx-border flex items-center justify-center"></div>
+          <span class="text-xs font-medium text-fx-text-subtle mt-1">Shortlisted</span>
+          <span class="text-[10px] text-transparent select-none mt-0.5">—</span>
+        </div>
+
+        <!-- Step 4: Future State Node -->
+        <div class="flex flex-col items-center gap-1 z-10 relative text-center">
+          <div class="w-5 h-5 rounded-full bg-fx-surface border-2 border-fx-border flex items-center justify-center"></div>
+          <span class="text-xs font-medium text-fx-text-subtle mt-1">Interviewing</span>
+          <span class="text-[10px] text-transparent select-none mt-0.5">—</span>
+        </div>
+
+        <!-- Step 5: Future State Node -->
+        <div class="flex flex-col items-center gap-1 z-10 relative text-center">
+          <div class="w-5 h-5 rounded-full bg-fx-surface border-2 border-fx-border flex items-center justify-center"></div>
+          <span class="text-xs font-medium text-fx-text-subtle mt-1">Offered</span>
+          <span class="text-[10px] text-transparent select-none mt-0.5">—</span>
+        </div>
+
+        <!-- Step 6: Future State Node -->
+        <div class="flex flex-col items-center gap-1 z-10 relative text-center">
+          <div class="w-5 h-5 rounded-full bg-fx-surface border-2 border-fx-border flex items-center justify-center"></div>
+          <span class="text-xs font-medium text-fx-text-subtle mt-1">Joined</span>
+          <span class="text-[10px] text-transparent select-none mt-0.5">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN TWO-PANE SPLIT ARRAYS (L: DOCUMENT CONTENT GRID vs R: ACTION DECK) -->
+    <div class="flex-grow flex overflow-hidden">
+
+      <!-- PANE 1: COMPURE READER LAYOUT (LEFT SIDE - 55% SPACE) -->
+      <div class="w-[55%] border-r border-fx-border-light p-6 overflow-y-auto flex flex-col gap-4 bg-fx-surface">
+        <div class="flex items-center justify-between border-b border-fx-border-light pb-2 flex-shrink-0">
+          <span class="fx-font-label text-fx-text-muted font-bold tracking-wider">Candidate Attachment Viewer</span>
+          <span class="text-xs text-fx-text-subtle">Source Document Asset</span>
+        </div>
+
+        <!-- Clean, focused reader layer canvas without profile redundancies -->
+        <div class="flex-grow bg-fx-surface-subtle border border-fx-border-light rounded-xl p-5 flex flex-col gap-4 font-mono text-[13px] text-fx-text-subtle overflow-y-auto">
+          <div>
+            <p class="font-bold font-sans text-base text-fx-text mb-1">Aditya Khan — SRE Background Profile</p>
+            <p class="font-sans text-xs text-fx-text-muted">Bangalore Urban • aditya.khan.sre.engineer@evality.ai</p>
+          </div>
+          <hr class="border-fx-border-light">
+          <div>
+            <p class="font-bold text-fx-text text-sm mb-1">Professional Summary</p>
+            <p class="leading-relaxed">Brings 5+ years of infrastructure systems experience. Background deeply aligned to microservice arrays, site reliability strategies, logging tracks, and auto-scaling architecture grids.</p>
+          </div>
+          <div>
+            <p class="font-bold text-fx-text text-sm mb-1">Technical Milestones</p>
+            <p class="font-semibold text-fx-text">• Current Role: SRE Engineer</p>
+            <p class="pl-3 leading-relaxed text-xs text-fx-text-muted">Focus areas include multi-cluster Kubernetes execution, infrastructure cost optimization tracks, and real-time node cluster monitoring architectures.</p>
+          </div>
+          <div>
+            <p class="font-bold text-fx-text text-sm mb-1">Skills Map</p>
+            <p class="leading-relaxed">SRE Delivery Protocols • Docker Ecosystems • Shell Scripting Optimization</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANE 2: RECRUITER ACTION DECK (RIGHT SIDE - 45% SPACE) -->
+      <div class="w-[45%] p-6 bg-fx-surface-subtle overflow-y-auto flex flex-col gap-5">
+
+        <!-- SIMULATED FxCandidateCard PLACEHOLDER COMPONENT (As built by Codex) -->
+        <div class="w-full bg-fx-surface border-2 border-fx-primary rounded-xl shadow-sm p-4 flex flex-col gap-3">
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="text-[10px] font-bold text-fx-primary uppercase tracking-wider block mb-0.5">Active Target Profile</span>
+              <h3 class="fx-font-card text-fx-text">Aditya Khan</h3>
+              <p class="text-fx-text-muted text-xs">SRE Engineer — Remote View</p>
+            </div>
+            <!-- Fit score wrapper aligned tightly -->
+            <div class="bg-[#EAF5D6] text-fx-success text-xs font-bold px-2.5 py-1 rounded border border-fx-success/20">
+              92% Match
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-2.5 border-t border-fx-border-light text-xs">
+            <div>
+              <span class="text-fx-text-muted block font-medium">Email Address</span>
+              <span class="text-fx-text font-semibold truncate block">aditya.khan.sre.engineer@evality.ai</span>
+            </div>
+            <div>
+              <span class="text-fx-text-muted block font-medium">Phone Number</span>
+              <span class="text-fx-text font-semibold">+91 98304 02938</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECRUITER SYSTEM EVALUATION AND ACTION NOTE ENGINE -->
+        <div class="bg-fx-surface border border-fx-border-light rounded-xl p-4 flex-grow flex flex-col gap-3 min-h-[280px]">
+          <div class="flex justify-between items-center flex-shrink-0">
+            <h3 class="fx-font-label text-fx-text-muted font-bold tracking-wider">Recruiter Assessment Logs</h3>
+            <span class="text-xs text-fx-text-muted font-medium">Draft Active</span>
+          </div>
+
+          <!-- Note Input Field Area -->
+          <div class="flex-grow flex flex-col gap-3">
+            <textarea placeholder="Type operational evaluation tags or cross-team notes regarding this candidate interface..." class="w-full flex-grow p-3.5 fx-font-body text-fx-text bg-fx-surface border border-fx-border rounded-lg outline-none focus:border-fx-primary focus:ring-2 focus:ring-fx-primary/10 transition-all resize-none"></textarea>
+
+            <!-- Standardized Form Height Button Row Alignment -->
+            <div class="flex justify-between items-center pt-2.5 border-t border-fx-border-light flex-shrink-0">
+              <span class="fx-font-meta text-fx-text-muted">Autosaved</span>
+              <button class="h-10 px-5 bg-fx-primary text-white font-semibold text-sm rounded-md hover:bg-fx-primary-hover shadow-sm transition-colors flex items-center justify-center">
+                Commit Sheet Note
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
