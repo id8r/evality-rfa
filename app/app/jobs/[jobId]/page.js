@@ -3499,7 +3499,7 @@ function CandidateWorkspaceSheet({
         <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
           {candidate ? (
             <div className="flex min-h-0 h-full flex-col gap-[16px]">
-              <div className={`rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+              <div className={`rounded-[4px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
                 <div className="flex items-start justify-between gap-[16px]">
                   <div className="space-y-[2px]">
                     <p className="text-[11px] leading-[16px] font-semibold uppercase tracking-[0.08em] text-[var(--fx-text-muted)]">Candidate Progress</p>
@@ -3519,9 +3519,9 @@ function CandidateWorkspaceSheet({
                             <div className="flex min-w-[104px] flex-1 flex-col items-center gap-[8px] text-center">
                               <div
                                 className={cn(
-                                  "inline-flex min-h-[30px] min-w-[92px] items-center justify-center rounded-[999px] border px-[12px] text-[11px] leading-[16px] font-medium transition-colors",
+                                  "inline-flex min-h-[30px] min-w-[92px] items-center justify-center rounded-[4px] border px-[12px] text-[11px] leading-[16px] font-medium transition-colors",
                                   isCurrent
-                                    ? "border-[var(--fx-primary)] bg-[var(--fx-primary)] text-white shadow-[0_0_0_4px_color-mix(in_srgb,var(--fx-primary)_12%,transparent)]"
+                                    ? "border-[var(--fx-disabled-text)] bg-[var(--fx-disabled-text)] text-white shadow-[0_0_0_0px_color-mix(in_srgb,var(--fx-primary)_12%,transparent)]"
                                     : isFilled
                                       ? "border-[color:color-mix(in_srgb,var(--fx-primary)_48%,var(--fx-border)_52%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_14%,var(--fx-surface)_86%)] text-[var(--fx-primary)]"
                                       : "border-[color:color-mix(in_srgb,var(--fx-border)_86%,var(--fx-text)_14%)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)]",
@@ -3551,7 +3551,7 @@ function CandidateWorkspaceSheet({
                 </div>
               </div>
 
-              <div className={cn("grid min-h-0 flex-1 gap-[24px]", showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_24px_minmax(0,1fr)]" : "xl:grid-cols-1")}>
+              <div className={cn("grid min-h-0 flex-1 gap-[12px]", showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_12px_minmax(0,1fr)]" : "xl:grid-cols-1")}>
                 {showResumePane ? (
                   <>
                     <div className="flex min-h-0 flex-col">
@@ -3563,7 +3563,7 @@ function CandidateWorkspaceSheet({
                         </div>
                       </div>
                     </div>
-                    <div className="relative flex items-stretch justify-center">
+                    <div className="relative flex w-[12px] items-stretch justify-center">
                       <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
                     </div>
                   </>
@@ -3584,28 +3584,25 @@ function CandidateWorkspaceSheet({
                     }}
                   />
 
-                  <div className={`flex min-h-0 flex-1 flex-col rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                    <p className={FX_TYPOGRAPHY.cardTitle}>Notes</p>
-                    <div className="mt-[12px] space-y-[12px]">
-                      <FxInput
-                        textarea
-                        value={noteDraft}
-                        onChange={(event) => setNoteDraft(event.target.value)}
-                        placeholder="Add recruiter note..."
-                        className="min-h-[120px]"
-                      />
-                      <div className="flex justify-end">
-                        <FxButton
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => candidate && onSaveNote?.(candidate, noteDraft)}
-                        >
-                          Save Note
-                        </FxButton>
-                      </div>
+                  <div className="flex min-h-0 flex-1 flex-col gap-[12px]">
+                    <FxInput
+                      textarea
+                      value={noteDraft}
+                      onChange={(event) => setNoteDraft(event.target.value)}
+                      placeholder="Add recruiter note..."
+                      className="min-h-[120px]"
+                    />
+                    <div className="flex justify-end">
+                      <FxButton
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => candidate && onSaveNote?.(candidate, noteDraft)}
+                      >
+                        Save Note
+                      </FxButton>
                     </div>
-                    <div className="mt-[12px] min-h-0 flex-1 overflow-y-auto">
+                    <div className="min-h-0 flex-1 overflow-y-auto">
                       <div className="space-y-[12px] pr-[4px]">
                         {noteItems.length ? (
                           noteItems.map((item, index) => (

@@ -49,6 +49,23 @@ function formatFitScoreValue(value) {
   return `${numericValue}%`;
 }
 
+function formatExperienceValue(value) {
+  if (value == null || value === "") {
+    return "N/A";
+  }
+
+  const text = String(value).trim();
+  if (!text) {
+    return "N/A";
+  }
+
+  if (/\byears?\b/i.test(text)) {
+    return text;
+  }
+
+  return `${text} years`;
+}
+
 function getCandidateFieldValue(candidate, keys, fallback = "N/A") {
   for (const key of keys) {
     const value = candidate?.[key];
@@ -185,15 +202,15 @@ function FitScoreValue({ label = "Fit Score", score }) {
 
   return (
     <div className="space-y-[1px] text-right">
-      <p className="text-[11px] leading-[16px] font-medium text-[var(--fx-text-muted)]">{label}</p>
       <p
         className={cn(
-          "text-[18px] leading-[22px] font-medium tabular-nums",
+          "text-[16px] leading-[20px] font-medium tabular-nums",
           isMissing ? "text-[var(--fx-text-muted)]" : "text-[var(--fx-text)]",
         )}
       >
         {score}
       </p>
+      <p className="text-[11px] leading-[16px] font-medium text-[var(--fx-text-muted)]">{label}</p>
     </div>
   );
 }
@@ -449,9 +466,7 @@ export function FxCandidateCard({
       resolvedCandidate.jdMatchScore ??
       resolvedCandidate.cvMatchScore,
   );
-  const experience = resolvedCandidate.experience != null && resolvedCandidate.experience !== ""
-    ? `${resolvedCandidate.experience}y`
-    : "N/A";
+  const experience = formatExperienceValue(resolvedCandidate.experience);
   const currentJobAppliedFor = formatText(
     getCandidateFieldValue(resolvedCandidate, [
       "currentJobAppliedFor",
@@ -505,6 +520,7 @@ export function FxCandidateCard({
           <div className="flex items-start justify-between gap-[12px]">
             <div className="min-w-0 space-y-[2px]">
               <p className="truncate text-[16px] leading-[24px] font-semibold text-[var(--fx-text)]">{displayName}</p>
+              <p className="text-[11px] leading-[16px] text-[var(--fx-text-muted)]">{experience}</p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-[2px]">
               <FitScoreValue label="Fit Score" score={fitScore} />
@@ -537,7 +553,6 @@ export function FxCandidateCard({
         {showDefaultFields ? (
           <section className="space-y-[8px]">
             <div className="grid gap-[8px] sm:grid-cols-2">
-              <FieldRow label="Experience" value={experience} />
               <FieldRow label="Current Job Applied For" value={currentJobAppliedFor} />
               {showDetailedFields ? (
                 <>
