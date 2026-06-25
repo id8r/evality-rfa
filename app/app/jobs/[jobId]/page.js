@@ -3898,6 +3898,7 @@ function AddCandidatesDrawer({
                 active={activeMode}
                 onChange={setActiveMode}
                 className="justify-start"
+                showBorder={false}
               />
             ) : null}
 
@@ -3958,9 +3959,9 @@ function AddCandidatesDrawer({
             ) : null}
 
             {activeMode === "pick" ? (
-              <section className={`flex h-full min-h-0 flex-1 flex-col rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
+              <section className="flex h-full min-h-0 flex-1 flex-col">
                 {visibleCandidates.length ? (
-                  <div className={cn("mt-[12px] grid min-h-0 flex-1 gap-[8px]", showResumePane ? "lg:grid-cols-[minmax(0,300px)_1px_minmax(0,1fr)]" : "lg:grid-cols-1")}>
+                  <div className={cn("grid min-h-0 flex-1 gap-[8px]", showResumePane ? "lg:grid-cols-[minmax(0,300px)_1px_minmax(0,1fr)]" : "lg:grid-cols-1")}>
                     {showResumePane ? (
                       <div className="flex min-h-0 flex-col rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-bg-soft)]">
                         <div className="border-b border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] p-[8px]">
@@ -4040,22 +4041,6 @@ function AddCandidatesDrawer({
                                   variant="compact"
                                   showBorder={false}
                                 />
-                                <div className="flex items-center gap-[8px]">
-                                  <FxButton type="button" variant="destructiveOutline" size="sm" onClick={() => handleHideCandidate(selectedCandidate.id)}>
-                                    Ignore
-                                  </FxButton>
-                                  <FxButton
-                                    type="button"
-                                    size="sm"
-                                    className="min-w-[116px]"
-                                    onClick={() => {
-                                      onPickExistingCandidate(selectedCandidate);
-                                      handleHideCandidate(selectedCandidate.id);
-                                    }}
-                                  >
-                                    Add to Job
-                                  </FxButton>
-                                </div>
                               </div>
                             </div>
                             <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[12px]">
@@ -4102,8 +4087,46 @@ function AddCandidatesDrawer({
           </div>
         </SheetBody>
         <SheetFooter
-          left={null}
-          right={<FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</FxButton>}
+          left={(
+            <FxButton variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Close
+            </FxButton>
+          )}
+          right={(
+            <>
+              <FxButton
+                type="button"
+                variant="destructiveOutline"
+                size="sm"
+                disabled={!selectedCandidate}
+                onClick={() => {
+                  if (!selectedCandidate) {
+                    return;
+                  }
+
+                  handleHideCandidate(selectedCandidate.id);
+                }}
+              >
+                Ignore
+              </FxButton>
+              <FxButton
+                type="button"
+                size="sm"
+                className="min-w-[116px]"
+                disabled={!selectedCandidate}
+                onClick={() => {
+                  if (!selectedCandidate) {
+                    return;
+                  }
+
+                  onPickExistingCandidate(selectedCandidate);
+                  handleHideCandidate(selectedCandidate.id);
+                }}
+              >
+                Add to Job
+              </FxButton>
+            </>
+          )}
         />
       </SheetContent>
     </Sheet>
@@ -6368,57 +6391,38 @@ export default function JobDetailsPage({ params }) {
         </button>
       </div>
     ),
-    matchScore: (
-      <div className="inline-flex items-center justify-center gap-[8px]">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => {
-                const screeningType = getPreScreeningType(candidate);
-
-                if (activeStage === "unscreened") {
-                  if (screeningType.key === "manual") {
-                    handleOpenManualScreening(candidate);
-                    return;
-                  }
-
-                  handleOpenEmailScreening([candidate]);
-                  return;
-                }
-
-                handleOpenPreScreenResult(candidate);
-              }}
-              className="inline-flex size-[24px] items-center justify-center rounded-full text-[var(--fx-primary)] transition-colors hover:bg-[var(--fx-surface-hover)]"
-              aria-label={`Open ${getPreScreeningTableLabel(candidate, activeStage)}`}
-            >
-              {React.createElement(getPreScreeningIcon(candidate), { className: "size-[14px]" })}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8}>
-            {getPreScreeningTableLabel(candidate, activeStage)}
-          </TooltipContent>
-        </Tooltip>
-        <button
-          type="button"
-          onClick={() => {
-            if (activeStage === "screened") {
-              if (getPreScreeningFilterKey(candidate) === "manual") {
+    matchScore: activeStage === "unscreened" ? (
+      <button
+        type="button"
+        onClick={() => handleOpenCvMatchBreakdown(candidate)}
+        className="inline-flex min-w-[64px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-medium text-[var(--fx-text)] transition-colors hover:text-[var(--fx-primary)]"
+      >
+        {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
+      </button>
+    ) : (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => {
+              if (activeStage === "screened" && getPreScreeningFilterKey(candidate) === "manual") {
                 handleOpenPreScreenResult(candidate, "details");
                 return;
               }
 
-              handleOpenCvMatchBreakdown(candidate);
-              return;
-            }
-
-            handleOpenCvMatchBreakdown(candidate);
-          }}
-          className="inline-flex min-w-[64px] items-center justify-center rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[14px] leading-[22px] font-medium text-[var(--fx-text)] transition-colors hover:bg-[color-mix(in_srgb,var(--fx-primary)_16%,var(--fx-surface-selected)_84%)]"
-        >
-          {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
-        </button>
-      </div>
+              handleOpenPreScreenResult(candidate);
+            }}
+            className="inline-flex min-w-[92px] items-center justify-center gap-[8px] px-[4px] py-0 text-[14px] leading-[22px] font-medium text-[var(--fx-text)] transition-colors hover:text-[var(--fx-primary)]"
+            aria-label={`Open ${getPreScreeningTableLabel(candidate, activeStage)}`}
+          >
+            {React.createElement(getPreScreeningIcon(candidate), { className: "size-[14px] shrink-0 text-[var(--fx-primary)]" })}
+            <span>{candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={8}>
+          {getPreScreeningTableLabel(candidate, activeStage)}
+        </TooltipContent>
+      </Tooltip>
     ),
     experience: (
       <span className="inline-flex min-w-[64px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-normal text-[var(--fx-text)]">

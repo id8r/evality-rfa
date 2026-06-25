@@ -84,7 +84,7 @@ function normalizeHistoricJob(item, key) {
 
   if (typeof item === "string") {
     const title = item.trim();
-    return title ? { key, title, meta: [] } : null;
+    return title ? { key, title, meta: [], status: "", dateLabel: "" } : null;
   }
 
   const title = formatText(
@@ -101,28 +101,17 @@ function normalizeHistoricJob(item, key) {
     return null;
   }
 
-  const meta = [
-    item.appliedAt ?? item.appliedDate ?? item.createdAt ?? item.updatedAt,
-    item.status ?? item.screeningOutcome ?? item.clientStatus,
-  ]
-    .map((value) => {
-      if (!value) {
-        return "";
-      }
-
-      if (value instanceof Date) {
-        return formatDateValue(value);
-      }
-
-      return String(value).trim();
-    })
-    .filter(Boolean);
+  const appliedAt = item.appliedAt ?? item.appliedDate ?? item.createdAt ?? item.updatedAt ?? null;
+  const status = formatText(item.status ?? item.screeningOutcome ?? item.clientStatus);
+  const dateLabel = appliedAt ? formatDateValue(appliedAt) : "";
 
   return {
     key,
     title,
-    meta,
-    timestamp: item.appliedAt ?? item.appliedDate ?? item.createdAt ?? item.updatedAt ?? null,
+    meta: [],
+    status,
+    dateLabel,
+    timestamp: appliedAt,
   };
 }
 
@@ -535,15 +524,15 @@ export function FxCandidateCard({
       ? historicJobsApplied
       : variant !== "compact"
         ? [
-            { key: "demo-historic-1", title: "Senior Product Analyst", meta: ["Applied 12 Mar 2026"] },
-            { key: "demo-historic-2", title: "Talent Operations Specialist", meta: ["Applied 03 Feb 2026"] },
+            { key: "demo-historic-1", title: "Senior Product Analyst", status: "Rejected", dateLabel: "12 Mar 2026" },
+            { key: "demo-historic-2", title: "Talent Operations Specialist", status: "Interviewing", dateLabel: "03 Feb 2026" },
           ]
         : [];
   const showHistoricJobs = variant !== "compact" && demoHistoricJobsApplied.length > 0;
   const showDefaultFields = variant !== "compact";
 
   return (
-    <div className={cn("rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]", className)}>
+    <div className={cn("rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]", className)}>
       <div className="space-y-[12px]">
         <section className="space-y-[12px]">
           <div className="flex items-start justify-between gap-[12px]">
@@ -617,7 +606,7 @@ export function FxCandidateCard({
       </div>
 
       {showHistoricJobs ? (
-        <details className="group mt-[16px] rounded-[10px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-bg-soft)]">
+        <details className="group mt-[16px] rounded-[6px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-bg-soft)]">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-[12px] px-[12px] py-[10px] outline-none [&::-webkit-details-marker]:hidden">
             <span className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
               Historic Jobs Applied
@@ -629,10 +618,22 @@ export function FxCandidateCard({
             <div className="space-y-[8px]">
               {demoHistoricJobsApplied.map((item) => (
                 <div key={item.key} className="rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)] px-[10px] py-[8px]">
-                  <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{item.title}</p>
-                  {item.meta.length ? (
-                    <p className="mt-[2px] text-[12px] leading-[18px] text-[var(--fx-text-muted)]">{item.meta.join(" • ")}</p>
-                  ) : null}
+                  <div className="flex items-start justify-between gap-[12px]">
+                    <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{item.title}</p>
+                    {item.status ? (
+                      <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">{item.status}</p>
+                    ) : null}
+                  </div>
+                  <div className="mt-[2px] flex items-center justify-between gap-[12px]">
+                    {item.dateLabel ? (
+                      <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">{item.dateLabel}</p>
+                    ) : (
+                      <span />
+                    )}
+                    {item.dateLabel ? (
+                      <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">As of {item.dateLabel}</p>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>
