@@ -1071,7 +1071,8 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }
   const [draftToTime, setDraftToTime] = useState("15:00");
   const [draftNotes, setDraftNotes] = useState("");
   const [appliedSlot, setAppliedSlot] = useState(null);
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
+  const salaryCurrency = job?.currency || candidate?.jobCurrency || "INR";
   const resumePreview = useMemo(() => (candidate ? buildResumePreview(candidate, job, { includeFooter: false }) : ""), [candidate, job]);
   const screeningQuestions = useMemo(() => getJobScreeningQuestions(job), [job]);
   const screeningAnswers = Array.isArray(candidate?.screeningAnswers) ? candidate.screeningAnswers : [];
@@ -1134,7 +1135,7 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }
     setDraftToTime("15:00");
     setDraftNotes("");
     setAppliedSlot(null);
-    setWeekOffset(0);
+    setMonthOffset(0);
   }, [candidate?.id, open]);
 
   const formatDateLabel = (date) => {
@@ -1171,40 +1172,33 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }
     return value;
   }, []);
 
-  const getStartOfWeek = useCallback((date) => {
-    const nextDate = new Date(date);
-    const day = nextDate.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    nextDate.setDate(nextDate.getDate() + diff);
-    nextDate.setHours(0, 0, 0, 0);
-    return nextDate;
-  }, []);
+  const monthStart = useMemo(() => {
+    const base = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+    base.setHours(0, 0, 0, 0);
+    return base;
+  }, [monthOffset, today]);
 
-  const weekStart = useMemo(() => {
-    const baseStart = getStartOfWeek(today);
-    const nextStart = new Date(baseStart);
-    nextStart.setDate(baseStart.getDate() + (weekOffset * 7));
-    return nextStart;
-  }, [getStartOfWeek, today, weekOffset]);
-
-  const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, index) => {
-      const nextDate = new Date(weekStart);
-      nextDate.setDate(weekStart.getDate() + index);
-      return nextDate;
-    }),
-    [weekStart],
+  const monthLabel = useMemo(
+    () => monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" }),
+    [monthStart],
   );
 
-  const formatWeekLabel = useCallback((days) => {
-    if (!days.length) {
-      return "This Week";
-    }
+  const monthDays = useMemo(() => {
+    const start = new Date(monthStart);
+    const startDay = start.getDay();
+    const gridStart = new Date(start);
+    gridStart.setDate(start.getDate() - startDay);
+    gridStart.setHours(0, 0, 0, 0);
 
-    const first = days[0];
-    const last = days[days.length - 1];
-    return `${first.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} - ${last.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`;
-  }, []);
+    return Array.from({ length: 42 }, (_, index) => {
+      const nextDate = new Date(gridStart);
+      nextDate.setDate(gridStart.getDate() + index);
+      nextDate.setHours(0, 0, 0, 0);
+      return nextDate;
+    });
+  }, [monthStart]);
+
+  const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const getSlotDateKey = useCallback((date) => {
     if (!(date instanceof Date)) {
@@ -1213,6 +1207,51 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }
 
     return date.toISOString().slice(0, 10);
   }, []);
+
+  const previewCalendarEvents = useMemo(() => {
+    const baseEvents = [
+      { date: new Date(monthStart.getFullYear(), monthStart.getMonth(), 5), title: "Hiring Manager", fromTime: "11:00", toTime: "11:30" },
+      { date: new Date(monthStart.getFullYear(), monthStart.getMonth(), 12), title: "Panel Round", fromTime: "15:00", toTime: "16:00" },
+      { date: new Date(monthStart.getFullYear(), monthStart.getMonth(), 12), title: "Culture Round", fromTime: "17:00", toTime: "17:30" },
+      { date: new Date(monthStart.getFullYear(), monthStart.getMonth(), 18), title: "Founder Sync", fromTime: "10:00", toTime: "10:30" },
+      { date: new Date(monthStart.getFullYear(), monthStart.getMonth(), 18), title: "Tech Debrief", fromTime: "12:00", toTime: "12:45" },
+      { date: new Date(monthStart.getFullYear(), monthStart.getMonth(), 18), title: "Client Review", fromTime: "16:00", toTime: "16:30" },
+      { date: new Date(monthStart.getFullYear(), monthStart.getMonth(), 18), title: "Wrap Up", fromTime: "18:00", toTime: "18:15" },
+    ]
+      .filter((item) => item.date.getMonth() === monthStart.getMonth())
+      .map((item, index) => ({
+        ...item,
+        key: `preview-${index}`,
+      }));
+
+    if (!appliedSlot?.date) {
+      return baseEvents;
+    }
+
+    return [
+      ...baseEvents,
+      {
+        key: "applied-slot",
+        date: appliedSlot.date,
+        title: job?.title || candidate?.jobTitle || "Interview",
+        fromTime: appliedSlot.fromTime,
+        toTime: appliedSlot.toTime,
+      },
+    ];
+  }, [appliedSlot, candidate?.jobTitle, job?.title, monthStart]);
+
+  const eventsByDateKey = useMemo(() => {
+    const nextMap = new Map();
+
+    previewCalendarEvents.forEach((item) => {
+      const key = getSlotDateKey(item.date);
+      const current = nextMap.get(key) ?? [];
+      current.push(item);
+      nextMap.set(key, current);
+    });
+
+    return nextMap;
+  }, [getSlotDateKey, previewCalendarEvents]);
 
   const handleApplySchedule = useCallback(() => {
     if (!selectedDate) {
@@ -1255,7 +1294,13 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }
             <div className={cn("grid h-full min-h-0", showResumePane ? "grid-cols-[minmax(0,1.15fr)_24px_minmax(0,1fr)]" : "grid-cols-1")}>
               {showResumePane ? (
                 <>
-                  <div className="grid min-h-0 gap-[12px] xl:grid-rows-[minmax(0,1fr)_auto]">
+                  <div className="grid min-h-0 gap-[12px] xl:grid-rows-[auto_minmax(0,1fr)_auto]">
+                    <FxCandidateCard
+                      candidate={candidate}
+                      variant="default"
+                      layout="vertical"
+                      currency={salaryCurrency}
+                    />
                     <ResumePanelShell className="rounded-[8px]">
                       <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
                         {resumePreview}
@@ -1302,68 +1347,62 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }
               ) : null}
 
               <div className="flex min-h-0 flex-col gap-[16px]">
-                  <div className={`shrink-0 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                    <div className="flex items-start justify-between gap-[16px]">
-                      <div className="space-y-[4px]">
-                        <p className={FX_TYPOGRAPHY.cardTitle}>Candidate Summary</p>
-                        <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
-                          Candidate and interviewer will receive calendar notifications once scheduled.
-                        </p>
-                      </div>
-                      <span className={cn("shrink-0 rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[13px] leading-[18px] font-medium", getMatchScoreToneClass(candidate.matchScore))}>
-                        {candidate.matchScore != null ? `${candidate.matchScore}% Fit Score` : "Fit Score —"}
-                      </span>
-                    </div>
-                    <div className="mt-[14px] grid gap-[16px] md:grid-cols-2">
-                      <MetaField label="Name" value={candidate.name || "—"} />
-                      <MetaField label="Email" value={candidate.email || "—"} />
-                      <MetaField label="Phone" value={candidate.phone || "—"} />
-                      <MetaField label="Experience" value={candidate.experience != null ? `${candidate.experience}y` : "—"} />
-                    </div>
-                  </div>
-
                   <div className={`flex min-h-0 flex-1 flex-col rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
                     <div className="shrink-0">
-                      <div className="flex items-center justify-between gap-[12px]">
+                      <div className="space-y-[10px]">
                         <div>
                           <p className={FX_TYPOGRAPHY.cardTitle}>Select Interview Date</p>
-                          <p className="mt-[2px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Choose a day tile and save the interview slot from its popover.</p>
+                          <p className="mt-[2px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">Pick a day and set the interview time.</p>
                         </div>
-                        <div className="flex items-center gap-[8px]">
-                          <button
-                            type="button"
-                            className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
-                            onClick={() => setWeekOffset((current) => current - 1)}
-                            aria-label="Previous week"
-                          >
-                            <ArrowLeft className="size-[16px]" />
-                          </button>
-                          <span className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{formatWeekLabel(weekDays)}</span>
-                          <button
-                            type="button"
-                            className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]"
-                            onClick={() => setWeekOffset((current) => current + 1)}
-                            aria-label="Next week"
-                          >
-                            <ArrowRight className="size-[16px]" />
-                          </button>
+                        <div className="flex items-center justify-between gap-[12px]">
+                          <div className="inline-flex items-center gap-[8px] rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-bg-soft)] px-[8px] py-[6px]">
+                            <button
+                              type="button"
+                              className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface)] hover:text-[var(--fx-text)]"
+                              onClick={() => setMonthOffset((current) => current - 1)}
+                              aria-label="Previous month"
+                            >
+                              <ArrowLeft className="size-[16px]" />
+                            </button>
+                            <span className="min-w-[140px] text-center text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{monthLabel}</span>
+                            <button
+                              type="button"
+                              className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[6px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface)] hover:text-[var(--fx-text)]"
+                              onClick={() => setMonthOffset((current) => current + 1)}
+                              aria-label="Next month"
+                            >
+                              <ArrowRight className="size-[16px]" />
+                            </button>
+                          </div>
+                          <div className="inline-flex items-center gap-[8px] text-[12px] leading-[18px] text-[var(--fx-text-muted)]">
+                            <CalendarDays className="size-[14px]" />
+                            Dots show scheduled interviews
+                          </div>
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-[14px] flex min-h-0 flex-1 flex-col">
-                      <div className="grid grid-cols-7 gap-[10px] content-start">
-                        {weekDays.map((day) => {
+                      <div className="grid grid-cols-7 gap-[8px] pb-[8px]">
+                        {weekdayLabels.map((label) => (
+                          <div key={label} className="px-[6px] py-[4px] text-center text-[11px] leading-[16px] font-medium uppercase tracking-[0.04em] text-[var(--fx-text-muted)]">
+                            {label}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-7 gap-[8px] content-start">
+                        {monthDays.map((day) => {
                           const dayKey = getSlotDateKey(day);
                           const isSelected = Boolean(selectedDate && day.toDateString() === selectedDate.toDateString());
-                          const slotMatches = Boolean(appliedSlot && getSlotDateKey(appliedSlot.date) === dayKey);
-                          const slotStripLabel = slotMatches
-                            ? (job?.title || candidate?.jobTitle || "Interview")
-                            : "";
+                          const isCurrentMonth = day.getMonth() === monthStart.getMonth();
+                          const dayEvents = eventsByDateKey.get(dayKey) ?? [];
+                          const visibleDots = dayEvents.slice(0, 3);
+                          const hiddenCount = Math.max(0, dayEvents.length - visibleDots.length);
 
                           return (
                             <Popover
                               key={dayKey}
+                              modal
                               open={activePopoverDateKey === dayKey}
                               onOpenChange={(nextOpen) => {
                                 setActivePopoverDateKey(nextOpen ? dayKey : null);
@@ -1377,7 +1416,8 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }
                                   type="button"
                                   onClick={() => {
                                     setSelectedDate(day);
-                                    if (slotMatches) {
+                                    const primaryEvent = dayEvents[dayEvents.length - 1] ?? null;
+                                    if (primaryEvent?.key === "applied-slot" && appliedSlot) {
                                       setDraftFromTime(appliedSlot.fromTime);
                                       setDraftToTime(appliedSlot.toTime);
                                       setDraftNotes(appliedSlot.notes || "");
@@ -1389,39 +1429,64 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }
                                     setActivePopoverDateKey(dayKey);
                                   }}
                                   className={cn(
-                                    "flex aspect-square w-full min-h-0 flex-col justify-between rounded-[10px] border p-[10px] text-left transition-colors",
+                                    "flex min-h-[92px] w-full flex-col justify-between rounded-[10px] border p-[8px] text-left transition-colors",
                                     isSelected
                                       ? "border-[color:color-mix(in_srgb,var(--fx-primary)_42%,var(--fx-border)_58%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_10%,var(--fx-surface)_90%)]"
                                       : `border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]`,
+                                    isCurrentMonth ? "text-[var(--fx-text)]" : "text-[var(--fx-text-disabled)]",
                                   )}
                                 >
                                   <div className="space-y-[2px]">
-                                    <p className="text-[12px] leading-[16px] font-medium text-[var(--fx-text-muted)]">
-                                      {day.toLocaleDateString("en-GB", { weekday: "short" })}
-                                    </p>
-                                    <p className="text-[24px] leading-[28px] font-semibold text-[var(--fx-text)]">
-                                      {day.toLocaleDateString("en-GB", { day: "2-digit" })}
+                                    <p className={cn("text-[18px] leading-[22px] font-semibold", isCurrentMonth ? "text-[var(--fx-text)]" : "text-[var(--fx-text-disabled)]")}>
+                                      {day.getDate()}
                                     </p>
                                   </div>
-                                  <div className="min-h-[36px] space-y-[4px]">
-                                    {slotMatches ? (
-                                      <>
-                                        <div className="truncate rounded-[6px] bg-[var(--fx-primary)] px-[8px] py-[4px] text-[11px] leading-[14px] font-medium text-[var(--fx-primary-foreground)]">
-                                          {slotStripLabel}
-                                        </div>
-                                        <p className="truncate text-[11px] leading-[14px] text-[var(--fx-text-muted)]">
-                                          {formatDisplayTime(appliedSlot.fromTime)} - {formatDisplayTime(appliedSlot.toTime)}
-                                        </p>
-                                      </>
-                                    ) : (
-                                      <span className="text-[11px] leading-[14px] text-[var(--fx-text-disabled)]">No interviews</span>
-                                    )}
+                                  <div className="min-h-[24px] space-y-[4px]">
+                                    <div className="flex flex-wrap items-end gap-[4px]">
+                                      {visibleDots.map((item) => (
+                                        <span
+                                          key={item.key}
+                                          className="inline-flex h-[6px] w-[6px] rounded-full bg-[var(--fx-primary)]"
+                                        />
+                                      ))}
+                                      {hiddenCount ? (
+                                        <span className="text-[10px] leading-[14px] font-medium text-[var(--fx-text-muted)]">+{hiddenCount} more</span>
+                                      ) : null}
+                                    </div>
                                   </div>
                                 </button>
                               </PopoverTrigger>
-                              <PopoverContent align="start" className="w-[280px] p-[16px]">
+                              <PopoverContent
+                                align="start"
+                                className="w-[280px] p-[16px]"
+                                onOpenAutoFocus={(event) => event.preventDefault()}
+                                onCloseAutoFocus={(event) => event.preventDefault()}
+                                onInteractOutside={(event) => event.preventDefault()}
+                                onEscapeKeyDown={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setActivePopoverDateKey(null);
+                                  setSelectedDate(null);
+                                }}
+                              >
                                 <div className="space-y-[14px]">
-                                  <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">Schedule Interview</p>
+                                  <div className="space-y-[6px]">
+                                    <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">Schedule Interview</p>
+                                    {dayEvents.length ? (
+                                      <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] p-[10px]`}>
+                                        <div className="space-y-[6px]">
+                                          {dayEvents.map((item) => (
+                                            <div key={item.key} className="flex items-center justify-between gap-[12px]">
+                                              <p className="truncate text-[12px] leading-[18px] font-medium text-[var(--fx-text)]">{item.title}</p>
+                                              <p className="shrink-0 text-[12px] leading-[18px] text-[var(--fx-text-muted)]">
+                                                {formatDisplayTime(item.fromTime)} - {formatDisplayTime(item.toTime)}
+                                              </p>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
 
                                   <div className="space-y-[6px]">
                                     <p className="text-[13px] leading-[18px] font-medium text-[var(--fx-text-muted)]">Date</p>
@@ -2332,7 +2397,7 @@ function PreScreenResultSheet({
       setActiveStep(allowedStepKeys.has(initialStep) ? initialStep : "details");
       setActiveRecordingMarker("Q1");
     }
-  }, [RESULT_STEPS, candidate?.id, initialStep, isManualScreening, open]);
+  }, [candidate?.id, initialStep, isManualScreening, open]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
