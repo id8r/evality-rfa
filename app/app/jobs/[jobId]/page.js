@@ -644,6 +644,23 @@ function getMatchScoreToneClass(score) {
 }
 /* - - - - - - - - - - - - - - - - */
 
+function getMatchScoreFillClass(score) {
+  if (score == null || Number.isNaN(Number(score))) {
+    return "bg-[var(--fx-surface-hover)]";
+  }
+
+  if (Number(score) >= 80) {
+    return "bg-[color:color-mix(in_srgb,var(--fx-success)_16%,white_84%)]";
+  }
+
+  if (Number(score) >= 60) {
+    return "bg-[color:color-mix(in_srgb,var(--fx-warning)_18%,white_82%)]";
+  }
+
+  return "bg-[color:color-mix(in_srgb,var(--fx-danger)_14%,white_86%)]";
+}
+/* - - - - - - - - - - - - - - - - */
+
 function getPreScreeningType(candidate) {
   const mode = String(candidate?.jobContext?.screeningModeOverride ?? "").trim().toLowerCase();
   const hasEmailScreening = Boolean(candidate?.jobContext?.emailScreeningStartedAt || candidate?.jobContext?.emailScreeningMessage);
@@ -3911,7 +3928,7 @@ function AddCandidatesDrawer({
                   }}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={handleDrop}
-                  className={`flex min-h-0 flex-1 cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed px-[20px] py-[24px] text-center transition-colors ${
+                  className={`mx-auto flex w-full max-w-[420px] min-h-[280px] cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed px-[24px] py-[28px] text-center transition-colors ${
                     isDragging
                       ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
                       : "border-[var(--fx-border)] bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]"
@@ -3932,19 +3949,9 @@ function AddCandidatesDrawer({
                     >
                       Upload
                     </FxButton>
-                    <FxButton
-                      variant="outline"
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        fileInputRef.current?.click();
-                      }}
-                    >
-                      Browse
-                    </FxButton>
                   </div>
                   <p className="mt-[12px] text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-                    Bulk or single resume.
+                    Drag and drop is supported in the final flow.
                   </p>
                   <input
                     ref={fileInputRef}
@@ -6395,7 +6402,11 @@ export default function JobDetailsPage({ params }) {
       <button
         type="button"
         onClick={() => handleOpenCvMatchBreakdown(candidate)}
-        className="inline-flex min-w-[64px] items-center justify-center px-[4px] py-0 text-[14px] leading-[22px] font-medium text-[var(--fx-text)] transition-colors hover:text-[var(--fx-primary)]"
+        className={cn(
+          "inline-flex h-[28px] min-w-[68px] items-center justify-center rounded-[4px] px-[10px] text-[13px] leading-[18px] font-medium whitespace-nowrap transition-colors hover:opacity-90",
+          getMatchScoreFillClass(candidate.matchScore),
+          getMatchScoreToneClass(candidate.matchScore),
+        )}
       >
         {candidate.matchScore != null ? `${candidate.matchScore}%` : "—"}
       </button>
@@ -6412,7 +6423,10 @@ export default function JobDetailsPage({ params }) {
 
               handleOpenPreScreenResult(candidate);
             }}
-            className="inline-flex min-w-[92px] items-center justify-center gap-[8px] px-[4px] py-0 text-[14px] leading-[22px] font-medium text-[var(--fx-text)] transition-colors hover:text-[var(--fx-primary)]"
+            className={cn(
+              "inline-flex h-[28px] min-w-[98px] items-center justify-center gap-[8px] rounded-[4px] px-[10px] text-[13px] leading-[18px] font-medium whitespace-nowrap text-[var(--fx-primary)] transition-colors hover:opacity-90",
+              getMatchScoreFillClass(candidate.matchScore),
+            )}
             aria-label={`Open ${getPreScreeningTableLabel(candidate, activeStage)}`}
           >
             {React.createElement(getPreScreeningIcon(candidate), { className: "size-[14px] shrink-0 text-[var(--fx-primary)]" })}

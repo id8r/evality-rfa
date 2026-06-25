@@ -453,7 +453,7 @@ export function FxTable({
                         ...(stickyPosition === "right" ? { right: `${stickyOffset}px` } : {}),
                       }}
                     >
-                      <div className={cn("min-w-0 truncate", TABLE_TYPOGRAPHY.cell, isPrimaryTextColumn(column) ? TABLE_TYPOGRAPHY.primary : "", bodyTextClassName)}>
+                      <div className={cn("min-w-0", TABLE_TYPOGRAPHY.cell, isPrimaryTextColumn(column) ? TABLE_TYPOGRAPHY.primary : "", bodyTextClassName)}>
                         {row[column.key]}
                       </div>
                     </td>

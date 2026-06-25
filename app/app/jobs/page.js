@@ -2287,9 +2287,14 @@ function formatDisplayLabel(value) {
   ];
 
   function renderPipelineCell(value, label, href) {
+    const isClickable = Boolean(href);
     const content = (
       <span
-        className={`inline-flex min-w-[56px] items-center justify-center rounded-[8px] px-[8px] py-[4px] text-center ${FX_TYPOGRAPHY.tableCell} text-[var(--fx-text)]`}
+        className={cn(
+          `inline-flex min-w-[56px] items-center justify-center rounded-[8px] px-[8px] py-[4px] text-center`,
+          isClickable ? FX_TYPOGRAPHY.clickableData : FX_TYPOGRAPHY.tableCell,
+          isClickable ? "text-[var(--fx-primary)]" : "text-[var(--fx-text)]",
+        )}
       >
         {value}
       </span>
@@ -2299,7 +2304,7 @@ function formatDisplayLabel(value) {
       return (
         <Link
           href={href}
-          className="inline-flex w-full items-center justify-center rounded-[8px] text-[var(--fx-text)] hover:bg-[var(--fx-bg-soft)] hover:text-[var(--fx-text)]"
+          className="inline-flex w-full items-center justify-center rounded-[8px] text-[var(--fx-primary)] hover:bg-[var(--fx-bg-soft)] hover:text-[color-mix(in_srgb,var(--fx-primary)_82%,black_18%)]"
           title={`Open ${label} candidates`}
         >
           {content}
