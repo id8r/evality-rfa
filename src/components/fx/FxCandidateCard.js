@@ -3,7 +3,7 @@
 "use client";
 
 import { Check, ChevronDown, PencilLine, X } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { formatCurrencyValue } from "@/lib/FxJobSchema";
 import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
@@ -232,6 +232,18 @@ function EditableFieldRow({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftValue, setDraftValue] = useState(String(editValue ?? ""));
+  const inputRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      inputRef.current?.focus?.();
+      inputRef.current?.select?.();
+    });
+  }, [isEditing]);
 
   function handleStartEdit() {
     if (!canEdit) {
@@ -282,6 +294,7 @@ function EditableFieldRow({
       {showEditor ? (
         <div className={cn("flex items-center gap-[6px]", justifyClassName)}>
           <input
+            ref={inputRef}
             type={inputType}
             inputMode={inputMode}
             value={draftValue}
@@ -345,6 +358,18 @@ function EditableContactRow({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftValue, setDraftValue] = useState(String(editValue ?? ""));
+  const inputRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      inputRef.current?.focus?.();
+      inputRef.current?.select?.();
+    });
+  }, [isEditing]);
 
   function handleStartEdit() {
     if (!canEdit) {
@@ -376,7 +401,10 @@ function EditableContactRow({
   const buttonClassName = "inline-flex size-[20px] shrink-0 items-center justify-center rounded-[5px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]";
 
   return (
-    <div className={cn("flex min-h-[28px] items-center gap-[6px]", rowJustifyClassName)}>
+    <div
+      className={cn("flex min-h-[28px] items-center gap-[6px]", rowJustifyClassName)}
+      data-fx-escape-cancel-sheet={showEditor ? "true" : undefined}
+    >
       {isEditable && !isEditing ? (
         <button
           type="button"
@@ -391,6 +419,7 @@ function EditableContactRow({
       {showEditor ? (
         <>
           <input
+            ref={inputRef}
             type={inputType}
             inputMode={inputMode}
             value={draftValue}
@@ -501,21 +530,21 @@ export function FxCandidateCard({
   const canEditPhone = Boolean(onUpdateField) && editableFields.phone !== false;
   const canEditCurrentCTC = Boolean(onUpdateField) && editableFields.currentCTC !== false;
   const canEditExpectedCTC = Boolean(onUpdateField) && editableFields.expectedCTC !== false;
-  const showHistoricJobs = variant === "detailed" && historicJobsApplied.length > 0;
+  const demoHistoricJobsApplied =
+    historicJobsApplied.length > 0
+      ? historicJobsApplied
+      : variant !== "compact"
+        ? [
+            { key: "demo-historic-1", title: "Senior Product Analyst", meta: ["Applied 12 Mar 2026"] },
+            { key: "demo-historic-2", title: "Talent Operations Specialist", meta: ["Applied 03 Feb 2026"] },
+          ]
+        : [];
+  const showHistoricJobs = variant !== "compact" && demoHistoricJobsApplied.length > 0;
   const showDefaultFields = variant !== "compact";
-  const showDetailedFields = variant === "detailed";
-  const summaryGridClassName = "grid gap-[8px] sm:grid-cols-2";
 
   return (
     <div className={cn("rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]", className)}>
-      <div
-        className={cn(
-          "gap-[16px]",
-          layout === "horizontal" && (showDefaultFields || showHistoricJobs)
-            ? "grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]"
-            : "space-y-[16px]",
-        )}
-      >
+      <div className="space-y-[12px]">
         <section className="space-y-[12px]">
           <div className="flex items-start justify-between gap-[12px]">
             <div className="min-w-0 space-y-[2px]">
@@ -527,7 +556,7 @@ export function FxCandidateCard({
             </div>
           </div>
 
-          <div className={summaryGridClassName}>
+          <div className="grid gap-[8px] sm:grid-cols-2">
             <EditableContactRow
               label="Email"
               value={displayEmail}
@@ -551,35 +580,37 @@ export function FxCandidateCard({
         </section>
 
         {showDefaultFields ? (
-          <section className="space-y-[8px]">
-            <div className="grid gap-[8px] sm:grid-cols-2">
-              <FieldRow label="Current Job Applied For" value={currentJobAppliedFor} />
-              {showDetailedFields ? (
-                <>
-                  <FieldRow label="CV Added Date" value={cvAddedDate} />
-                  <EditableFieldRow
-                    label="Current CTC"
-                    value={currentCTC}
-                    editValue={resolvedCandidate.currentSalary ?? resolvedCandidate.currentCTC ?? resolvedCandidate.currentCtc ?? ""}
-                    canEdit={canEditCurrentCTC}
-                    onSave={(nextValue) => onUpdateField?.("currentSalary", nextValue)}
-                    inputType="text"
-                    inputMode="numeric"
-                    align="right"
-                  />
-                  <EditableFieldRow
-                    label="Expected CTC"
-                    value={expectedCTC}
-                    editValue={resolvedCandidate.expectedSalary ?? resolvedCandidate.expectedCTC ?? resolvedCandidate.expectedCtc ?? ""}
-                    canEdit={canEditExpectedCTC}
-                    onSave={(nextValue) => onUpdateField?.("expectedSalary", nextValue)}
-                    inputType="text"
-                    inputMode="numeric"
-                    align="right"
-                  />
-                  <FieldRow label="Notice Period" value={noticePeriod} />
-                </>
-              ) : null}
+          <section className="space-y-[10px]">
+            <div className="grid gap-[12px] lg:grid-cols-[minmax(0,1.55fr)_minmax(220px,0.95fr)]">
+              <div className="grid gap-[8px] sm:grid-cols-3">
+                <div className="sm:col-span-3">
+                  <FieldRow label="Current Job Applied For" value={currentJobAppliedFor} />
+                </div>
+                <EditableFieldRow
+                  label="Current CTC"
+                  value={currentCTC}
+                  editValue={resolvedCandidate.currentSalary ?? resolvedCandidate.currentCTC ?? resolvedCandidate.currentCtc ?? ""}
+                  canEdit={canEditCurrentCTC}
+                  onSave={(nextValue) => onUpdateField?.("currentSalary", nextValue)}
+                  inputType="text"
+                  inputMode="numeric"
+                />
+                <EditableFieldRow
+                  label="Expected CTC"
+                  value={expectedCTC}
+                  editValue={resolvedCandidate.expectedSalary ?? resolvedCandidate.expectedCTC ?? resolvedCandidate.expectedCtc ?? ""}
+                  canEdit={canEditExpectedCTC}
+                  onSave={(nextValue) => onUpdateField?.("expectedSalary", nextValue)}
+                  inputType="text"
+                  inputMode="numeric"
+                  align="right"
+                />
+              </div>
+
+              <div className="grid gap-[8px] text-right">
+                <FieldRow label="Notice Period" value={noticePeriod} />
+                <FieldRow label="CV Added Date" value={cvAddedDate} />
+              </div>
             </div>
           </section>
         ) : null}
@@ -590,13 +621,13 @@ export function FxCandidateCard({
           <summary className="flex cursor-pointer list-none items-center justify-between gap-[12px] px-[12px] py-[10px] outline-none [&::-webkit-details-marker]:hidden">
             <span className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
               Historic Jobs Applied
-              <span className="ml-[6px] text-[var(--fx-text-muted)]">({historicJobsApplied.length})</span>
+              <span className="ml-[6px] text-[var(--fx-text-muted)]">({demoHistoricJobsApplied.length})</span>
             </span>
             <ChevronDown className="size-[14px] shrink-0 text-[var(--fx-text-muted)] transition-transform duration-200 group-open:rotate-180" />
           </summary>
           <div className="border-t border-[color:color-mix(in_srgb,var(--fx-border)_56%,transparent)] px-[12px] py-[12px]">
             <div className="space-y-[8px]">
-              {historicJobsApplied.map((item) => (
+              {demoHistoricJobsApplied.map((item) => (
                 <div key={item.key} className="rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)] px-[10px] py-[8px]">
                   <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{item.title}</p>
                   {item.meta.length ? (

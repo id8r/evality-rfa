@@ -2212,7 +2212,12 @@ function formatDisplayLabel(value) {
     },
     {
       key: "unscreenedCount",
-      label: <span className={fieldHeaderLabelClassName()}>Unscreened</span>,
+      label: (
+        <button type="button" className={getSortHeaderButtonClassName("unscreenedCount")} onClick={() => handleSort("unscreenedCount")}>
+          <span>Unscreened</span>
+          <ArrowUpDown className="size-[14px]" />
+        </button>
+      ),
       width: 104,
       minWidth: 96,
       maxWidth: 112,
@@ -2220,7 +2225,12 @@ function formatDisplayLabel(value) {
     },
     {
       key: "screenedCount",
-      label: <span className={fieldHeaderLabelClassName()}>Screened</span>,
+      label: (
+        <button type="button" className={getSortHeaderButtonClassName("screenedCount")} onClick={() => handleSort("screenedCount")}>
+          <span>Screened</span>
+          <ArrowUpDown className="size-[14px]" />
+        </button>
+      ),
       width: 96,
       minWidth: 88,
       maxWidth: 104,
@@ -2228,7 +2238,12 @@ function formatDisplayLabel(value) {
     },
     {
       key: "shortlistedCount",
-      label: <span className={fieldHeaderLabelClassName()}>Shortlisted</span>,
+      label: (
+        <button type="button" className={getSortHeaderButtonClassName("shortlistedCount")} onClick={() => handleSort("shortlistedCount")}>
+          <span>Shortlisted</span>
+          <ArrowUpDown className="size-[14px]" />
+        </button>
+      ),
       width: 112,
       minWidth: 104,
       maxWidth: 120,
@@ -2236,7 +2251,12 @@ function formatDisplayLabel(value) {
     },
     {
       key: "sharedCount",
-      label: <span className={fieldHeaderLabelClassName()}>Shared</span>,
+      label: (
+        <button type="button" className={getSortHeaderButtonClassName("sharedCount")} onClick={() => handleSort("sharedCount")}>
+          <span>Shared</span>
+          <ArrowUpDown className="size-[14px]" />
+        </button>
+      ),
       width: 88,
       minWidth: 80,
       maxWidth: 96,

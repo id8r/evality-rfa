@@ -23,6 +23,10 @@ const variantClasses = {
 
   // Destructive action button
   destructive: "bg-[var(--fx-danger)] text-white hover:opacity-90",
+
+  // Outlined destructive action button
+  destructiveOutline:
+    "border border-[var(--fx-danger)] bg-transparent text-[var(--fx-danger)] hover:bg-[color:color-mix(in_srgb,var(--fx-danger)_10%,transparent)]",
 };
 
 const sizeClasses = {

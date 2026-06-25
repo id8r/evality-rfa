@@ -492,6 +492,19 @@ function formatAvailability(value) {
 
   return `${dayCount} day${dayCount === 1 ? "" : "s"}`;
 }
+
+function ResumePanelShell({ children, className = "" }) {
+  return (
+    <div className={cn(`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`, className)}>
+      <div className={`shrink-0 border-b ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[16px] py-[12px]`}>
+        <p className={FX_TYPOGRAPHY.button}>Resume</p>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-surface)] p-[16px]">
+        {children}
+      </div>
+    </div>
+  );
+}
 /* - - - - - - - - - - - - - - - - */
 
 function formatNoticePeriod(candidate) {
@@ -1226,11 +1239,11 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, job, onSubmit }
               {showResumePane ? (
                 <>
                   <div className="grid min-h-0 gap-[12px] xl:grid-rows-[minmax(0,1fr)_auto]">
-                    <div className={`min-h-0 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <ResumePanelShell className="rounded-[8px]">
                       <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
                         {resumePreview}
                       </pre>
-                    </div>
+                    </ResumePanelShell>
                     <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
                       <button
                         type="button"
@@ -1627,9 +1640,9 @@ function EmailScreeningSheet({
           <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
           {activeCandidate ? (
             <div className={cn("grid h-full min-h-0", showResumePane ? "grid-cols-[minmax(0,1.3fr)_24px_minmax(0,1fr)]" : "grid-cols-1")}>
-              {showResumePane ? (
-                <>
-                  <div className={cn("grid min-h-0 gap-[16px]", isBulkMode ? "grid-cols-[196px_minmax(0,1fr)]" : "grid-cols-1")}>
+                {showResumePane ? (
+                  <>
+                    <div className={cn("grid min-h-0 gap-[16px]", isBulkMode ? "grid-cols-[196px_minmax(0,1fr)]" : "grid-cols-1")}>
                     {isBulkMode ? (
                       <div className="min-h-0 overflow-auto rounded-[8px] bg-[var(--fx-bg-soft)] p-[6px]">
                         <div className="space-y-[8px]">
@@ -1665,11 +1678,11 @@ function EmailScreeningSheet({
                         </div>
                       </div>
                     ) : null}
-                    <div className={`min-h-0 flex-1 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
+                    <ResumePanelShell className="rounded-[8px]">
                       <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
                         {resumePreview}
                       </pre>
-                    </div>
+                    </ResumePanelShell>
                   </div>
                   <div className="relative flex items-stretch justify-center pt-[32px]">
                     <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
@@ -1943,17 +1956,18 @@ function ManualScreeningSheet({
               )}
             >
               {showResumePane ? (
-                <div className="flex min-h-0 flex-col">
-                  <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                    <div className={`border-b ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[16px] py-[12px]`}>
-                      <p className={FX_TYPOGRAPHY.button}>Resume</p>
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-surface)] p-[16px]">
-                      <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                        {resumePreview}
-                      </pre>
-                    </div>
-                  </div>
+                <div className="flex min-h-0 flex-col gap-[12px]">
+                  <FxCandidateCard
+                    candidate={candidate}
+                    variant="default"
+                    layout="vertical"
+                    currency={salaryCurrency}
+                  />
+                  <ResumePanelShell>
+                    <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                      {resumePreview}
+                    </pre>
+                  </ResumePanelShell>
                 </div>
               ) : null}
 
@@ -2472,9 +2486,8 @@ function PreScreenResultSheet({
               ) : null}
 
               {activeStep === "resume" ? (
-                <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                  <div className="flex items-center justify-between gap-[12px]">
-                    <p className={FX_TYPOGRAPHY.cardTitle}>Resume</p>
+                <ResumePanelShell className="rounded-[8px]">
+                  <div className="flex items-center justify-end gap-[12px]">
                     <FxButton type="button" variant="outline" size="sm" onClick={() => candidate && onDownloadResume?.(candidate)}>
                       Download Resume
                     </FxButton>
@@ -2484,7 +2497,7 @@ function PreScreenResultSheet({
                       {resumePreview}
                     </pre>
                   </div>
-                </div>
+                </ResumePanelShell>
               ) : null}
             </div>
           ) : null}
@@ -2973,8 +2986,8 @@ function SendToClientConfirmSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="lg">
         <SheetHeader title="Send to Client" />
-        <SheetBody>
-          <div className="space-y-[16px]">
+        <SheetBody className="overflow-hidden">
+          <div className="flex h-full min-h-0 flex-col gap-[12px]">
             <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
               <p className="text-[14px] leading-[22px] text-[var(--fx-text-muted)]">
                 Before sending, review the candidate details. You can either mark the candidate as already sent to the client or generate an email draft to share.
@@ -3551,7 +3564,7 @@ function CandidateWorkspaceSheet({
                 </div>
               </div>
 
-              <div className={cn("grid min-h-0 flex-1 gap-[12px]", showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_12px_minmax(0,1fr)]" : "xl:grid-cols-1")}>
+              <div className={cn("grid min-h-0 flex-1 gap-[12px]", showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]" : "xl:grid-cols-1")}>
                 {showResumePane ? (
                   <>
                     <div className="flex min-h-0 flex-col">
@@ -3563,13 +3576,10 @@ function CandidateWorkspaceSheet({
                         </div>
                       </div>
                     </div>
-                    <div className="relative flex w-[12px] items-stretch justify-center">
-                      <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
-                    </div>
                   </>
                 ) : null}
 
-                <div className="flex min-h-0 flex-col gap-[16px]">
+                <div className={cn("flex min-h-0 flex-col gap-[16px]", showResumePane ? `border-l ${FX_COLORS.border} pl-[16px]` : "")}>
                   <FxCandidateCard
                     candidate={candidate}
                     variant="compact"
@@ -3715,6 +3725,7 @@ function AddCandidatesDrawer({
   });
   const visibleCandidates = filteredCandidates.filter((candidate) => !hiddenCandidateIds.includes(candidate.id));
   const selectedCandidate = visibleCandidates.find((candidate) => candidate.id === selectedCandidateId) ?? visibleCandidates[0] ?? null;
+  const salaryCurrency = job?.currency || selectedCandidate?.jobCurrency || "INR";
   const selectedCandidateIndex = visibleCandidates.findIndex((candidate) => candidate.id === selectedCandidate?.id);
   const hasPreviousCandidate = visibleCandidates.length > 1 && selectedCandidateIndex > 0;
   const hasNextCandidate = visibleCandidates.length > 1 && selectedCandidateIndex >= 0 && selectedCandidateIndex < visibleCandidates.length - 1;
@@ -3891,7 +3902,7 @@ function AddCandidatesDrawer({
             ) : null}
 
             {activeMode === "upload" ? (
-              <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
+              <section className={`flex h-full min-h-0 flex-1 flex-col rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
                 <div
                   onDragOver={(event) => {
                     event.preventDefault();
@@ -3899,7 +3910,7 @@ function AddCandidatesDrawer({
                   }}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={handleDrop}
-                  className={`flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed px-[20px] py-[24px] text-center transition-colors ${
+                  className={`flex min-h-0 flex-1 cursor-pointer flex-col items-center justify-center rounded-[16px] border border-dashed px-[20px] py-[24px] text-center transition-colors ${
                     isDragging
                       ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)]"
                       : "border-[var(--fx-border)] bg-[var(--fx-bg-soft)] hover:bg-[var(--fx-surface-hover)]"
@@ -3947,130 +3958,135 @@ function AddCandidatesDrawer({
             ) : null}
 
             {activeMode === "pick" ? (
-              <section className={`rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
-                <div className="flex items-center justify-between gap-[16px]">
-                  <div className="rounded-full bg-[var(--fx-surface-selected)] px-[10px] py-[4px] text-[12px] font-medium text-[var(--fx-primary)]">
-                    {visibleCandidates.length} ready
-                  </div>
-                  <div className="w-full max-w-[280px]">
-                    <FxInput
-                      placeholder="Search candidates"
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
-                    />
-                  </div>
-                </div>
-
+              <section className={`flex h-full min-h-0 flex-1 flex-col rounded-[16px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[20px]`}>
                 {visibleCandidates.length ? (
-                  <div className={cn("mt-[16px] grid min-h-[420px] gap-[16px]", showResumePane ? "lg:grid-cols-[320px_24px_minmax(0,1fr)]" : "lg:grid-cols-1")}>
+                  <div className={cn("mt-[12px] grid min-h-0 flex-1 gap-[8px]", showResumePane ? "lg:grid-cols-[minmax(0,300px)_1px_minmax(0,1fr)]" : "lg:grid-cols-1")}>
                     {showResumePane ? (
-                      <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)]`}>
-                      <div className="max-h-[520px] overflow-y-auto p-[8px]">
-                        <div className="space-y-[8px]">
-                          {visibleCandidates.map((candidate) => {
-                            const isSelected = selectedCandidate?.id === candidate.id;
+                      <div className="flex min-h-0 flex-col rounded-[12px] border border-[var(--fx-border)] bg-[var(--fx-bg-soft)]">
+                        <div className="border-b border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] p-[8px]">
+                          <FxInput
+                            placeholder={`Search ${visibleCandidates.length} Candidates`}
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.target.value)}
+                          />
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto p-[8px]">
+                          <div className="space-y-[8px]">
+                            {visibleCandidates.map((candidate) => {
+                              const isSelected = selectedCandidate?.id === candidate.id;
 
-                            return (
-                              <div
-                                key={candidate.id}
-                                className={cn(
-                                  "flex w-full items-start justify-between gap-[8px] rounded-[10px] px-[12px] py-[12px] text-left transition-colors",
-                                  isSelected ? "bg-[var(--fx-surface)] shadow-sm" : "bg-transparent hover:bg-[var(--fx-surface)]",
-                                )}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedCandidateId(candidate.id)}
-                                  className="flex min-w-0 flex-1 flex-col items-start text-left"
+                              return (
+                                <div
+                                  key={candidate.id}
+                                  className={cn(
+                                    "flex w-full items-start justify-between gap-[8px] rounded-[10px] px-[12px] py-[12px] text-left transition-colors",
+                                    isSelected ? "bg-[var(--fx-surface)] shadow-sm" : "bg-transparent hover:bg-[var(--fx-surface)]",
+                                  )}
                                 >
-                                  <span className="w-full truncate text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">{candidate.name}</span>
-                                  <span className="truncate text-[12px] leading-[16px] text-[var(--fx-text-muted)]">{candidate.experience ? `${candidate.experience} years` : "Experience not captured"}</span>
-                                </button>
-                                <div className="flex items-center gap-[6px]">
                                   <button
                                     type="button"
-                                    onClick={() => handleHideCandidate(candidate.id)}
-                                    className="inline-flex size-[20px] shrink-0 items-center justify-center rounded-[4px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
-                                    aria-label={`Remove ${candidate.name}`}
+                                    onClick={() => setSelectedCandidateId(candidate.id)}
+                                    className="flex min-w-0 flex-1 flex-col items-start text-left"
                                   >
-                                    <X className="size-[14px]" />
+                                    <span className="w-full truncate text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">{candidate.name}</span>
+                                    <span className="truncate text-[12px] leading-[16px] text-[var(--fx-text-muted)]">{candidate.experience ? `${candidate.experience} years` : "Experience not captured"}</span>
                                   </button>
+                                  <div className="flex items-center gap-[6px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleHideCandidate(candidate.id)}
+                                      className="inline-flex size-[20px] shrink-0 items-center justify-center rounded-[4px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-danger)]"
+                                      aria-label={`Remove ${candidate.name}`}
+                                    >
+                                      <X className="size-[14px]" />
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
                       </div>
                     ) : null}
 
                     {showResumePane ? (
                       <div className="flex min-h-0 items-stretch justify-center">
-                        <div className={`h-full w-px ${FX_COLORS.border}`} />
+                        <div className="h-full w-px bg-[var(--fx-border)] opacity-90" />
                       </div>
                     ) : null}
 
-                    <div className={`flex min-h-0 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                    <div className="flex min-h-0 flex-col gap-[8px]">
                       {selectedCandidate ? (
-                        <>
-                          <div className={`border-b ${FX_COLORS.border} px-[16px] py-[14px]`}>
-                            <div className="flex items-center justify-between gap-[16px]">
-                              <FxTabs
-                                tabs={[
-                                  { value: "background", label: "Background" },
-                                  { value: "resume", label: "Resume" },
-                                ]}
-                                active={activePreviewTab}
-                                onChange={setActivePreviewTab}
-                                variant="compact"
-                                showBorder={false}
-                              />
-                              <div className="flex items-center gap-[8px]">
-                                <FxButton type="button" variant="outline" size="sm" onClick={() => handleHideCandidate(selectedCandidate.id)}>
-                                  Ignore
-                                </FxButton>
-                                <FxButton
-                                  type="button"
-                                  size="sm"
-                                  className="min-w-[116px]"
-                                  onClick={() => {
-                                    onPickExistingCandidate(selectedCandidate);
-                                    handleHideCandidate(selectedCandidate.id);
-                                  }}
-                                >
-                                  Add to Job
-                                </FxButton>
+                        <FxCandidateCard
+                          candidate={selectedCandidate}
+                          variant="default"
+                          layout="horizontal"
+                          currency={salaryCurrency}
+                        />
+                      ) : null}
+
+                      <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                        {selectedCandidate ? (
+                          <>
+                            <div className={`border-b ${FX_COLORS.border} px-[16px] py-[12px]`}>
+                              <div className="flex items-center justify-between gap-[16px]">
+                                <FxTabs
+                                  tabs={[
+                                    { value: "background", label: "Background" },
+                                    { value: "resume", label: "Resume" },
+                                  ]}
+                                  active={activePreviewTab}
+                                  onChange={setActivePreviewTab}
+                                  variant="compact"
+                                  showBorder={false}
+                                />
+                                <div className="flex items-center gap-[8px]">
+                                  <FxButton type="button" variant="destructiveOutline" size="sm" onClick={() => handleHideCandidate(selectedCandidate.id)}>
+                                    Ignore
+                                  </FxButton>
+                                  <FxButton
+                                    type="button"
+                                    size="sm"
+                                    className="min-w-[116px]"
+                                    onClick={() => {
+                                      onPickExistingCandidate(selectedCandidate);
+                                      handleHideCandidate(selectedCandidate.id);
+                                    }}
+                                  >
+                                    Add to Job
+                                  </FxButton>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
-                            {activePreviewTab === "background" ? (
-                              <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                                <div className="space-y-[10px] p-[16px]">
-                                  {selectedCandidateBackground.length ? (
-                                    selectedCandidateBackground.map((item) => (
-                                      <div key={`${selectedCandidate.id}-${item.label}`} className="space-y-[2px]">
-                                        <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-[var(--fx-text-muted)]">{item.label}</p>
-                                        <p className="text-[13px] leading-[20px] text-[var(--fx-text)]">{item.value}</p>
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">No prior background captured for this candidate yet.</p>
-                                  )}
+                            <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[12px]">
+                              {activePreviewTab === "background" ? (
+                                <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                                  <div className="space-y-[10px] p-[14px]">
+                                    {selectedCandidateBackground.length ? (
+                                      selectedCandidateBackground.map((item) => (
+                                        <div key={`${selectedCandidate.id}-${item.label}`} className="space-y-[2px]">
+                                          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-[var(--fx-text-muted)]">{item.label}</p>
+                                          <p className="text-[13px] leading-[20px] text-[var(--fx-text)]">{item.value}</p>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">No prior background captured for this candidate yet.</p>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                                <div className="p-[16px]">
-                                  <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                                    {selectedCandidateResumePreview}
-                                  </pre>
+                              ) : (
+                                <div className={`overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
+                                  <div className="p-[14px]">
+                                    <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                                      {selectedCandidateResumePreview}
+                                    </pre>
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      ) : null}
+                              )}
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 ) : (
