@@ -4920,7 +4920,17 @@ export default function JobDetailsPage({ params }) {
         .filter(Boolean),
     [candidateSnapshot, job],
   );
-  const shareUrl = useMemo(() => `https://www.evalityjobs.com/job/E791DB78CC38/${jobId}?ref=29541`, [jobId]);
+  const shareUrl = useMemo(() => {
+    if (!jobId) {
+      return "";
+    }
+
+    if (typeof window === "undefined") {
+      return `/career?job=${jobId}`;
+    }
+
+    return `${window.location.origin}/career?job=${jobId}`;
+  }, [jobId]);
 
   useEffect(() => {
     if (job?.status === "Draft") {
@@ -6648,7 +6658,16 @@ export default function JobDetailsPage({ params }) {
 /* - - - - - - - - - - - - - - - - */
 
   async function handleCopyChannelJobLink(channel) {
-    const channelUrl = `${shareUrl}&src=${channel?.src || "1"}`;
+    const channelUrl = (() => {
+      try {
+        const nextUrl = new URL(shareUrl, typeof window !== "undefined" ? window.location.origin : "https://evality.vercel.app");
+        nextUrl.searchParams.set("src", channel?.src || "1");
+        return nextUrl.toString();
+      } catch {
+        const joiner = shareUrl.includes("?") ? "&" : "?";
+        return `${shareUrl}${joiner}src=${channel?.src || "1"}`;
+      }
+    })();
 
     try {
       await navigator.clipboard.writeText(channelUrl);

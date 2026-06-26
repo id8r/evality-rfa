@@ -25,7 +25,7 @@ import { FxTabs } from "@/components/FxTabs";
 import { showSuccess } from "@/components/FxToast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ensureDemoStore } from "@/lib/FxStore";
+import { DEMO_CLIENTS, DEMO_JOBS, ensureDemoStore, seedDemoJobsStore } from "@/lib/FxStore";
 import { DEFAULT_COMPANY_BRIEF } from "@/lib/FxJobSchema";
 import { cn } from "@/lib/FxUtils";
 /* - - - - - - - - - - - - - - - - */
@@ -432,7 +432,7 @@ function OpeningCard({ job, onView }) {
             <span className="rounded-[999px] bg-[var(--fx-bg-soft)] px-[10px] py-[6px] text-[12px] leading-[16px] text-[var(--fx-text)]">{job.employmentType || "Full-time"}</span>
           </div>
         </div>
-        <FxButton size="sm" onClick={() => onView(job.id)}>
+        <FxButton variant="outline" size="sm" onClick={() => onView(job.id)}>
           View Job
         </FxButton>
       </div>
@@ -451,13 +451,23 @@ function CareerPageContent() {
   const requestedJobId = searchParams.get("job");
 
   useEffect(() => {
-    const demoStore = ensureDemoStore();
-    const publishedJobs = (demoStore.jobs ?? [])
+    let demoStore = ensureDemoStore();
+    const initialJobs = Array.isArray(demoStore.jobs) ? demoStore.jobs : [];
+
+    if (!initialJobs.length) {
+      seedDemoJobsStore();
+      demoStore = ensureDemoStore();
+    }
+
+    const storedJobs = Array.isArray(demoStore.jobs) ? demoStore.jobs : [];
+    const fallbackJobs = storedJobs.length ? storedJobs : DEMO_JOBS;
+    const publishedJobs = fallbackJobs
       .filter((job) => job.status === "Published" && !job.isArchived)
       .sort((left, right) => new Date(right.updatedAt || right.createdAt || 0).getTime() - new Date(left.updatedAt || left.createdAt || 0).getTime());
+    const resolvedClients = Array.isArray(demoStore.clients) && demoStore.clients.length ? demoStore.clients : DEMO_CLIENTS;
 
     setJobs(publishedJobs);
-    setClients(demoStore.clients ?? []);
+    setClients(resolvedClients);
   }, []);
 
   const selectedJob = useMemo(() => {
