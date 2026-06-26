@@ -635,9 +635,8 @@ function CareerPageContent() {
                         <span className="font-medium text-[var(--fx-text)]">{selectedJob.employmentType || "Full-time"}</span>
                       </div>
                     </div>
-                    <div className="mt-[16px] flex gap-[10px]">
-                      <FxButton className="flex-1" onClick={() => setApplyOpen(true)}>Apply Now</FxButton>
-                      <JobSharePopover shareUrl={shareUrl} />
+                    <div className="mt-[16px]">
+                      <FxButton className="w-full" onClick={() => setApplyOpen(true)}>Apply Now</FxButton>
                     </div>
                   </div>
 
