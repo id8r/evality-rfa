@@ -1268,8 +1268,14 @@ function CvMatchBreakdownSheet({ open, onOpenChange, candidate }) {
 
 function ScheduleInterviewSheet({ open, onOpenChange, candidate, candidates, job, onSubmit }) {
   const [showResumePane, setShowResumePane] = useState(true);
+  const [leftPaneTab, setLeftPaneTab] = useState("summary");
   const [includedInviteExpanded, setIncludedInviteExpanded] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const [shareMode, setShareMode] = useState("custom");
+  const [includePhone, setIncludePhone] = useState(true);
+  const [includeEmail, setIncludeEmail] = useState(true);
+  const [includeCompensation, setIncludeCompensation] = useState(true);
+  const [includeScreening, setIncludeScreening] = useState(true);
   const [interviewerName, setInterviewerName] = useState("Rejith");
   const [interviewerEmail, setInterviewerEmail] = useState("rejith@evality.ai");
   const [interviewerPhone, setInterviewerPhone] = useState("+91 98765 43210");
@@ -1294,10 +1300,6 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, candidates, job
   const screeningQuestions = useMemo(() => getJobScreeningQuestions(job), [job]);
   const screeningAnswers = Array.isArray(activeCandidate?.screeningAnswers) ? activeCandidate.screeningAnswers : [];
   const answerMap = useMemo(() => new Map(screeningAnswers.map((item) => [item.id, item.answer || "Not answered"])), [screeningAnswers]);
-  const screeningResponseCount = Math.max(
-    screeningAnswers.filter((item) => String(item?.answer ?? "").trim()).length,
-    screeningQuestions.length,
-  );
   const timeOptions = [
     "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
     "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
@@ -1311,8 +1313,14 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, candidates, job
     }
 
     setShowResumePane(true);
+    setLeftPaneTab("summary");
     setIncludedInviteExpanded(false);
     setSelectedCandidateId(candidateList[0]?.id ?? null);
+    setShareMode("custom");
+    setIncludePhone(true);
+    setIncludeEmail(true);
+    setIncludeCompensation(true);
+    setIncludeScreening(true);
     setInterviewerName("Rejith");
     setInterviewerEmail("rejith@evality.ai");
     setInterviewerPhone("+91 98765 43210");
@@ -1471,52 +1479,122 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, candidates, job
                       </div>
                     ) : null}
 
-                    <div className="grid min-h-0 gap-[12px] xl:grid-rows-[auto_minmax(0,1fr)_auto]">
-                      <FxCandidateCard
-                        candidate={activeCandidate}
-                        variant="default"
-                        layout="vertical"
-                        currency={salaryCurrency}
-                      />
+                    <div className="flex min-h-0 flex-col gap-[12px]">
+                      <div className="inline-flex w-fit gap-[4px] rounded-[8px] bg-[var(--fx-bg-soft)] p-[4px]">
+                        {[
+                          { key: "summary", label: "Summary" },
+                          { key: "resume", label: "Resume" },
+                        ].map((item) => (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => setLeftPaneTab(item.key)}
+                            className={cn(
+                              "inline-flex h-[30px] items-center rounded-[6px] px-[12px] text-[12px] leading-[16px] font-medium transition-colors",
+                              leftPaneTab === item.key
+                                ? "bg-[var(--fx-surface)] text-[var(--fx-primary)] shadow-sm"
+                                : "text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface)] hover:text-[var(--fx-text)]",
+                            )}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
 
-                      <ResumePanelShell className="rounded-[8px]">
-                        <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
-                          {resumePreview}
-                        </pre>
-                      </ResumePanelShell>
+                      {leftPaneTab === "summary" ? (
+                        <div className="grid min-h-0 gap-[12px] xl:grid-rows-[auto_minmax(0,1fr)]">
+                          <FxCandidateCard
+                            candidate={activeCandidate}
+                            variant="default"
+                            layout="vertical"
+                            currency={salaryCurrency}
+                          />
 
-                      <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
-                        <button
-                          type="button"
-                          onClick={() => setIncludedInviteExpanded((current) => !current)}
-                          className="flex w-full items-center justify-between gap-[12px] px-[14px] py-[10px] text-left"
-                        >
-                          <p className="min-w-0 truncate text-[14px] leading-[20px] text-[var(--fx-text)]">
-                            Screening Responses ({screeningResponseCount})
-                          </p>
-                          {includedInviteExpanded ? (
-                            <ChevronUp className="size-[16px] shrink-0 text-[var(--fx-primary)]" />
-                          ) : (
-                            <ChevronDown className="size-[16px] shrink-0 text-[var(--fx-primary)]" />
-                          )}
-                        </button>
-                        {includedInviteExpanded ? (
-                          <div className={`border-t ${FX_COLORS.border} px-[14px] py-[12px]`}>
-                            <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[12px] py-[10px]`}>
-                              <div className="max-h-[220px] space-y-[8px] overflow-y-auto pr-[4px]">
-                                {screeningQuestions.map((item, index) => (
-                                  <div key={item.id} className="space-y-[2px]">
-                                    <p className="text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">Q{index + 1}. {item.question}</p>
-                                    <p className="text-[13px] leading-[18px] text-[var(--fx-text-muted)]">
-                                      Ans. {answerMap.get(item.id) || "Not answered"}
-                                    </p>
+                          <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[14px]`}>
+                            <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>What should be shared?</p>
+                            <div className="mt-[12px] space-y-[12px]">
+                              <RadioGroup value={shareMode} onValueChange={setShareMode} className="grid gap-[10px]">
+                                <label className={`flex cursor-pointer items-start gap-[10px] rounded-[8px] border ${FX_COLORS.border} px-[12px] py-[10px]`}>
+                                  <RadioGroupItem value="cv_only" className="mt-[2px]" />
+                                  <div className="space-y-[2px]">
+                                    <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">CV only</p>
+                                    <p className="text-[13px] leading-[18px] text-[var(--fx-text-muted)]">Share candidate resume and name only.</p>
                                   </div>
-                                ))}
-                              </div>
+                                </label>
+                                <label className={`flex cursor-pointer items-start gap-[10px] rounded-[8px] border ${FX_COLORS.border} px-[12px] py-[10px]`}>
+                                  <RadioGroupItem value="custom" className="mt-[2px]" />
+                                  <div className="space-y-[2px]">
+                                    <p className="text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">CV + selected details</p>
+                                    <p className="text-[13px] leading-[18px] text-[var(--fx-text-muted)]">Choose which contact, compensation, and screening details to share.</p>
+                                  </div>
+                                </label>
+                              </RadioGroup>
+
+                              {shareMode === "custom" ? (
+                                <div className="space-y-[10px]">
+                                  <div className="grid gap-[10px] sm:grid-cols-2">
+                                    {[
+                                      { checked: includePhone, onChange: setIncludePhone, label: "Include phone number" },
+                                      { checked: includeEmail, onChange: setIncludeEmail, label: "Include email address" },
+                                      { checked: includeCompensation, onChange: setIncludeCompensation, label: "Include CTC details" },
+                                      { checked: includeScreening, onChange: setIncludeScreening, label: "Include screening summary" },
+                                    ].map((item) => (
+                                      <label key={item.label} className="flex items-center gap-[10px] rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-border)_70%,transparent)] px-[12px] py-[10px]">
+                                        <input
+                                          type="checkbox"
+                                          checked={item.checked}
+                                          onChange={(event) => item.onChange(event.target.checked)}
+                                          className="size-[16px] rounded border-[var(--fx-border)]"
+                                        />
+                                        <span className="text-[13px] leading-[18px] text-[var(--fx-text)]">{item.label}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+
+                                  {includeScreening ? (
+                                    <div className={`rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-bg-soft)]`}>
+                                      <button
+                                        type="button"
+                                        onClick={() => setIncludedInviteExpanded((current) => !current)}
+                                        className="flex w-full items-center justify-between gap-[12px] px-[12px] py-[10px] text-left"
+                                      >
+                                        <p className="min-w-0 truncate text-[13px] leading-[18px] text-[var(--fx-text)]">
+                                          Screening summary
+                                        </p>
+                                        {includedInviteExpanded ? (
+                                          <ChevronUp className="size-[16px] shrink-0 text-[var(--fx-primary)]" />
+                                        ) : (
+                                          <ChevronDown className="size-[16px] shrink-0 text-[var(--fx-primary)]" />
+                                        )}
+                                      </button>
+                                      {includedInviteExpanded ? (
+                                        <div className={`border-t ${FX_COLORS.border} px-[12px] py-[10px]`}>
+                                          <div className="max-h-[180px] space-y-[8px] overflow-y-auto pr-[4px]">
+                                            {screeningQuestions.map((item, index) => (
+                                              <div key={item.id} className="space-y-[2px]">
+                                                <p className="text-[13px] leading-[18px] font-medium text-[var(--fx-text)]">Q{index + 1}. {item.question}</p>
+                                                <p className="text-[13px] leading-[18px] text-[var(--fx-text-muted)]">
+                                                  Ans. {answerMap.get(item.id) || "Not answered"}
+                                                </p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ) : null}
                             </div>
                           </div>
-                        ) : null}
-                      </div>
+                        </div>
+                      ) : (
+                        <ResumePanelShell className="min-h-0 flex-1 rounded-[8px]">
+                          <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                            {resumePreview}
+                          </pre>
+                        </ResumePanelShell>
+                      )}
                     </div>
                   </div>
 
@@ -1537,7 +1615,7 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, candidates, job
                       <FxInput label="Interviewer Phone" value={interviewerPhone} onChange={(event) => setInterviewerPhone(event.target.value)} className="h-[34px]" />
                       <div className="space-y-[8px]">
                         <p className={`${FX_TYPOGRAPHY.fieldLabel} text-[var(--fx-text)]`}>Mode of Interview</p>
-                        <div className="flex flex-wrap gap-[8px]">
+                        <div className="inline-flex flex-wrap gap-[6px] rounded-[8px] bg-[var(--fx-bg-soft)] p-[4px]">
                           {[
                             { value: "remote", label: "Remote" },
                             { value: "in_person", label: "In-person" },
@@ -1548,10 +1626,10 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, candidates, job
                               type="button"
                               onClick={() => setInterviewMode(item.value)}
                               className={cn(
-                                "inline-flex h-[34px] items-center rounded-[6px] border px-[12px] text-[13px] leading-[18px] font-medium transition-colors",
+                                "inline-flex h-[28px] items-center rounded-[6px] px-[10px] text-[12px] leading-[16px] font-medium transition-colors",
                                 interviewMode === item.value
-                                  ? "border-[var(--fx-primary)] bg-[var(--fx-surface-selected)] text-[var(--fx-primary)]"
-                                  : `border ${FX_COLORS.border} bg-[var(--fx-surface)] text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-text)]`,
+                                  ? "bg-[var(--fx-surface)] text-[var(--fx-primary)] shadow-sm"
+                                  : "text-[var(--fx-text-muted)] hover:bg-[var(--fx-surface)] hover:text-[var(--fx-text)]",
                               )}
                             >
                               {item.label}
@@ -1666,13 +1744,7 @@ function ScheduleInterviewSheet({ open, onOpenChange, candidate, candidates, job
                             {formatClockTime(time)}
                           </button>
                         );
-                      }) : (
-                        <div className={`col-span-full rounded-[8px] border border-dashed ${FX_COLORS.border} bg-[var(--fx-bg-soft)] px-[12px] py-[16px] text-center`}>
-                          <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>
-                            Pick a date from the calendar to load available time slots.
-                          </p>
-                        </div>
-                      )}
+                      }) : null}
                     </div>
                   </div>
                 </div>
@@ -2748,11 +2820,14 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
   const [candidatePendingRemoval, setCandidatePendingRemoval] = useState(null);
   const candidateList = Array.isArray(candidates) ? candidates.filter(Boolean) : [];
-  const salaryCurrency = job?.currency || "INR";
   const isBulkMode = candidateList.length > 1;
   const activeCandidate = useMemo(
     () => candidateList.find((candidate) => candidate.id === selectedCandidateId) ?? candidateList[0] ?? null,
     [candidateList, selectedCandidateId],
+  );
+  const resumePreview = useMemo(
+    () => (activeCandidate ? buildResumePreview(activeCandidate, job, { includeFooter: false }) : ""),
+    [activeCandidate, job],
   );
   const handleRemoveCandidate = useCallback(() => {
     if (!candidatePendingRemoval) {
@@ -2800,7 +2875,7 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
 
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange}>
-      <SheetContent size="xl" widthPx={showCandidatePane ? 1160 : 780}>
+      <SheetContent size="xl" widthPx={showCandidatePane ? (isBulkMode ? 1260 : 1160) : 780}>
         <SheetHeader
           title="Share Candidate for Review"
           actions={(
@@ -2840,7 +2915,7 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
         />
         <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
           {activeCandidate ? (
-            <div className={cn("grid h-full min-h-0", showCandidatePane ? "grid-cols-[minmax(0,1.3fr)_24px_minmax(0,1fr)]" : "grid-cols-1")}>
+            <div className={cn("grid h-full min-h-0", showCandidatePane ? "grid-cols-[minmax(0,1.45fr)_24px_minmax(0,1fr)]" : "grid-cols-1")}>
               {showCandidatePane ? (
                 <>
                   <div className={cn("grid min-h-0 gap-[16px]", isBulkMode ? "grid-cols-[196px_minmax(0,1fr)]" : "grid-cols-1")}>
@@ -2883,22 +2958,11 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
                         </div>
                       </div>
                     ) : null}
-                    <div className={`min-h-0 rounded-[8px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                      <div className="space-y-[14px]">
-                        <div className="space-y-[8px]">
-                          <p className="text-[16px] leading-[24px] font-semibold text-[var(--fx-text)]">{activeCandidate.name || "—"}</p>
-                          <p className="text-[13px] leading-[20px] text-[var(--fx-text-muted)]">
-                            {getPreScreeningSourceLabel(activeCandidate)} · {formatNoticePeriod(activeCandidate)}
-                          </p>
-                        </div>
-                        <div className="grid gap-[16px] md:grid-cols-2">
-                          <MetaField label="Fit Score" value={activeCandidate.matchScore != null ? `${activeCandidate.matchScore}%` : "—"} />
-                          <MetaField label="Experience" value={activeCandidate.experience != null ? `${activeCandidate.experience}y` : "—"} />
-                          <MetaField label="Phone" value={activeCandidate.phone || "—"} />
-                          <MetaField label="Expected CTC" value={formatCurrency(activeCandidate.expectedSalary, salaryCurrency)} />
-                        </div>
-                      </div>
-                    </div>
+                    <ResumePanelShell className="rounded-[8px]">
+                      <pre className="h-full overflow-auto whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
+                        {resumePreview}
+                      </pre>
+                    </ResumePanelShell>
                   </div>
                   <div className="relative flex items-stretch justify-center pt-[32px]">
                     <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${FX_COLORS.border}`} />
@@ -2908,11 +2972,8 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
 
               <div className="flex min-h-0 flex-col">
                 {!showCandidatePane ? (
-                  <div className="mb-[16px] flex items-center justify-between gap-[16px]">
-                    <p className="truncate text-[15px] leading-[24px] font-medium text-[var(--fx-text)]">{activeCandidate.name}</p>
-                    <p className={cn("shrink-0 text-[16px] leading-[24px] font-medium", getMatchScoreToneClass(activeCandidate.matchScore))}>
-                      {activeCandidate.matchScore != null ? `Fit Score ${activeCandidate.matchScore}%` : "Fit Score unavailable"}
-                    </p>
+                  <div className="mb-[16px] rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-bg-soft)] px-[12px] py-[10px]">
+                    <p className="truncate text-[14px] leading-[20px] font-medium text-[var(--fx-text)]">{activeCandidate.name}</p>
                   </div>
                 ) : null}
 
@@ -3012,7 +3073,7 @@ function ShareForReviewSheet({ open, onOpenChange, candidates, job, onRemoveCand
                 });
               }}
             >
-              Send
+              {isBulkMode ? "Share All" : "Share"}
             </FxButton>
           )}
         />
@@ -3666,6 +3727,56 @@ function CandidateWorkspaceSheet({
     return [];
   }, [candidate]);
 
+  const candidateProgressContent = (
+    <div className="space-y-[10px]">
+      <p className="text-[11px] leading-[16px] font-semibold uppercase tracking-[0.08em] text-[var(--fx-text-muted)]">Candidate Progress</p>
+      <div className="overflow-x-auto overflow-y-hidden">
+        <div className="min-w-[560px] px-[2px]">
+          <div className="flex items-start">
+            {workflowStages.map((stage, index) => {
+              const isCurrent = activeFlowStage === stage.value;
+              const isPast = currentStageIndex > index;
+              const isFilled = isPast || isCurrent;
+              const dateLabel = formatCompactDate(stageTimeline[index]?.date);
+
+              return (
+                <React.Fragment key={stage.value}>
+                  <div className="flex min-w-[76px] flex-1 flex-col items-center gap-[6px] text-center">
+                    <div
+                      className={cn(
+                        "inline-flex min-h-[28px] min-w-[88px] items-center justify-center rounded-[4px] border px-[8px] text-[10px] leading-[14px] font-medium whitespace-nowrap transition-colors",
+                        isCurrent
+                          ? "border-[var(--fx-disabled-text)] bg-[var(--fx-disabled-text)] text-white"
+                          : isFilled
+                            ? "border-[color:color-mix(in_srgb,var(--fx-primary)_48%,var(--fx-border)_52%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_14%,var(--fx-surface)_86%)] text-[var(--fx-primary)]"
+                            : "border-[color:color-mix(in_srgb,var(--fx-border)_86%,var(--fx-text)_14%)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)]",
+                      )}
+                    >
+                      {stage.label}
+                    </div>
+                    <p className="text-[10px] leading-[14px] text-[var(--fx-text-muted)]">
+                      {dateLabel}
+                    </p>
+                  </div>
+                  {index < workflowStages.length - 1 ? (
+                    <div
+                      className={cn(
+                        "mt-[13px] h-px min-w-[10px] flex-1 self-start rounded-full",
+                        isCurrent || isPast
+                          ? "bg-[var(--fx-primary)]"
+                          : "bg-[color:color-mix(in_srgb,var(--fx-border)_76%,transparent)]",
+                      )}
+                    />
+                  ) : null}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <Sheet open={open} onOpenChange={(nextOpen) => {
       if (!nextOpen) {
@@ -3727,62 +3838,11 @@ function CandidateWorkspaceSheet({
         <SheetBody className="bg-[var(--fx-surface)] px-[24px] py-[32px]">
           {candidate ? (
             <div className="flex min-h-0 h-full flex-col gap-[16px]">
-              <div className={`rounded-[4px] border ${FX_COLORS.border} bg-[var(--fx-surface)] p-[16px]`}>
-                <div className="flex items-start justify-between gap-[16px]">
-                  <div className="space-y-[2px]">
-                    <p className="text-[11px] leading-[16px] font-semibold uppercase tracking-[0.08em] text-[var(--fx-text-muted)]">Candidate Progress</p>
-                  </div>
-                </div>
-                <div className="mt-[14px] overflow-x-auto overflow-y-hidden">
-                  <div className="min-w-[760px] px-[4px]">
-                    <div className="flex items-start">
-                      {workflowStages.map((stage, index) => {
-                        const isCurrent = activeFlowStage === stage.value;
-                        const isPast = currentStageIndex > index;
-                        const isFilled = isPast || isCurrent;
-                        const dateLabel = formatCompactDate(stageTimeline[index]?.date);
-
-                        return (
-                          <React.Fragment key={stage.value}>
-                            <div className="flex min-w-[104px] flex-1 flex-col items-center gap-[8px] text-center">
-                              <div
-                                className={cn(
-                                  "inline-flex min-h-[30px] min-w-[92px] items-center justify-center rounded-[4px] border px-[12px] text-[11px] leading-[16px] font-medium transition-colors",
-                                  isCurrent
-                                    ? "border-[var(--fx-disabled-text)] bg-[var(--fx-disabled-text)] text-white shadow-[0_0_0_0px_color-mix(in_srgb,var(--fx-primary)_12%,transparent)]"
-                                    : isFilled
-                                      ? "border-[color:color-mix(in_srgb,var(--fx-primary)_48%,var(--fx-border)_52%)] bg-[color:color-mix(in_srgb,var(--fx-primary)_14%,var(--fx-surface)_86%)] text-[var(--fx-primary)]"
-                                      : "border-[color:color-mix(in_srgb,var(--fx-border)_86%,var(--fx-text)_14%)] bg-[var(--fx-surface)] text-[var(--fx-text-muted)]",
-                                )}
-                              >
-                                {stage.label}
-                              </div>
-                              <p className="text-[11px] leading-[16px] text-[var(--fx-text-muted)]">
-                                {dateLabel}
-                              </p>
-                            </div>
-                            {index < workflowStages.length - 1 ? (
-                              <div
-                                className={cn(
-                                  "mt-[14px] h-px min-w-[18px] flex-1 self-start rounded-full",
-                                  isCurrent || isPast
-                                    ? "bg-[var(--fx-primary)]"
-                                    : "bg-[color:color-mix(in_srgb,var(--fx-border)_76%,transparent)]",
-                                )}
-                              />
-                            ) : null}
-                          </React.Fragment>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <div className={cn("grid min-h-0 flex-1 gap-[12px]", showResumePane ? "xl:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]" : "xl:grid-cols-1")}>
                 {showResumePane ? (
                   <>
-                    <div className="flex min-h-0 flex-col">
+                    <div className="flex min-h-0 flex-col gap-[12px]">
+                      {candidateProgressContent}
                       <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border ${FX_COLORS.border} bg-[var(--fx-surface)]`}>
                         <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--fx-bg-soft)] p-[16px]">
                           <pre className="whitespace-pre-wrap break-words text-[14px] leading-[22px] text-[var(--fx-text)]">
@@ -3795,6 +3855,7 @@ function CandidateWorkspaceSheet({
                 ) : null}
 
                 <div className={cn("flex min-h-0 flex-col gap-[16px]", showResumePane ? `border-l ${FX_COLORS.border} pl-[16px]` : "")}>
+                  {!showResumePane ? candidateProgressContent : null}
                   <FxCandidateCard
                     candidate={candidate}
                     variant="compact"
