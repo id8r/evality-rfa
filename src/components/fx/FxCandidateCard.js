@@ -1,13 +1,15 @@
-/* src/components/fx/FxCandidateCard.js | Reusable candidate summary card | Sree | 2026-06-24 */
+/* src/components/fx/FxCandidateCard.js | Clean candidate summary card | Sree | 2026-06-26 */
 
 "use client";
 
 import { Check, ChevronDown, PencilLine, X } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { formatCurrencyValue } from "@/lib/FxJobSchema";
 import { FX_TYPOGRAPHY } from "@/lib/FxTheme";
 import { cn } from "@/lib/FxUtils";
+
+const SUPPORTED_EDITABLE_FIELDS = new Set(["name", "email", "phone"]);
 
 function formatText(value) {
   const text = String(value ?? "").trim();
@@ -36,6 +38,19 @@ function formatSalaryValue(value, currency = "INR") {
   return formatted || "N/A";
 }
 
+function formatExperienceValue(value) {
+  if (value == null || value === "") {
+    return "N/A";
+  }
+
+  const text = String(value).trim();
+  if (!text) {
+    return "N/A";
+  }
+
+  return /\byears?\b/i.test(text) ? text : `${text} years`;
+}
+
 function formatFitScoreValue(value) {
   if (value == null || value === "") {
     return "N/A";
@@ -47,23 +62,6 @@ function formatFitScoreValue(value) {
   }
 
   return `${numericValue}%`;
-}
-
-function formatExperienceValue(value) {
-  if (value == null || value === "") {
-    return "N/A";
-  }
-
-  const text = String(value).trim();
-  if (!text) {
-    return "N/A";
-  }
-
-  if (/\byears?\b/i.test(text)) {
-    return text;
-  }
-
-  return `${text} years`;
 }
 
 function getCandidateFieldValue(candidate, keys, fallback = "N/A") {
@@ -84,7 +82,7 @@ function normalizeHistoricJob(item, key) {
 
   if (typeof item === "string") {
     const title = item.trim();
-    return title ? { key, title, meta: [], status: "", dateLabel: "" } : null;
+    return title ? { key, title, status: "", dateLabel: "" } : null;
   }
 
   const title = formatText(
@@ -103,12 +101,11 @@ function normalizeHistoricJob(item, key) {
 
   const appliedAt = item.appliedAt ?? item.appliedDate ?? item.createdAt ?? item.updatedAt ?? null;
   const status = formatText(item.status ?? item.screeningOutcome ?? item.clientStatus);
-  const dateLabel = appliedAt ? formatDateValue(appliedAt) : "";
+  const dateLabel = appliedAt ? formatDateValue(appliedAt) : "N/A";
 
   return {
     key,
     title,
-    meta: [],
     status,
     dateLabel,
     timestamp: appliedAt,
@@ -177,51 +174,65 @@ function getHistoricJobsApplied(candidate) {
   });
 }
 
-function FieldRow({ label, value, valueClassName }) {
+function normalizeEditableFields(editableFields) {
+  if (Array.isArray(editableFields)) {
+    return new Set(editableFields.filter((field) => SUPPORTED_EDITABLE_FIELDS.has(field)));
+  }
+
+  if (editableFields && typeof editableFields === "object") {
+    return new Set(
+      Object.entries(editableFields)
+        .filter(([field, enabled]) => SUPPORTED_EDITABLE_FIELDS.has(field) && enabled !== false)
+        .map(([field]) => field),
+    );
+  }
+
+  return new Set();
+}
+
+function LabelValue({ label, value, valueClassName, align = "left" }) {
   return (
-    <div className="space-y-[2px]">
+    <div className={cn("space-y-[2px]", align === "right" ? "text-right" : "text-left")}>
       <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{label}</p>
       <p className={cn("text-[13px] leading-[20px] text-[var(--fx-text)]", valueClassName)}>{value}</p>
     </div>
   );
 }
 
-function FitScoreValue({ label = "Fit Score", score }) {
-  const isMissing = score === "N/A";
-
+function ScoreBlock({ score, label = "Fit Score" }) {
   return (
-    <div className="space-y-[1px] text-right">
+    <div className="shrink-0 text-right">
       <p
         className={cn(
-          "text-[16px] leading-[20px] font-medium tabular-nums",
-          isMissing ? "text-[var(--fx-text-muted)]" : "text-[var(--fx-text)]",
+          "text-[18px] leading-[22px] font-semibold tabular-nums",
+          score === "N/A" ? "text-[var(--fx-text-muted)]" : "text-[var(--fx-text)]",
         )}
       >
         {score}
       </p>
-      <p className="text-[11px] leading-[16px] font-medium text-[var(--fx-text-muted)]">{label}</p>
+      <p className="text-[11px] leading-[16px] text-[var(--fx-text-muted)]">{label}</p>
     </div>
   );
 }
 
-function EditableFieldRow({
+function EditableInlineValue({
+  fieldName,
   label,
   value,
-  editValue = value,
-  canEdit = false,
-  onSave,
-  inputType = "text",
-  inputMode,
-  placeholder = "N/A",
-  align = "left",
+  candidate,
   valueClassName,
-  inputClassName,
-  isLink = false,
-  href,
+  canEdit = false,
+  editingField,
+  draftValue,
+  onStartEdit,
+  onChangeDraft,
+  onSaveEdit,
+  onCancelEdit,
+  align = "left",
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [draftValue, setDraftValue] = useState(String(editValue ?? ""));
   const inputRef = useRef(null);
+  const isEditing = editingField === fieldName;
+  const isEmpty = value == null || String(value).trim() === "" || String(value) === "N/A";
 
   useLayoutEffect(() => {
     if (!isEditing) {
@@ -234,231 +245,71 @@ function EditableFieldRow({
     });
   }, [isEditing]);
 
-  function handleStartEdit() {
-    if (!canEdit) {
-      return;
-    }
-
-    setDraftValue(String(editValue ?? ""));
-    setIsEditing(true);
-  }
-
-  function handleCancel() {
-    setDraftValue(String(editValue ?? ""));
-    setIsEditing(false);
-  }
-
-  function handleSave() {
-    onSave?.(String(draftValue ?? "").trim());
-    setIsEditing(false);
-  }
-
-  const isEmpty = value == null || String(value).trim() === "" || String(value) === "N/A";
-  const justifyClassName = align === "right" ? "items-end text-right" : "items-start text-left";
-  const displayValueClassName = cn(
-    "min-w-0 break-words text-[13px] leading-[20px] text-[var(--fx-text)]",
-    align === "right" ? "text-right" : "text-left",
-    valueClassName,
-  );
-
-  const isEditable = canEdit && Boolean(onSave);
-  const showEditor = isEditing && isEditable;
+  const justifyClassName = align === "right" ? "justify-end text-right" : "justify-start text-left";
+  const displayValueClassName = cn("min-w-0 break-words", align === "right" ? "text-right" : "text-left");
+  const iconButtonClassName = "inline-flex size-[18px] shrink-0 items-center justify-center rounded-[4px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]";
 
   return (
-    <div className="space-y-[2px]">
-      <div className="flex items-center justify-between gap-[8px]">
-        <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{label}</p>
-        {isEditable ? (
-          <button
-            type="button"
-            onClick={isEditing ? handleCancel : handleStartEdit}
-            aria-label={isEditing ? `Cancel ${label} edit` : `Edit ${label}`}
-            className="inline-flex size-[20px] items-center justify-center rounded-[5px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
-          >
-            {isEditing ? <X className="size-[12px]" /> : <PencilLine className="size-[12px]" />}
-          </button>
-        ) : null}
-      </div>
+    <div className={cn("space-y-[2px]", align === "right" ? "text-right" : "text-left")}>
+      {label ? <p className={`${FX_TYPOGRAPHY.fieldHint} text-[var(--fx-text-muted)]`}>{label}</p> : null}
 
-      {showEditor ? (
+      {isEditing ? (
         <div className={cn("flex items-center gap-[6px]", justifyClassName)}>
           <input
             ref={inputRef}
-            type={inputType}
-            inputMode={inputMode}
             value={draftValue}
-            onChange={(event) => setDraftValue(event.target.value)}
-            placeholder={placeholder}
+            onChange={(event) => onChangeDraft(event.target.value)}
+            placeholder="N/A"
             className={cn(
               "min-h-[28px] min-w-0 rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[8px] text-[13px] leading-[20px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]",
+              valueClassName,
               align === "right" ? "text-right" : "text-left",
-              inputClassName,
             )}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.preventDefault();
                 event.stopPropagation();
-                handleCancel();
+                onCancelEdit();
               }
 
               if (event.key === "Enter") {
                 event.preventDefault();
                 event.stopPropagation();
-                handleSave();
+                onSaveEdit(fieldName, candidate, draftValue);
               }
             }}
           />
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => onSaveEdit(fieldName, candidate, draftValue)}
             aria-label={`Save ${label}`}
-            className="inline-flex size-[24px] items-center justify-center rounded-[5px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]"
+            className={iconButtonClassName}
           >
-            <Check className="size-[12px]" />
+            <Check className="size-[11px]" />
+          </button>
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            aria-label={`Cancel ${label} edit`}
+            className={iconButtonClassName}
+          >
+            <X className="size-[11px]" />
           </button>
         </div>
       ) : (
         <div className={cn("flex items-center gap-[6px]", justifyClassName)}>
-          {isLink && !isEmpty && href ? (
-            <a href={href} className={displayValueClassName}>
-              {value}
-            </a>
-          ) : (
-            <span className={displayValueClassName}>{value}</span>
-          )}
+          <span className={cn("text-[13px] leading-[20px] text-[var(--fx-text)]", displayValueClassName)}>{isEmpty ? "N/A" : value}</span>
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={() => onStartEdit(fieldName, value)}
+              aria-label={`Edit ${label}`}
+              className={iconButtonClassName}
+            >
+              <PencilLine className="size-[11px]" />
+            </button>
+          ) : null}
         </div>
-      )}
-    </div>
-  );
-}
-
-function EditableContactRow({
-  label,
-  value,
-  editValue = value,
-  canEdit = false,
-  onSave,
-  inputType = "text",
-  inputMode,
-  placeholder = "N/A",
-  align = "left",
-  isLink = false,
-  href,
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [draftValue, setDraftValue] = useState(String(editValue ?? ""));
-  const inputRef = useRef(null);
-
-  useLayoutEffect(() => {
-    if (!isEditing) {
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      inputRef.current?.focus?.();
-      inputRef.current?.select?.();
-    });
-  }, [isEditing]);
-
-  function handleStartEdit() {
-    if (!canEdit) {
-      return;
-    }
-
-    setDraftValue(String(editValue ?? ""));
-    setIsEditing(true);
-  }
-
-  function handleCancel() {
-    setDraftValue(String(editValue ?? ""));
-    setIsEditing(false);
-  }
-
-  function handleSave() {
-    onSave?.(String(draftValue ?? "").trim());
-    setIsEditing(false);
-  }
-
-  const isEmpty = value == null || String(value).trim() === "" || String(value) === "N/A";
-  const isEditable = canEdit && Boolean(onSave);
-  const showEditor = isEditing && isEditable;
-  const rowJustifyClassName = align === "right" ? "justify-end text-right" : "justify-start text-left";
-  const displayValueClassName = cn(
-    "min-w-0 break-words text-[13px] leading-[20px] text-[var(--fx-text)]",
-    align === "right" ? "text-right" : "text-left",
-  );
-  const buttonClassName = "inline-flex size-[20px] shrink-0 items-center justify-center rounded-[5px] text-[var(--fx-text-muted)] transition-colors hover:bg-[var(--fx-surface-hover)] hover:text-[var(--fx-primary)]";
-
-  return (
-    <div
-      className={cn("flex min-h-[28px] items-center gap-[6px]", rowJustifyClassName)}
-      data-fx-escape-cancel-sheet={showEditor ? "true" : undefined}
-    >
-      {isEditable && !isEditing ? (
-        <button
-          type="button"
-          onClick={handleStartEdit}
-          aria-label={label ? `Edit ${label}` : "Edit"}
-          className={buttonClassName}
-        >
-          <PencilLine className="size-[12px]" />
-        </button>
-      ) : null}
-
-      {showEditor ? (
-        <>
-          <input
-            ref={inputRef}
-            type={inputType}
-            inputMode={inputMode}
-            value={draftValue}
-            onChange={(event) => setDraftValue(event.target.value)}
-            placeholder={placeholder}
-            className={cn(
-              "min-h-[28px] min-w-0 flex-1 rounded-[6px] border border-[var(--fx-border)] bg-[var(--fx-surface)] px-[8px] text-[13px] leading-[20px] text-[var(--fx-text)] outline-none placeholder:text-[var(--fx-text-disabled)] focus:border-[var(--fx-primary)]",
-              align === "right" ? "text-right" : "text-left",
-            )}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.preventDefault();
-                event.stopPropagation();
-                handleCancel();
-              }
-
-              if (event.key === "Enter") {
-                event.preventDefault();
-                event.stopPropagation();
-                handleSave();
-              }
-            }}
-          />
-          <button
-            type="button"
-            onClick={handleSave}
-            aria-label={label ? `Save ${label}` : "Save"}
-            className={buttonClassName}
-          >
-            <Check className="size-[12px]" />
-          </button>
-          <button
-            type="button"
-            onClick={handleCancel}
-            aria-label={label ? `Cancel ${label} edit` : "Cancel edit"}
-            className={buttonClassName}
-          >
-            <X className="size-[12px]" />
-          </button>
-        </>
-      ) : (
-        <>
-          {isLink && !isEmpty && href ? (
-            <a href={href} className={displayValueClassName}>
-              {value}
-            </a>
-          ) : (
-            <span className={displayValueClassName}>{value}</span>
-          )}
-        </>
       )}
     </div>
   );
@@ -468,13 +319,19 @@ export function FxCandidateCard({
   candidate,
   data,
   variant = "default",
-  layout = "vertical",
+  layout: _layout = "vertical",
   currency = "INR",
+  editableFields = [],
+  onEditField,
   onUpdateField,
-  editableFields = {},
   className,
 }) {
   const resolvedCandidate = candidate ?? data ?? {};
+  const editableFieldSet = useMemo(() => normalizeEditableFields(editableFields), [editableFields]);
+  const [editingField, setEditingField] = useState(null);
+  const [draftValue, setDraftValue] = useState("");
+  const [expandedHistory, setExpandedHistory] = useState(false);
+
   const displayName = formatText(resolvedCandidate.name);
   const displayEmail = formatText(getCandidateFieldValue(resolvedCandidate, ["email"]));
   const displayPhone = formatText(getCandidateFieldValue(resolvedCandidate, ["phone"]));
@@ -485,22 +342,6 @@ export function FxCandidateCard({
       resolvedCandidate.cvMatchScore,
   );
   const experience = formatExperienceValue(resolvedCandidate.experience);
-  const currentJobAppliedFor = formatText(
-    getCandidateFieldValue(resolvedCandidate, [
-      "currentJobAppliedFor",
-      "jobTitle",
-      "appliedJobTitle",
-      "role",
-      "position",
-    ]),
-  );
-  const cvAddedDate = formatDateValue(
-    resolvedCandidate.cvAddedDate ??
-      resolvedCandidate.resumeAddedAt ??
-      resolvedCandidate.addedAt ??
-      resolvedCandidate.createdAt ??
-      resolvedCandidate.updatedAt,
-  );
   const currentCTC = formatSalaryValue(
     resolvedCandidate.currentSalary ?? resolvedCandidate.currentCTC ?? resolvedCandidate.currentCtc,
     currency,
@@ -514,135 +355,143 @@ export function FxCandidateCard({
       resolvedCandidate.jobContext?.noticePeriod ??
       resolvedCandidate.jobContexts?.[resolvedCandidate.jobId]?.noticePeriod,
   );
+  const cvAddedDate = formatDateValue(
+    resolvedCandidate.cvAddedDate ??
+      resolvedCandidate.resumeAddedAt ??
+      resolvedCandidate.addedAt ??
+      resolvedCandidate.createdAt ??
+      resolvedCandidate.updatedAt,
+  );
   const historicJobsApplied = getHistoricJobsApplied(resolvedCandidate);
-  const canEditEmail = Boolean(onUpdateField) && editableFields.email !== false;
-  const canEditPhone = Boolean(onUpdateField) && editableFields.phone !== false;
-  const canEditCurrentCTC = Boolean(onUpdateField) && editableFields.currentCTC !== false;
-  const canEditExpectedCTC = Boolean(onUpdateField) && editableFields.expectedCTC !== false;
-  const demoHistoricJobsApplied =
-    historicJobsApplied.length > 0
-      ? historicJobsApplied
-      : variant !== "compact"
-        ? [
-            { key: "demo-historic-1", title: "Senior Product Analyst", status: "Rejected", dateLabel: "12 Mar 2026" },
-            { key: "demo-historic-2", title: "Talent Operations Specialist", status: "Interviewing", dateLabel: "03 Feb 2026" },
-          ]
-        : [];
-  const showHistoricJobs = variant !== "compact" && demoHistoricJobsApplied.length > 0;
-  const showDefaultFields = variant !== "compact";
+  const canEditField = (fieldName) =>
+    SUPPORTED_EDITABLE_FIELDS.has(fieldName) &&
+    editableFieldSet.has(fieldName) &&
+    (typeof onEditField === "function" || typeof onUpdateField === "function");
+
+  function startEdit(fieldName, value) {
+    if (!canEditField(fieldName)) {
+      return;
+    }
+
+    setDraftValue(String(value ?? ""));
+    setEditingField(fieldName);
+  }
+
+  function cancelEdit() {
+    setDraftValue("");
+    setEditingField(null);
+  }
+
+  function saveEdit(fieldName, candidateRecord, nextValue) {
+    const trimmedValue = String(nextValue ?? "").trim();
+
+    if (typeof onEditField === "function") {
+      onEditField(fieldName, candidateRecord, trimmedValue);
+    } else if (typeof onUpdateField === "function" && candidateRecord?.id) {
+      onUpdateField(candidateRecord.id, fieldName, trimmedValue);
+    }
+
+    cancelEdit();
+  }
 
   return (
-    <div className={cn("rounded-[8px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[16px]", className)}>
-      <div className="space-y-[12px]">
-        <section className="space-y-[12px]">
-          <div className="flex items-start justify-between gap-[12px]">
-            <div className="min-w-0 space-y-[2px]">
-              <p className="truncate text-[16px] leading-[24px] font-semibold text-[var(--fx-text)]">{displayName}</p>
-              <p className="text-[11px] leading-[16px] text-[var(--fx-text-muted)]">{experience}</p>
-            </div>
-            <div className="flex shrink-0 flex-col items-end gap-[2px]">
-              <FitScoreValue label="Fit Score" score={fitScore} />
+    <div className={cn("rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)] p-[14px]", className)}>
+      <div className="space-y-[10px]">
+        <div className="flex items-start justify-between gap-[12px]">
+          <div className="min-w-0 flex-1 space-y-[3px]">
+            <EditableInlineValue
+              fieldName="name"
+              label=""
+              value={displayName}
+              candidate={resolvedCandidate}
+              canEdit={canEditField("name")}
+              editingField={editingField}
+              draftValue={draftValue}
+              onStartEdit={startEdit}
+              onChangeDraft={setDraftValue}
+            onSaveEdit={saveEdit}
+            onCancelEdit={cancelEdit}
+            valueClassName="text-[15px] leading-[22px] font-medium"
+          />
+            <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">{experience}</p>
+          </div>
+          <ScoreBlock score={fitScore} />
+        </div>
+
+        <div className="grid gap-[8px] sm:grid-cols-[minmax(0,1fr)_170px]">
+          <EditableInlineValue
+            fieldName="email"
+            label="Email"
+            value={displayEmail}
+            candidate={resolvedCandidate}
+            canEdit={canEditField("email")}
+            editingField={editingField}
+            draftValue={draftValue}
+            onStartEdit={startEdit}
+            onChangeDraft={setDraftValue}
+            onSaveEdit={saveEdit}
+            onCancelEdit={cancelEdit}
+            valueClassName="whitespace-nowrap break-normal"
+          />
+          <EditableInlineValue
+            fieldName="phone"
+            label="Phone"
+            value={displayPhone}
+            candidate={resolvedCandidate}
+            canEdit={canEditField("phone")}
+            editingField={editingField}
+            draftValue={draftValue}
+            onStartEdit={startEdit}
+            onChangeDraft={setDraftValue}
+            onSaveEdit={saveEdit}
+            onCancelEdit={cancelEdit}
+            align="right"
+            valueClassName="whitespace-nowrap break-normal"
+          />
+        </div>
+
+        {variant !== "compact" ? (
+          <div className="space-y-[8px]">
+            <div className="grid gap-[8px] sm:grid-cols-2">
+              <LabelValue label="Current CTC" value={currentCTC} />
+              <LabelValue label="Expected CTC" value={expectedCTC} align="right" />
+              <LabelValue label="Notice Period" value={noticePeriod} />
+              <LabelValue label="CV Added Date" value={cvAddedDate} align="right" />
             </div>
           </div>
+        ) : null}
 
-          <div className="grid gap-[8px] sm:grid-cols-2">
-            <EditableContactRow
-              label="Email"
-              value={displayEmail}
-              editValue={resolvedCandidate.email ?? ""}
-              canEdit={canEditEmail}
-              onSave={(nextValue) => onUpdateField?.("email", nextValue)}
-              isLink={!canEditEmail}
-              href={`mailto:${resolvedCandidate.email}`}
-            />
-            <EditableContactRow
-              label="Phone"
-              value={displayPhone}
-              editValue={resolvedCandidate.phone ?? ""}
-              canEdit={canEditPhone}
-              onSave={(nextValue) => onUpdateField?.("phone", nextValue)}
-              isLink={!canEditPhone}
-              href={`tel:${resolvedCandidate.phone}`}
-              align="right"
-            />
-          </div>
-        </section>
-
-        {showDefaultFields ? (
-          <section className="space-y-[10px]">
-            <div className="grid gap-[12px] lg:grid-cols-[minmax(0,1.55fr)_minmax(220px,0.95fr)]">
-              <div className="grid gap-[8px] sm:grid-cols-3">
-                <div className="sm:col-span-3">
-                  <FieldRow label="Current Job Applied For" value={currentJobAppliedFor} />
-                </div>
-                <EditableFieldRow
-                  label="Current CTC"
-                  value={currentCTC}
-                  editValue={resolvedCandidate.currentSalary ?? resolvedCandidate.currentCTC ?? resolvedCandidate.currentCtc ?? ""}
-                  canEdit={canEditCurrentCTC}
-                  onSave={(nextValue) => onUpdateField?.("currentSalary", nextValue)}
-                  inputType="text"
-                  inputMode="numeric"
-                />
-                <EditableFieldRow
-                  label="Expected CTC"
-                  value={expectedCTC}
-                  editValue={resolvedCandidate.expectedSalary ?? resolvedCandidate.expectedCTC ?? resolvedCandidate.expectedCtc ?? ""}
-                  canEdit={canEditExpectedCTC}
-                  onSave={(nextValue) => onUpdateField?.("expectedSalary", nextValue)}
-                  inputType="text"
-                  inputMode="numeric"
-                  align="right"
-                />
-              </div>
-
-              <div className="grid gap-[8px] text-right">
-                <FieldRow label="Notice Period" value={noticePeriod} />
-                <FieldRow label="CV Added Date" value={cvAddedDate} />
+        {variant === "expanded" && historicJobsApplied.length ? (
+          <details className="group rounded-[6px] border border-[color:color-mix(in_srgb,var(--fx-border)_68%,transparent)] bg-[var(--fx-bg-soft)]">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-[10px] px-[12px] py-[10px] outline-none [&::-webkit-details-marker]:hidden">
+              <span className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
+                Historic Jobs Applied
+                <span className="ml-[6px] text-[var(--fx-text-muted)]">({historicJobsApplied.length})</span>
+              </span>
+              <ChevronDown className="size-[14px] shrink-0 text-[var(--fx-text-muted)] transition-transform duration-200 group-open:rotate-180" />
+            </summary>
+            <div className="border-t border-[color:color-mix(in_srgb,var(--fx-border)_56%,transparent)] px-[12px] py-[12px]">
+              <div className="space-y-[8px]">
+                {historicJobsApplied.map((item) => (
+                  <div
+                    key={item.key}
+                    className="rounded-[6px] border border-[color:color-mix(in_srgb,var(--fx-border)_68%,transparent)] bg-[var(--fx-surface)] px-[10px] py-[8px]"
+                  >
+                    <div className="flex items-start justify-between gap-[12px]">
+                      <div className="min-w-0 space-y-[2px]">
+                        <p className="truncate text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{item.title}</p>
+                        <p className="text-[11px] leading-[16px] text-[var(--fx-text-muted)]">{item.dateLabel}</p>
+                      </div>
+                      <p className="shrink-0 text-[12px] leading-[18px] text-[var(--fx-text-muted)]">{item.status || "N/A"}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </section>
+          </details>
         ) : null}
       </div>
-
-      {showHistoricJobs ? (
-        <details className="group mt-[16px] rounded-[6px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-bg-soft)]">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-[12px] px-[12px] py-[10px] outline-none [&::-webkit-details-marker]:hidden">
-            <span className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">
-              Historic Jobs Applied
-              <span className="ml-[6px] text-[var(--fx-text-muted)]">({demoHistoricJobsApplied.length})</span>
-            </span>
-            <ChevronDown className="size-[14px] shrink-0 text-[var(--fx-text-muted)] transition-transform duration-200 group-open:rotate-180" />
-          </summary>
-          <div className="border-t border-[color:color-mix(in_srgb,var(--fx-border)_56%,transparent)] px-[12px] py-[12px]">
-            <div className="space-y-[8px]">
-              {demoHistoricJobsApplied.map((item) => (
-                <div key={item.key} className="rounded-[8px] border border-[color:color-mix(in_srgb,var(--fx-border)_72%,transparent)] bg-[var(--fx-surface)] px-[10px] py-[8px]">
-                  <div className="flex items-start justify-between gap-[12px]">
-                    <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text)]">{item.title}</p>
-                    {item.status ? (
-                      <p className="text-[13px] leading-[20px] font-medium text-[var(--fx-text-muted)]">{item.status}</p>
-                    ) : null}
-                  </div>
-                  <div className="mt-[2px] flex items-center justify-between gap-[12px]">
-                    {item.dateLabel ? (
-                      <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">{item.dateLabel}</p>
-                    ) : (
-                      <span />
-                    )}
-                    {item.dateLabel ? (
-                      <p className="text-[12px] leading-[18px] text-[var(--fx-text-muted)]">As of {item.dateLabel}</p>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </details>
-      ) : null}
     </div>
   );
 }
-
-export default FxCandidateCard;
 /* - - - - - - - - - - - - - - - - */

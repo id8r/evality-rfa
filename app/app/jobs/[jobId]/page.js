@@ -3858,16 +3858,11 @@ function CandidateWorkspaceSheet({
                   {!showResumePane ? candidateProgressContent : null}
                   <FxCandidateCard
                     candidate={candidate}
-                    variant="compact"
+                    variant="expanded"
                     layout="horizontal"
                     currency={salaryCurrency}
                     onUpdateField={onUpdateField}
-                    editableFields={{
-                      email: true,
-                      phone: true,
-                      currentCTC: true,
-                      expectedCTC: true,
-                    }}
+                    editableFields={["name", "email", "phone"]}
                   />
 
                   <div className="flex min-h-0 flex-1 flex-col gap-[12px]">
@@ -5537,6 +5532,14 @@ export default function JobDetailsPage({ params }) {
   const handleUpdateCandidateField = useCallback(
     (candidateId, field, value) => {
       if (!candidateId) {
+        return;
+      }
+
+      if (field === "name") {
+        updateWorkspaceCandidate(candidateId, (current) => ({
+          ...current,
+          name: String(value ?? "").trim() || current.name,
+        }));
         return;
       }
 
