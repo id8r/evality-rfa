@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import {
   BriefcaseBusiness,
   Building2,
@@ -441,7 +441,7 @@ function OpeningCard({ job, onView }) {
 }
 /* - - - - - - - - - - - - - - - - */
 
-export default function CareerPage() {
+function CareerPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [jobs, setJobs] = useState([]);
@@ -673,6 +673,23 @@ export default function CareerPage() {
 
       <ApplyDialog job={selectedJob} open={applyOpen} onOpenChange={setApplyOpen} />
     </>
+  );
+}
+/* - - - - - - - - - - - - - - - - */
+
+export default function CareerPage() {
+  return (
+    <Suspense
+      fallback={(
+        <main className="min-h-screen bg-[linear-gradient(180deg,var(--fx-bg-soft)_0%,color-mix(in_srgb,var(--fx-primary)_3%,white_97%)_100%)] px-[20px] py-[28px] text-[var(--fx-text)]">
+          <div className="mx-auto max-w-[1280px] rounded-[20px] border border-[var(--fx-border)] bg-[var(--fx-surface)] p-[24px]">
+            <p className="text-[16px] leading-[24px] font-medium text-[var(--fx-text)]">Loading role…</p>
+          </div>
+        </main>
+      )}
+    >
+      <CareerPageContent />
+    </Suspense>
   );
 }
 /* - - - - - - - - - - - - - - - - */
