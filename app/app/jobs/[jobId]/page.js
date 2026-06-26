@@ -7822,3 +7822,4 @@ export default function JobDetailsPage({ params }) {
     </TooltipProvider>
   );
 }
+/* - - - - - - - - - - - - - - - - */
